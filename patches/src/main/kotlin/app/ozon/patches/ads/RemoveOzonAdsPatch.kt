@@ -293,7 +293,7 @@ val removeOzonAdsPatch = bytecodePatch(
                                     move-result v1
                                     if-eqz v1, :ozon_common_cell_v2_continue
                                     :ozon_common_cell_v2_hide
-                                    iget-object v0, p0, Landroidx/recyclerview/widget/RecyclerView${'$'}ViewHolder;->itemView:Landroid/view/View;
+                                    iget-object v0, p0, $classType->itemView:Landroid/view/View;
                                     invoke-virtual {v0}, Landroid/view/View;->getLayoutParams()Landroid/view/ViewGroup${'$'}LayoutParams;
                                     move-result-object v1
                                     if-eqz v1, :ozon_common_cell_v2_hidden_return
@@ -365,7 +365,7 @@ val removeOzonAdsPatch = bytecodePatch(
                                     invoke-virtual {v0, v1}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
                                     move-result v0
                                     if-eqz v0, :ozon_cell_v2_continue
-                                    iget-object v0, p0, Landroidx/recyclerview/widget/RecyclerView${'$'}ViewHolder;->itemView:Landroid/view/View;
+                                    iget-object v0, p0, $classType->itemView:Landroid/view/View;
                                     invoke-virtual {v0}, Landroid/view/View;->getLayoutParams()Landroid/view/ViewGroup${'$'}LayoutParams;
                                     move-result-object v1
                                     if-eqz v1, :ozon_cell_v2_hidden_return
@@ -457,7 +457,7 @@ val removeOzonAdsPatch = bytecodePatch(
                                 method.addInstructions(
                                     0,
                                     """
-                                        iget-object p0, p0, Landroidx/recyclerview/widget/RecyclerView${'$'}ViewHolder;->itemView:Landroid/view/View;
+                                        iget-object p0, p0, $classType->itemView:Landroid/view/View;
                                         invoke-virtual {p0}, Landroid/view/View;->getLayoutParams()Landroid/view/ViewGroup${'$'}LayoutParams;
                                         move-result-object p1
                                         if-eqz p1, :ozon_hidden_return
@@ -503,7 +503,7 @@ val removeOzonAdsPatch = bytecodePatch(
                                 method.addInstructions(
                                     0,
                                     """
-                                        iget-object p0, p0, Landroidx/recyclerview/widget/RecyclerView${'$'}ViewHolder;->itemView:Landroid/view/View;
+                                        iget-object p0, p0, $classType->itemView:Landroid/view/View;
                                         invoke-virtual {p0}, Landroid/view/View;->getLayoutParams()Landroid/view/ViewGroup${'$'}LayoutParams;
                                         move-result-object p1
                                         if-eqz p1, :ozon_hidden_return
@@ -564,7 +564,7 @@ val removeOzonAdsPatch = bytecodePatch(
                                 method.addInstructions(
                                     0,
                                     """
-                                        iget-object p0, p0, Landroidx/recyclerview/widget/RecyclerView${'$'}ViewHolder;->itemView:Landroid/view/View;
+                                        iget-object p0, p0, $classType->itemView:Landroid/view/View;
                                         invoke-virtual {p0}, Landroid/view/View;->getLayoutParams()Landroid/view/ViewGroup${'$'}LayoutParams;
                                         move-result-object p1
                                         if-eqz p1, :ozon_hidden_return
@@ -604,7 +604,7 @@ val removeOzonAdsPatch = bytecodePatch(
                                 method.addInstructions(
                                     0,
                                     """
-                                        iget-object p0, p0, Landroidx/recyclerview/widget/RecyclerView${'$'}ViewHolder;->itemView:Landroid/view/View;
+                                        iget-object p0, p0, $classType->itemView:Landroid/view/View;
                                         invoke-virtual {p0}, Landroid/view/View;->getLayoutParams()Landroid/view/ViewGroup${'$'}LayoutParams;
                                         move-result-object p1
                                         if-eqz p1, :ozon_hidden_return
@@ -639,7 +639,7 @@ val removeOzonAdsPatch = bytecodePatch(
                                 method.addInstructions(
                                     0,
                                     """
-                                        iget-object p0, p0, Landroidx/recyclerview/widget/RecyclerView${'$'}ViewHolder;->itemView:Landroid/view/View;
+                                        iget-object p0, p0, $classType->itemView:Landroid/view/View;
                                         invoke-virtual {p0}, Landroid/view/View;->getLayoutParams()Landroid/view/ViewGroup${'$'}LayoutParams;
                                         move-result-object p1
                                         if-eqz p1, :ozon_hidden_return
@@ -708,7 +708,7 @@ val removeOzonAdsPatch = bytecodePatch(
                                 method.addInstructions(
                                     0,
                                     """
-                                        iget-object p0, p0, Landroidx/recyclerview/widget/RecyclerView${'$'}ViewHolder;->itemView:Landroid/view/View;
+                                        iget-object p0, p0, $classType->itemView:Landroid/view/View;
                                         invoke-virtual {p0}, Landroid/view/View;->getLayoutParams()Landroid/view/ViewGroup${'$'}LayoutParams;
                                         move-result-object p1
                                         if-eqz p1, :ozon_hidden_return
@@ -849,7 +849,7 @@ val removeOzonAdsPatch = bytecodePatch(
                                 method.addInstructions(
                                     0,
                                     """
-                                        iget-object p0, p0, Landroidx/recyclerview/widget/RecyclerView${'$'}ViewHolder;->itemView:Landroid/view/View;
+                                        iget-object p0, p0, $classType->itemView:Landroid/view/View;
                                         invoke-virtual {p0}, Landroid/view/View;->getLayoutParams()Landroid/view/ViewGroup${'$'}LayoutParams;
                                         move-result-object p1
                                         if-eqz p1, :ozon_hidden_return
@@ -900,7 +900,7 @@ val removeOzonAdsPatch = bytecodePatch(
                                 method.addInstructions(
                                     0,
                                     """
-                                        iget-object p0, p0, Landroidx/recyclerview/widget/RecyclerView${'$'}ViewHolder;->itemView:Landroid/view/View;
+                                        iget-object p0, p0, $classType->itemView:Landroid/view/View;
                                         invoke-virtual {p0}, Landroid/view/View;->getLayoutParams()Landroid/view/ViewGroup${'$'}LayoutParams;
                                         move-result-object p1
                                         if-eqz p1, :ozon_hidden_return
