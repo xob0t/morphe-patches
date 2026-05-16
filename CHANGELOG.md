@@ -1,3 +1,10 @@
+## [1.3.2-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.3.1...v1.3.2-dev.1) (2026-05-16)
+
+
+### Bug Fixes
+
+* **ozon:** avoid hardcoded RecyclerView ViewHolder ([9d66771](https://github.com/xob0t/morphe-patches/commit/9d66771c8cca54dc987f326158f3d24a01bc8cc8))
+
 ## [1.3.1](https://github.com/xob0t/morphe-patches/compare/v1.3.0...v1.3.1) (2026-05-14)
 
 
