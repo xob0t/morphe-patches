@@ -2,8 +2,10 @@ package app.avito.patches.ads
 
 import app.avito.patches.shared.Constants.COMPATIBILITY_AVITO
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
+import com.android.tools.smali.dexlib2.AccessFlags
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.FileNotFoundException
@@ -27,6 +29,19 @@ private val adProperties = setOf(
 
 private val adMetaDataDefaults = mapOf(
     "google_analytics_adid_collection_enabled" to "false",
+)
+
+private val carouselGalleryConverterParameterTypes = listOf(
+    "Lcom/avito/android/remote/model/NativeVideo;",
+    "Lcom/avito/android/remote/model/Video;",
+    "Lcom/avito/android/remote/model/autotekateaser/AutotekaTeaserResult;",
+    "Lcom/avito/android/remote/model/model_card/GalleryTeaser;",
+    "Ljava/util/List;",
+    "Ljava/util/List;",
+    "Ljava/util/List;",
+    "Ljava/util/List;",
+    "Ljava/util/Map;",
+    "Z",
 )
 
 private val hiddenRewardLayouts = listOf(
@@ -138,6 +153,30 @@ val removeAdsPatch = bytecodePatch(
     dependsOn(removeAdResourcesPatch)
 
     execute {
+        var galleryTeaserConvertersPatched = 0
+        classDefForEach { classDef ->
+            val converterMethod = classDef.methods.singleOrNull { method ->
+                AccessFlags.STATIC.isSet(method.accessFlags) &&
+                    method.returnType == "Ljava/util/ArrayList;" &&
+                    method.parameterTypes.map { it.toString() } == carouselGalleryConverterParameterTypes &&
+                    method.implementation != null
+            } ?: return@classDefForEach
+
+            mutableClassDefBy(classDef).methods
+                .single { method -> method.name == converterMethod.name && method.parameterTypes == converterMethod.parameterTypes }
+                .addInstructions(
+                    0,
+                    """
+                        const/4 v0, 0x0
+                        move-object/from16 p7, v0
+                    """,
+                )
+            galleryTeaserConvertersPatched++
+        }
+        if (galleryTeaserConvertersPatched == 0) {
+            throw PatchException("Carousel gallery Beduin teaser converter was not found")
+        }
+
         val (rxErrorFactoryName, commercialBannerLoaderMethod) = runCatching {
             "N" to CommercialBannerLoaderErrorNFingerprint.method
         }.getOrElse {
@@ -155,5 +194,7 @@ val removeAdsPatch = bytecodePatch(
                 return-object v0
             """,
         )
+
+        println("Remove ads: disabled $galleryTeaserConvertersPatched gallery Beduin teaser converter(s).")
     }
 }
