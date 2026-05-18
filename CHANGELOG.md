@@ -1,3 +1,10 @@
+## [1.3.3](https://github.com/xob0t/morphe-patches/compare/v1.3.2...v1.3.3) (2026-05-18)
+
+
+### Bug Fixes
+
+* **privacy:** allow universal patches to no-op ([18e0d35](https://github.com/xob0t/morphe-patches/commit/18e0d352049b715481d4bf840ff94a6ac7ba9def))
+
 ## [1.3.2](https://github.com/xob0t/morphe-patches/compare/v1.3.1...v1.3.2) (2026-05-18)
 
 
