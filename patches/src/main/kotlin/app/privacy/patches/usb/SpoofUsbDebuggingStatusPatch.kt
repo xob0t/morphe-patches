@@ -2,7 +2,6 @@ package app.privacy.patches.usb
 
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
-import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
@@ -215,7 +214,8 @@ val spoofUsbDebuggingStatusPatch = bytecodePatch(
             patchedSettingsStringReads == 0 &&
             patchedDebuggerStateReads == 0
         ) {
-            throw PatchException("No USB debugging status call sites were found")
+            println("Spoof USB debugging status: no USB debugging status call sites were found.")
+            return@execute
         }
 
         println(

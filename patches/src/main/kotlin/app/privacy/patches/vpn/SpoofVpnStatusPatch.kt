@@ -2,7 +2,6 @@ package app.privacy.patches.vpn
 
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
-import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
@@ -349,7 +348,8 @@ val spoofVpnStatusPatch = bytecodePatch(
             patchedRoutes == 0 &&
             patchedNetworkInterfaceEnumerations == 0
         ) {
-            throw PatchException("No local VPN status call sites were found")
+            println("Spoof VPN status: no local VPN status call sites were found.")
+            return@execute
         }
 
         println(

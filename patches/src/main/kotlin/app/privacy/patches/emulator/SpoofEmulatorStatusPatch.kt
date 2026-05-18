@@ -2,7 +2,6 @@ package app.privacy.patches.emulator
 
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
-import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
@@ -341,7 +340,8 @@ val spoofEmulatorStatusPatch = bytecodePatch(
             patchedSystemProperties == 0 &&
             patchedPackageQueries == 0
         ) {
-            throw PatchException("No emulator status call sites were found")
+            println("Spoof emulator status: no emulator status call sites were found.")
+            return@execute
         }
 
         println(
