@@ -1,9 +1,10 @@
-## [1.3.2-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.3.2-dev.1...v1.3.2-dev.2) (2026-05-18)
+## [1.3.2](https://github.com/xob0t/morphe-patches/compare/v1.3.1...v1.3.2) (2026-05-18)
 
 
 ### Bug Fixes
 
 * **avito:** remove gallery beduin ad teasers ([191b36d](https://github.com/xob0t/morphe-patches/commit/191b36d7d6b0016e006d3228c542510c023a6959))
+* **ozon:** avoid hardcoded RecyclerView ViewHolder ([9d66771](https://github.com/xob0t/morphe-patches/commit/9d66771c8cca54dc987f326158f3d24a01bc8cc8))
 
 ## [1.3.2-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.3.1...v1.3.2-dev.1) (2026-05-16)
 
