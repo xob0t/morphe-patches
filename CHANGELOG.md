@@ -1,3 +1,10 @@
+## [1.3.4](https://github.com/xob0t/morphe-patches/compare/v1.3.3...v1.3.4) (2026-05-20)
+
+
+### Bug Fixes
+
+* **avito:** remove search hero ad ([93eba2b](https://github.com/xob0t/morphe-patches/commit/93eba2b83bfeb2a1b992d46cb738039d74909f72))
+
 ## [1.3.3](https://github.com/xob0t/morphe-patches/compare/v1.3.2...v1.3.3) (2026-05-18)
 
 
