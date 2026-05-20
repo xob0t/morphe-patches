@@ -60,6 +60,12 @@ private val hiddenAdLayouts = listOf(
     "res/layout/my_target_list_ad.xml",
 )
 
+private val hiddenHomeBannerLayouts = listOf(
+    "res/layout/hero_banner.xml",
+    "res/layout/hero_banner_toolbar.xml",
+    "res/layout/main_promo_banner_toolbar.xml",
+)
+
 private fun Element.childrenNamed(name: String): List<Element> {
     val nodes = childNodes
     return buildList {
@@ -70,8 +76,33 @@ private fun Element.childrenNamed(name: String): List<Element> {
     }
 }
 
+private fun Element.childrenNamed(vararg names: String): List<Element> {
+    val acceptedNames = names.toSet()
+    val nodes = childNodes
+    return buildList {
+        for (i in 0 until nodes.length) {
+            val node = nodes.item(i)
+            if (node is Element && node.nodeName in acceptedNames) add(node)
+        }
+    }
+}
+
 private fun Element.removeChildren(nodes: List<Node>) {
     nodes.forEach(::removeChild)
+}
+
+private fun Element.hideView() {
+    setAttribute("android:visibility", "gone")
+    setAttribute("android:layout_width", "0dp")
+    setAttribute("android:layout_height", "0dp")
+    setAttribute("android:layout_margin", "0dp")
+    setAttribute("android:layout_marginTop", "0dp")
+    setAttribute("android:layout_marginBottom", "0dp")
+    setAttribute("android:layout_marginStart", "0dp")
+    setAttribute("android:layout_marginEnd", "0dp")
+    setAttribute("android:clickable", "false")
+    setAttribute("android:focusable", "false")
+    setAttribute("android:importantForAccessibility", "no")
 }
 
 private fun Element.getOrCreateApplicationMetaData(name: String): Element {
@@ -124,14 +155,7 @@ private val removeAdResourcesPatch = resourcePatch {
         (hiddenRewardLayouts + hiddenAdLayouts).forEach { path ->
             try {
                 document(path).use { document ->
-                    document.documentElement.apply {
-                        setAttribute("android:visibility", "gone")
-                        setAttribute("android:layout_width", "0dp")
-                        setAttribute("android:layout_height", "0dp")
-                        setAttribute("android:clickable", "false")
-                        setAttribute("android:focusable", "false")
-                        setAttribute("android:importantForAccessibility", "no")
-                    }
+                    document.documentElement.hideView()
                 }
                 hiddenLayouts++
             } catch (_: FileNotFoundException) {
@@ -139,7 +163,57 @@ private val removeAdResourcesPatch = resourcePatch {
             }
         }
 
-        println("Remove ads: hid $hiddenLayouts ad/reward layouts, skipped $missingLayouts missing layouts.")
+        var hiddenHomeBannerLayoutsCount = 0
+
+        hiddenHomeBannerLayouts.forEach { path ->
+            try {
+                document(path).use { document ->
+                    val root = document.documentElement
+                    if (root.nodeName == "merge") {
+                        root.childrenNamed(
+                            "androidx.constraintlayout.widget.ConstraintLayout",
+                            "com.google.android.material.appbar.CollapsingToolbarLayout",
+                        ).forEach(Element::hideView)
+                    } else {
+                        root.hideView()
+                    }
+                }
+                hiddenHomeBannerLayoutsCount++
+            } catch (_: FileNotFoundException) {
+                missingLayouts++
+            }
+        }
+
+        try {
+            document("res/layout/bx_app_bar.xml").use { document ->
+                document.documentElement.apply {
+                    setAttribute("android:layout_width", "fill_parent")
+                    setAttribute("android:layout_height", "104dp")
+                    setAttribute("android:clickable", "false")
+                    setAttribute("android:focusable", "false")
+                    setAttribute("android:importantForAccessibility", "no")
+                }
+            }
+            hiddenHomeBannerLayoutsCount++
+        } catch (_: FileNotFoundException) {
+            missingLayouts++
+        }
+
+        try {
+            document("res/layout/bx_content_fragment.xml").use { document ->
+                document.documentElement.childrenNamed("FrameLayout")
+                    .filter { it.getAttribute("android:id") == "@id/hero_banner_shadow" }
+                    .forEach(Element::hideView)
+            }
+            hiddenHomeBannerLayoutsCount++
+        } catch (_: FileNotFoundException) {
+            missingLayouts++
+        }
+
+        println(
+            "Remove ads: hid $hiddenLayouts ad/reward layouts and " +
+                "$hiddenHomeBannerLayoutsCount home banner layouts, skipped $missingLayouts missing layouts.",
+        )
     }
 }
 
