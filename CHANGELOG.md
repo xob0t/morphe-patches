@@ -1,4 +1,4 @@
-## [1.3.4-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.3.3...v1.3.4-dev.1) (2026-05-20)
+## [1.3.4](https://github.com/xob0t/morphe-patches/compare/v1.3.3...v1.3.4) (2026-05-20)
 
 
 ### Bug Fixes
