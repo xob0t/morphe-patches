@@ -34,3 +34,19 @@ object CommercialBannerLoaderErrorMFingerprint : Fingerprint(
         isCommercialBannerLoader(classDef.type)
     },
 )
+
+object HeroBannerWidgetConverterFingerprint : Fingerprint(
+    definingClass = "Lcom/avito/android/hero_banner/widget/e;",
+    returnType = "Lcom/avito/android/hero_banner/widget/HeroBannerWidgetItem;",
+    parameters = listOf(
+        "Lcom/avito/android/remote/model/serp/HeroBannerWidget;",
+    ),
+    custom = { method, _ -> method.name == "a" },
+)
+
+object HeroBannerToolbarConfigFingerprint : Fingerprint(
+    definingClass = "Lcom/avito/android/remote/model/serp/HeroBannerWidget;",
+    returnType = "Lcom/avito/android/remote/model/ToolbarConfig;",
+    parameters = emptyList(),
+    custom = { method, _ -> method.name == "getToolbarConfig" },
+)

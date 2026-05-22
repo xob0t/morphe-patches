@@ -164,7 +164,6 @@ private val removeAdResourcesPatch = resourcePatch {
         }
 
         var hiddenHomeBannerLayoutsCount = 0
-
         hiddenHomeBannerLayouts.forEach { path ->
             try {
                 document(path).use { document ->
@@ -182,21 +181,6 @@ private val removeAdResourcesPatch = resourcePatch {
             } catch (_: FileNotFoundException) {
                 missingLayouts++
             }
-        }
-
-        try {
-            document("res/layout/bx_app_bar.xml").use { document ->
-                document.documentElement.apply {
-                    setAttribute("android:layout_width", "fill_parent")
-                    setAttribute("android:layout_height", "104dp")
-                    setAttribute("android:clickable", "false")
-                    setAttribute("android:focusable", "false")
-                    setAttribute("android:importantForAccessibility", "no")
-                }
-            }
-            hiddenHomeBannerLayoutsCount++
-        } catch (_: FileNotFoundException) {
-            missingLayouts++
         }
 
         try {
@@ -227,6 +211,22 @@ val removeAdsPatch = bytecodePatch(
     dependsOn(removeAdResourcesPatch)
 
     execute {
+        HeroBannerWidgetConverterFingerprint.method.addInstructions(
+            0,
+            """
+                const/4 v0, 0x0
+                return-object v0
+            """,
+        )
+
+        HeroBannerToolbarConfigFingerprint.method.addInstructions(
+            0,
+            """
+                const/4 p0, 0x0
+                return-object p0
+            """,
+        )
+
         var galleryTeaserConvertersPatched = 0
         classDefForEach { classDef ->
             val converterMethod = classDef.methods.singleOrNull { method ->
@@ -269,6 +269,6 @@ val removeAdsPatch = bytecodePatch(
             """,
         )
 
-        println("Remove ads: disabled $galleryTeaserConvertersPatched gallery Beduin teaser converter(s).")
+        println("Remove ads: disabled home hero banner, hero banner toolbar config, and $galleryTeaserConvertersPatched gallery Beduin teaser converter(s).")
     }
 }
