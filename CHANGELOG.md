@@ -1,3 +1,10 @@
+## [1.3.5](https://github.com/xob0t/morphe-patches/compare/v1.3.4...v1.3.5) (2026-05-22)
+
+
+### Bug Fixes
+
+* **avito:** remove server hero banner ([0388cde](https://github.com/xob0t/morphe-patches/commit/0388cde6b00f81a5e199571e31b45732162e80d9))
+
 ## [1.3.4](https://github.com/xob0t/morphe-patches/compare/v1.3.3...v1.3.4) (2026-05-20)
 
 
