@@ -1,3 +1,10 @@
+## [1.3.6-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.3.5...v1.3.6-dev.1) (2026-05-31)
+
+
+### Bug Fixes
+
+* **avito:** make banner loader patch version agnostic ([fcd00a9](https://github.com/xob0t/morphe-patches/commit/fcd00a9087f05fc07559da48d02aa30a43e0aed3))
+
 ## [1.3.5](https://github.com/xob0t/morphe-patches/compare/v1.3.4...v1.3.5) (2026-05-22)
 
 
