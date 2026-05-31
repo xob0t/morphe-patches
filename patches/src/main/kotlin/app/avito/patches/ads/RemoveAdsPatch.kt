@@ -2,10 +2,15 @@ package app.avito.patches.ads
 
 import app.avito.patches.shared.Constants.COMPATIBILITY_AVITO
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
+import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.AccessFlags
+import com.android.tools.smali.dexlib2.iface.instruction.Instruction
+import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
+import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.FileNotFoundException
@@ -65,6 +70,14 @@ private val hiddenHomeBannerLayouts = listOf(
     "res/layout/hero_banner_toolbar.xml",
     "res/layout/main_promo_banner_toolbar.xml",
 )
+
+private fun Instruction.methodReferenceOrNull(): MethodReference? =
+    (this as? ReferenceInstruction)?.reference as? MethodReference
+
+private fun MethodReference.isRxThrowableObservableFactory() =
+    definingClass == "Lio/reactivex/rxjava3/core/z;" &&
+        parameterTypes.map { it.toString() } == listOf("Ljava/lang/Throwable;") &&
+        returnType.startsWith("Lio/reactivex/rxjava3/")
 
 private fun Element.childrenNamed(name: String): List<Element> {
     val nodes = childNodes
@@ -251,11 +264,17 @@ val removeAdsPatch = bytecodePatch(
             throw PatchException("Carousel gallery Beduin teaser converter was not found")
         }
 
-        val (rxErrorFactoryName, commercialBannerLoaderMethod) = runCatching {
-            "N" to CommercialBannerLoaderErrorNFingerprint.method
-        }.getOrElse {
-            "M" to CommercialBannerLoaderErrorMFingerprint.method
-        }
+        val commercialBannerLoaderMethod = CommercialBannerLoaderErrorFingerprint.method
+        val rxErrorFactory = commercialBannerLoaderMethod.instructionsOrNull
+            ?.firstNotNullOfOrNull { instruction ->
+                if (instruction.opcode !in setOf(Opcode.INVOKE_STATIC, Opcode.INVOKE_STATIC_RANGE)) {
+                    return@firstNotNullOfOrNull null
+                }
+
+                instruction.methodReferenceOrNull()
+                    ?.takeIf { it.isRxThrowableObservableFactory() }
+            }
+            ?: throw PatchException("Commercial banner loader RxJava error factory was not found")
 
         commercialBannerLoaderMethod.addInstructions(
             0,
@@ -263,7 +282,7 @@ val removeAdsPatch = bytecodePatch(
                 new-instance v0, Ljava/lang/RuntimeException;
                 const-string v1, "Avito ads disabled"
                 invoke-direct {v0, v1}, Ljava/lang/RuntimeException;-><init>(Ljava/lang/String;)V
-                invoke-static {v0}, Lio/reactivex/rxjava3/core/z;->$rxErrorFactoryName(Ljava/lang/Throwable;)Lio/reactivex/rxjava3/internal/operators/observable/V;
+                invoke-static {v0}, ${rxErrorFactory.definingClass}->${rxErrorFactory.name}(Ljava/lang/Throwable;)${rxErrorFactory.returnType}
                 move-result-object v0
                 return-object v0
             """,
