@@ -7,20 +7,41 @@ on:
   workflow_dispatch:
 
 env:
+  SOURCE_BRANCH: ${{ github.head_ref || github.ref_name }}
   MESSAGE: Merge branch `${{ github.head_ref || github.ref_name }}` to `main`
 
 jobs:
   pull-request:
     name: Open pull request
+    permissions:
+      contents: read
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
       - name: Open pull request
-        uses: repo-sync/pull-request@v2
-        with:
-          destination_branch: 'main'
-          pr_title: 'chore: ${{ env.MESSAGE }}'
-          pr_body: 'This pull request will ${{ env.MESSAGE }}.'
-          pr_draft: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$SOURCE_BRANCH" = "main" ]; then
+            echo "Skipping pull request creation from main to main."
+            exit 0
+          fi
+
+          existing_pr="$(gh pr list \
+            --base main \
+            --head "$SOURCE_BRANCH" \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')"
+
+          if [ -n "$existing_pr" ]; then
+            echo "Pull request #$existing_pr already exists."
+            exit 0
+          fi
+
+          gh pr create \
+            --base main \
+            --head "$SOURCE_BRANCH" \
+            --title "chore: $MESSAGE" \
+            --body "This pull request will $MESSAGE." \
+            --draft
