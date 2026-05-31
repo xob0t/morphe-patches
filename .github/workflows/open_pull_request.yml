@@ -28,6 +28,7 @@ jobs:
           fi
 
           existing_pr="$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
             --base main \
             --head "$SOURCE_BRANCH" \
             --state open \
@@ -40,6 +41,7 @@ jobs:
           fi
 
           gh pr create \
+            --repo "$GITHUB_REPOSITORY" \
             --base main \
             --head "$SOURCE_BRANCH" \
             --title "chore: $MESSAGE" \
