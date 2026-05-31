@@ -27,6 +27,15 @@ jobs:
             exit 0
           fi
 
+          comparison_status="$(gh api \
+            "repos/$GITHUB_REPOSITORY/compare/main...$SOURCE_BRANCH" \
+            --jq '.status')"
+
+          if [ "$comparison_status" = "identical" ] || [ "$comparison_status" = "behind" ]; then
+            echo "Skipping pull request creation because $SOURCE_BRANCH is $comparison_status main."
+            exit 0
+          fi
+
           existing_pr="$(gh pr list \
             --repo "$GITHUB_REPOSITORY" \
             --base main \
