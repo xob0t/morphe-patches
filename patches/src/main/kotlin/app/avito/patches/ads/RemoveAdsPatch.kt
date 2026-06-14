@@ -8,6 +8,7 @@ import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.AccessFlags
+import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
@@ -36,18 +37,13 @@ private val adMetaDataDefaults = mapOf(
     "google_analytics_adid_collection_enabled" to "false",
 )
 
-private val carouselGalleryConverterParameterTypes = listOf(
-    "Lcom/avito/android/remote/model/NativeVideo;",
-    "Lcom/avito/android/remote/model/Video;",
-    "Lcom/avito/android/remote/model/autotekateaser/AutotekaTeaserResult;",
-    "Lcom/avito/android/remote/model/model_card/GalleryTeaser;",
-    "Ljava/util/List;",
-    "Ljava/util/List;",
-    "Ljava/util/List;",
-    "Ljava/util/List;",
-    "Ljava/util/Map;",
-    "Z",
-)
+private const val NATIVE_VIDEO = "Lcom/avito/android/remote/model/NativeVideo;"
+private const val VIDEO = "Lcom/avito/android/remote/model/Video;"
+private const val AUTOTEKA_TEASER_RESULT = "Lcom/avito/android/remote/model/autotekateaser/AutotekaTeaserResult;"
+private const val GALLERY_TEASER = "Lcom/avito/android/remote/model/model_card/GalleryTeaser;"
+private const val LIST = "Ljava/util/List;"
+private const val MAP = "Ljava/util/Map;"
+private const val BOOLEAN = "Z"
 
 private val hiddenRewardLayouts = listOf(
     "res/layout/item_rewards.xml",
@@ -70,6 +66,47 @@ private val hiddenHomeBannerLayouts = listOf(
     "res/layout/hero_banner_toolbar.xml",
     "res/layout/main_promo_banner_toolbar.xml",
 )
+
+private fun Method.isCarouselGalleryConverter(): Boolean {
+    if (!AccessFlags.STATIC.isSet(accessFlags) || returnType != "Ljava/util/ArrayList;" || implementation == null) {
+        return false
+    }
+
+    val parameters = parameterTypes.map { it.toString() }
+    val galleryTeaserIndex = parameters.indexOf(GALLERY_TEASER)
+    if (galleryTeaserIndex < 0) return false
+
+    return parameters.getOrNull(0) == NATIVE_VIDEO &&
+        parameters.getOrNull(1) == VIDEO &&
+        parameters.getOrNull(2) == AUTOTEKA_TEASER_RESULT &&
+        parameters.lastOrNull() == BOOLEAN &&
+        parameters.drop(galleryTeaserIndex + 1).contains(MAP)
+}
+
+private fun Method.galleryTeaserParameterIndexes(): List<Int> {
+    val parameters = parameterTypes.map { it.toString() }
+    val galleryTeaserIndex = parameters.indexOf(GALLERY_TEASER)
+    if (galleryTeaserIndex < 0) return emptyList()
+
+    val extraTeaserListIndexes = parameters
+        .withIndex()
+        .drop(galleryTeaserIndex + 1)
+        .takeWhile { it.value != MAP }
+        .filter { it.value == LIST }
+        // The first three post-gallery lists are image/realty image inputs.
+        .drop(3)
+        .map { it.index }
+
+    return listOf(galleryTeaserIndex) + extraTeaserListIndexes
+}
+
+private fun nullParametersInstructions(parameterIndexes: List<Int>) =
+    buildString {
+        appendLine("const/4 v0, 0x0")
+        parameterIndexes.forEach { index ->
+            appendLine("move-object/from16 p$index, v0")
+        }
+    }
 
 private fun Instruction.methodReferenceOrNull(): MethodReference? =
     (this as? ReferenceInstruction)?.reference as? MethodReference
@@ -243,27 +280,19 @@ val removeAdsPatch = bytecodePatch(
         var galleryTeaserConvertersPatched = 0
         classDefForEach { classDef ->
             val converterMethod = classDef.methods.singleOrNull { method ->
-                AccessFlags.STATIC.isSet(method.accessFlags) &&
-                    method.returnType == "Ljava/util/ArrayList;" &&
-                    method.parameterTypes.map { it.toString() } == carouselGalleryConverterParameterTypes &&
-                    method.implementation != null
+                method.isCarouselGalleryConverter()
             } ?: return@classDefForEach
+            val teaserParameterIndexes = converterMethod.galleryTeaserParameterIndexes()
+            if (teaserParameterIndexes.isEmpty()) return@classDefForEach
 
             mutableClassDefBy(classDef).methods
                 .single { method -> method.name == converterMethod.name && method.parameterTypes == converterMethod.parameterTypes }
                 .addInstructions(
                     0,
-                    """
-                        const/4 v0, 0x0
-                        move-object/from16 p7, v0
-                    """,
+                    nullParametersInstructions(teaserParameterIndexes),
                 )
             galleryTeaserConvertersPatched++
         }
-        if (galleryTeaserConvertersPatched == 0) {
-            throw PatchException("Carousel gallery Beduin teaser converter was not found")
-        }
-
         val commercialBannerLoaderMethod = CommercialBannerLoaderErrorFingerprint.method
         val rxErrorFactory = commercialBannerLoaderMethod.instructionsOrNull
             ?.firstNotNullOfOrNull { instruction ->
