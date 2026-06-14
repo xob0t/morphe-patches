@@ -1,3 +1,10 @@
+## [1.3.8-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.3.7...v1.3.8-dev.1) (2026-06-14)
+
+### 🐛 Bug Fixes
+
+* **ci:** add conventional changelog preset dependency ([304a0d4](https://github.com/xob0t/morphe-patches/commit/304a0d40edaa6706d80f8c5873b32b86298843b3))
+* **privacy:** handle high registers in USB spoof patch ([7c73dae](https://github.com/xob0t/morphe-patches/commit/7c73daeb9b7ab2f368fb4795ee86896052963c49))
+
 ## [1.3.7](https://github.com/xob0t/morphe-patches/compare/v1.3.6...v1.3.7) (2026-05-31)
 
 
