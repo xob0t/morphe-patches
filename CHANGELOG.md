@@ -1,3 +1,12 @@
+## [1.3.8](https://github.com/xob0t/morphe-patches/compare/v1.3.7...v1.3.8) (2026-06-14)
+
+### 🐛 Bug Fixes
+
+* **avito:** remove gallery beduin teasers ([c38604f](https://github.com/xob0t/morphe-patches/commit/c38604f529e6dccf1df7c1317ae848445c231ddb))
+* **ci:** add conventional changelog preset dependency ([304a0d4](https://github.com/xob0t/morphe-patches/commit/304a0d40edaa6706d80f8c5873b32b86298843b3))
+* **patches:** reduce scan memory usage ([902b1a4](https://github.com/xob0t/morphe-patches/commit/902b1a4185180fcbb7fbbb16d4a5e06306ce2c94))
+* **privacy:** handle high registers in USB spoof patch ([7c73dae](https://github.com/xob0t/morphe-patches/commit/7c73daeb9b7ab2f368fb4795ee86896052963c49))
+
 ## [1.3.8-dev.3](https://github.com/xob0t/morphe-patches/compare/v1.3.8-dev.2...v1.3.8-dev.3) (2026-06-14)
 
 ### 🐛 Bug Fixes
