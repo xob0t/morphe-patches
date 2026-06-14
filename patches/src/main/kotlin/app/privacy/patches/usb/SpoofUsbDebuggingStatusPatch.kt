@@ -27,6 +27,13 @@ private const val SETTINGS_SECURE = "Landroid/provider/Settings\$Secure;"
 private const val SETTINGS_SYSTEM = "Landroid/provider/Settings\$System;"
 private const val DEBUG = "Landroid/os/Debug;"
 
+private fun zeroConstant(register: Int) =
+    if (register <= 15) {
+        "const/4 v$register, 0x0"
+    } else {
+        "const/16 v$register, 0x0"
+    }
+
 private fun Instruction.methodReferenceOrNull(): MethodReference? =
     (this as? ReferenceInstruction)?.reference as? MethodReference
 
@@ -170,7 +177,7 @@ val spoofUsbDebuggingStatusPatch = bytecodePatch(
                                 ?: return@forEachIndexed
                             if (moveResult.opcode != Opcode.MOVE_RESULT) return@forEachIndexed
 
-                            method.replaceInstruction(index + 1, "const/4 v${moveResult.registerA}, 0x0")
+                            method.replaceInstruction(index + 1, zeroConstant(moveResult.registerA))
                             if (settingName == null) {
                                 patchedDynamicSettingsIntReads++
                             } else {
@@ -188,7 +195,7 @@ val spoofUsbDebuggingStatusPatch = bytecodePatch(
                             if (moveResult.opcode != Opcode.MOVE_RESULT_OBJECT) return@forEachIndexed
 
                             if (settingName == "debug_app") {
-                                method.replaceInstruction(index + 1, "const/4 v${moveResult.registerA}, 0x0")
+                                method.replaceInstruction(index + 1, zeroConstant(moveResult.registerA))
                             } else {
                                 method.replaceInstruction(index + 1, "const-string v${moveResult.registerA}, \"0\"")
                             }
@@ -200,7 +207,7 @@ val spoofUsbDebuggingStatusPatch = bytecodePatch(
                                 ?: return@forEachIndexed
                             if (moveResult.opcode != Opcode.MOVE_RESULT) return@forEachIndexed
 
-                            method.replaceInstruction(index + 1, "const/4 v${moveResult.registerA}, 0x0")
+                            method.replaceInstruction(index + 1, zeroConstant(moveResult.registerA))
                             patchedDebuggerStateReads++
                         }
                     }
