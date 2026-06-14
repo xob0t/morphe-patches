@@ -121,10 +121,8 @@ private fun Instruction.writesRegister(register: Int): Boolean {
     }
 }
 
-private fun Method.hasUsbDebugPatchTarget(): Boolean {
-    val instructions = instructionsOrNull?.toList() ?: return false
-
-    return instructions.withIndex().any { (index, instruction) ->
+private fun List<Instruction>.hasUsbDebugPatchTarget(): Boolean =
+    withIndex().any { (index, instruction) ->
         val reference = instruction.methodReferenceOrNull() ?: return@any false
         val registers = instruction.registers()
         val settingRegister = registers.getOrNull(1)
@@ -132,17 +130,19 @@ private fun Method.hasUsbDebugPatchTarget(): Boolean {
         when {
             reference.isDebuggerStateRead() -> true
             reference.isSettingsGetInt() && settingRegister != null ->
-                instructions.constantStringForRegisterBefore(index, settingRegister)
+                constantStringForRegisterBefore(index, settingRegister)
                     ?.let { it in USB_DEBUG_INTEGER_SETTINGS }
                     ?: true
 
             reference.isSettingsGetString() && settingRegister != null ->
-                instructions.constantStringForRegisterBefore(index, settingRegister) in USB_DEBUG_STRING_SETTINGS
+                constantStringForRegisterBefore(index, settingRegister) in USB_DEBUG_STRING_SETTINGS
 
             else -> false
         }
     }
-}
+
+private fun Method.hasUsbDebugPatchTarget(): Boolean =
+    instructionsOrNull?.toList()?.hasUsbDebugPatchTarget() == true
 
 @Suppress("unused")
 val spoofUsbDebuggingStatusPatch = bytecodePatch(
@@ -160,9 +160,10 @@ val spoofUsbDebuggingStatusPatch = bytecodePatch(
             if (classDef.methods.none { it.hasUsbDebugPatchTarget() }) return@classDefForEach
 
             mutableClassDefBy(classDef).methods.forEach { method ->
-                val instructions = method.instructionsOrNull ?: return@forEach
+                val instructions = method.instructionsOrNull?.toList() ?: return@forEach
+                if (!instructions.hasUsbDebugPatchTarget()) return@forEach
 
-                instructions.toList().forEachIndexed { index, instruction ->
+                instructions.forEachIndexed { index, instruction ->
                     val reference = instruction.methodReferenceOrNull() ?: return@forEachIndexed
 
                     when {

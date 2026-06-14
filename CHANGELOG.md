@@ -1,3 +1,9 @@
+## [1.3.8-dev.3](https://github.com/xob0t/morphe-patches/compare/v1.3.8-dev.2...v1.3.8-dev.3) (2026-06-14)
+
+### 🐛 Bug Fixes
+
+* **patches:** reduce scan memory usage ([902b1a4](https://github.com/xob0t/morphe-patches/commit/902b1a4185180fcbb7fbbb16d4a5e06306ce2c94))
+
 ## [1.3.8-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.3.8-dev.1...v1.3.8-dev.2) (2026-06-14)
 
 ### 🐛 Bug Fixes

@@ -58,6 +58,46 @@ private fun MethodReference.isSystemLoadLibrary() =
         parameterTypes[0].toString() == "Ljava/lang/String;" &&
         returnType == "V"
 
+private data class AntiTamperTargets(
+    val hasRaspCalls: Boolean,
+    val hasLoadLibrary: Boolean,
+    val hasTamperFlag: Boolean,
+) {
+    val hasAnyTarget: Boolean
+        get() = hasRaspCalls || hasLoadLibrary || hasTamperFlag
+}
+
+private fun Iterable<Instruction>.antiTamperTargets(): AntiTamperTargets {
+    var hasRaspCalls = false
+    var hasSystemLoadLibrary = false
+    var hasRaspNativeLib = false
+    var hasTamperFlag = false
+
+    forEach { instruction ->
+        val reference = instruction.methodReferenceOrNull()
+        if (reference?.isRaspExec() == true || reference?.isRaspExec2() == true) {
+            hasRaspCalls = true
+        }
+        if (reference?.isSystemLoadLibrary() == true) {
+            hasSystemLoadLibrary = true
+        }
+
+        val string = instruction.stringReferenceOrNull()
+        if (string in RASP_NATIVE_LIBS) {
+            hasRaspNativeLib = true
+        }
+        if (string in TAMPER_FLAG_NAMES) {
+            hasTamperFlag = true
+        }
+    }
+
+    return AntiTamperTargets(
+        hasRaspCalls = hasRaspCalls,
+        hasLoadLibrary = hasSystemLoadLibrary && hasRaspNativeLib,
+        hasTamperFlag = hasTamperFlag,
+    )
+}
+
 @Suppress("unused")
 val bypassAntiTamperPatch = bytecodePatch(
     name = "Bypass anti-tamper",
@@ -73,30 +113,17 @@ val bypassAntiTamperPatch = bytecodePatch(
         var patchedTamperFlags = 0
 
         classDefForEach { classDef ->
-            val methods = classDef.methods.toList()
+            val classTargets = classDef.methods
+                .mapNotNull { it.instructionsOrNull?.antiTamperTargets() }
+                .fold(AntiTamperTargets(false, false, false)) { current, methodTargets ->
+                    AntiTamperTargets(
+                        hasRaspCalls = current.hasRaspCalls || methodTargets.hasRaspCalls,
+                        hasLoadLibrary = current.hasLoadLibrary || methodTargets.hasLoadLibrary,
+                        hasTamperFlag = current.hasTamperFlag || methodTargets.hasTamperFlag,
+                    )
+                }
 
-            // Check if this class has any relevant call sites.
-
-            val hasRaspCalls = methods.any { method ->
-                method.instructionsOrNull?.toList()?.any { instr ->
-                    val ref = instr.methodReferenceOrNull() ?: return@any false
-                    ref.isRaspExec() || ref.isRaspExec2()
-                } == true
-            }
-
-            val hasLoadLibrary = methods.any { method ->
-                val instructions = method.instructionsOrNull?.toList() ?: return@any false
-                instructions.any { it.methodReferenceOrNull()?.isSystemLoadLibrary() == true } &&
-                    instructions.any { it.stringReferenceOrNull() in RASP_NATIVE_LIBS }
-            }
-
-            val hasTamperFlag = methods.any { method ->
-                method.instructionsOrNull?.toList()?.any { instr ->
-                    instr.stringReferenceOrNull() in TAMPER_FLAG_NAMES
-                } == true
-            }
-
-            if (!hasRaspCalls && !hasLoadLibrary && !hasTamperFlag) return@classDefForEach
+            if (!classTargets.hasAnyTarget) return@classDefForEach
 
             mutableClassDefBy(classDef).methods.forEach { method ->
                 val instructions = method.instructionsOrNull ?: return@forEach
@@ -141,7 +168,7 @@ val bypassAntiTamperPatch = bytecodePatch(
                 }
 
                 // Neutralize tamper flag provider construction.
-                if (hasTamperFlag) {
+                if (classTargets.hasTamperFlag) {
                     val methodHasTamperString = instructionList.any { instr ->
                         instr.stringReferenceOrNull() in TAMPER_FLAG_NAMES
                     }

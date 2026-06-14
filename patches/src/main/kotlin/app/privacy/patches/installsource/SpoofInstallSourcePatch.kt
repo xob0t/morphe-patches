@@ -4,6 +4,8 @@ import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.patch.bytecodePatch
 import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.iface.Method
+import com.android.tools.smali.dexlib2.iface.instruction.Instruction
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
@@ -14,6 +16,14 @@ private const val INSTALL_SOURCE_INFO = "Landroid/content/pm/InstallSourceInfo;"
 
 private fun com.android.tools.smali.dexlib2.iface.instruction.Instruction.methodReferenceOrNull(): MethodReference? =
     (this as? ReferenceInstruction)?.reference as? MethodReference
+
+private fun Instruction.isInstallSourcePatchTarget(): Boolean {
+    if (opcode !in setOf(Opcode.INVOKE_VIRTUAL, Opcode.INVOKE_VIRTUAL_RANGE)) return false
+
+    val reference = methodReferenceOrNull() ?: return false
+    return reference.isPackageManagerGetInstallerPackageName() ||
+        reference.isInstallSourceInfoPackageGetter()
+}
 
 private fun MethodReference.isPackageManagerGetInstallerPackageName() =
     definingClass == PACKAGE_MANAGER &&
@@ -33,6 +43,9 @@ private fun MethodReference.isInstallSourceInfoPackageGetter() =
         parameterTypes.isEmpty() &&
         returnType == "Ljava/lang/String;"
 
+private fun Method.hasInstallSourcePatchTarget(): Boolean =
+    instructionsOrNull?.any { it.isInstallSourcePatchTarget() } == true
+
 @Suppress("unused")
 val spoofInstallSourcePatch = bytecodePatch(
     name = "Spoof install source",
@@ -43,19 +56,16 @@ val spoofInstallSourcePatch = bytecodePatch(
         var patchedInstallerPackageNameReads = 0
 
         classDefForEach { classDef ->
+            if (classDef.methods.none { it.hasInstallSourcePatchTarget() }) return@classDefForEach
+
             mutableClassDefBy(classDef).methods.forEach { method ->
+                if (!method.hasInstallSourcePatchTarget()) return@forEach
+
                 val instructions = method.instructionsOrNull ?: return@forEach
                 val instructionList = instructions.toList()
 
                 instructionList.forEachIndexed { index, instruction ->
-                    if (
-                        instruction.opcode !in setOf(
-                            Opcode.INVOKE_VIRTUAL,
-                            Opcode.INVOKE_VIRTUAL_RANGE,
-                        )
-                    ) {
-                        return@forEachIndexed
-                    }
+                    if (!instruction.isInstallSourcePatchTarget()) return@forEachIndexed
 
                     val reference = instruction.methodReferenceOrNull() ?: return@forEachIndexed
 
