@@ -170,23 +170,24 @@ private fun String.hasEmulatorMarker(): Boolean =
     this in EMULATOR_INDICATOR_STRINGS ||
         EMULATOR_INDICATOR_SUBSTRINGS.any { marker -> contains(marker, ignoreCase = true) }
 
-private fun Method.hasEmulatorDetectionContext(): Boolean {
-    val instructions = instructionsOrNull?.toList() ?: return false
-
-    if (instructions.any { instruction ->
+private fun Iterable<Instruction>.hasEmulatorDetectionContext(): Boolean {
+    if (any { instruction ->
             instruction.stringReferenceOrNull()?.hasEmulatorMarker() == true
         }
     ) {
         return true
     }
 
-    val buildFieldReads = instructions.count { instruction ->
+    val buildFieldReads = count { instruction ->
         if (instruction.opcode != Opcode.SGET_OBJECT) return@count false
         val field = instruction.fieldReferenceOrNull() ?: return@count false
         field.isBuildFieldToSpoof()
     }
     return buildFieldReads >= 3
 }
+
+private fun Method.hasEmulatorDetectionContext(): Boolean =
+    instructionsOrNull?.hasEmulatorDetectionContext() == true
 
 private fun FieldReference.isBuildFieldToSpoof() =
     definingClass == "Landroid/os/Build;" &&
@@ -247,10 +248,9 @@ val spoofEmulatorStatusPatch = bytecodePatch(
             if (classDef.methods.none { it.hasEmulatorDetectionContext() }) return@classDefForEach
 
             mutableClassDefBy(classDef).methods.forEach { method ->
-                if (!method.hasEmulatorDetectionContext()) return@forEach
-
                 val instructions = method.instructionsOrNull ?: return@forEach
                 val instructionList = instructions.toList()
+                if (!instructionList.hasEmulatorDetectionContext()) return@forEach
 
                 instructionList.forEachIndexed { index, instruction ->
                     when {

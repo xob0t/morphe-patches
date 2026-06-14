@@ -168,40 +168,35 @@ private fun List<Instruction>.hasVpnDetectionString(): Boolean =
         listOf("vpn", "tun", "wg", "ppp", "ipsec", "utun").any { marker -> marker in string }
     }
 
-private fun Method.hasVpnOsStatePatchTarget(): Boolean {
-    val instructions = instructionsOrNull?.toList() ?: return false
-
-    return instructions.withIndex().any { (index, instruction) ->
+private fun List<Instruction>.hasVpnOsStatePatchTarget(): Boolean =
+    withIndex().any { (index, instruction) ->
         val reference = instruction.methodReferenceOrNull() ?: return@any false
         val transportRegister = instruction.registers().lastOrNull() ?: return@any false
 
         (reference.isNetworkCapabilitiesHasTransport() ||
             reference.isNetworkRequestBuilderAddTransportType()) &&
-            instructions.hasVpnTransportLiteralBefore(index, transportRegister)
+            hasVpnTransportLiteralBefore(index, transportRegister)
     } ||
-        instructions.withIndex().any { (index, instruction) ->
+        withIndex().any { (index, instruction) ->
             val reference = instruction.methodReferenceOrNull() ?: return@any false
             val capabilityRegister = instruction.registers().lastOrNull() ?: return@any false
 
             reference.isNetworkCapabilitiesHasCapability() &&
-                instructions.hasNotVpnCapabilityLiteralBefore(index, capabilityRegister)
+                hasNotVpnCapabilityLiteralBefore(index, capabilityRegister)
         }
-}
 
-private fun Method.hasVpnSignalContext(): Boolean {
-    val instructions = instructionsOrNull?.toList() ?: return false
+private fun List<Instruction>.hasVpnSignalContext(definingClass: String): Boolean {
     if (hasVpnOsStatePatchTarget()) return true
-    if (instructions.hasVpnDetectionString()) return true
+    if (hasVpnDetectionString()) return true
 
     val className = definingClass.lowercase()
     return "vpn" in className || "tun" in className
 }
 
-private fun Method.hasVpnNetworkStateCollectionTarget(): Boolean {
-    val instructions = instructionsOrNull?.toList() ?: return false
-    if (!hasVpnSignalContext()) return false
+private fun List<Instruction>.hasVpnNetworkStateCollectionTarget(definingClass: String): Boolean {
+    if (!hasVpnSignalContext(definingClass)) return false
 
-    return instructions.any { instruction ->
+    return any { instruction ->
         val reference = instruction.methodReferenceOrNull() ?: return@any false
         reference.isNetworkCapabilitiesToString() ||
             reference.isLinkPropertiesGetInterfaceName() ||
@@ -211,16 +206,20 @@ private fun Method.hasVpnNetworkStateCollectionTarget(): Boolean {
     }
 }
 
-private fun Method.hasVpnNetworkRequestBuilder(): Boolean {
-    val instructions = instructionsOrNull?.toList() ?: return false
-
-    return instructions.withIndex().any { (index, instruction) ->
+private fun List<Instruction>.hasVpnNetworkRequestBuilder(): Boolean =
+    withIndex().any { (index, instruction) ->
         val reference = instruction.methodReferenceOrNull() ?: return@any false
         val transportRegister = instruction.registers().lastOrNull() ?: return@any false
 
         reference.isNetworkRequestBuilderAddTransportType() &&
-            instructions.hasVpnTransportLiteralBefore(index, transportRegister)
+            hasVpnTransportLiteralBefore(index, transportRegister)
     }
+
+private fun Method.hasVpnPatchTarget(): Boolean {
+    val instructions = instructionsOrNull?.toList() ?: return false
+    return instructions.hasVpnOsStatePatchTarget() ||
+        instructions.hasVpnNetworkRequestBuilder() ||
+        instructions.hasVpnNetworkStateCollectionTarget(definingClass)
 }
 
 @Suppress("unused")
@@ -240,21 +239,21 @@ val spoofVpnStatusPatch = bytecodePatch(
         var patchedNetworkInterfaceEnumerations = 0
 
         classDefForEach { classDef ->
-            if (classDef.methods.none {
-                    it.hasVpnOsStatePatchTarget() ||
-                        it.hasVpnNetworkRequestBuilder() ||
-                        it.hasVpnNetworkStateCollectionTarget()
-                }
-            ) {
-                return@classDefForEach
-            }
+            if (classDef.methods.none { it.hasVpnPatchTarget() }) return@classDefForEach
 
             mutableClassDefBy(classDef).methods.forEach { method ->
-                val instructions = method.instructionsOrNull ?: return@forEach
-                val hasVpnNetworkRequestBuilder = method.hasVpnNetworkRequestBuilder()
-                val hasVpnSignalContext = method.hasVpnSignalContext()
+                val instructions = method.instructionsOrNull?.toList() ?: return@forEach
+                val hasVpnNetworkRequestBuilder = instructions.hasVpnNetworkRequestBuilder()
+                val hasVpnSignalContext = instructions.hasVpnSignalContext(method.definingClass)
+                if (
+                    !instructions.hasVpnOsStatePatchTarget() &&
+                    !hasVpnNetworkRequestBuilder &&
+                    !instructions.hasVpnNetworkStateCollectionTarget(method.definingClass)
+                ) {
+                    return@forEach
+                }
 
-                instructions.toList().forEachIndexed { index, instruction ->
+                instructions.forEachIndexed { index, instruction ->
                     val reference = instruction.methodReferenceOrNull() ?: return@forEachIndexed
 
                     when {
