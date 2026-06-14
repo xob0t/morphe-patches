@@ -1,3 +1,9 @@
+## [1.3.8-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.3.8-dev.1...v1.3.8-dev.2) (2026-06-14)
+
+### 🐛 Bug Fixes
+
+* **avito:** remove gallery beduin teasers ([c38604f](https://github.com/xob0t/morphe-patches/commit/c38604f529e6dccf1df7c1317ae848445c231ddb))
+
 ## [1.3.8-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.3.7...v1.3.8-dev.1) (2026-06-14)
 
 ### 🐛 Bug Fixes
