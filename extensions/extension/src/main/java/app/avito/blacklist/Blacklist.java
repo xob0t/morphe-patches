@@ -507,25 +507,42 @@ public final class Blacklist {
         if (root == null) {
             return;
         }
-        // Deferred so this click listener wins over the one the settings binder
-        // installs after this bind callback returns.
+        final android.view.View.OnClickListener click = new android.view.View.OnClickListener() {
+            @Override
+            public void onClick(android.view.View v) {
+                try {
+                    android.content.Intent intent = new android.content.Intent();
+                    intent.setClassName(v.getContext().getPackageName(), BLACKLIST_ACTIVITY);
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                    v.getContext().startActivity(intent);
+                } catch (Throwable ignored) {
+                }
+            }
+        };
+        // Deferred + recursive so this listener wins over the one the settings
+        // binder installs after this callback, and lands on the actual clickable
+        // child view (not only the row root).
         root.post(new Runnable() {
             @Override
             public void run() {
-                root.setOnClickListener(new android.view.View.OnClickListener() {
-                    @Override
-                    public void onClick(android.view.View v) {
-                        try {
-                            android.content.Intent intent = new android.content.Intent();
-                            intent.setClassName(v.getContext().getPackageName(), BLACKLIST_ACTIVITY);
-                            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
-                            v.getContext().startActivity(intent);
-                        } catch (Throwable ignored) {
-                        }
-                    }
-                });
+                attachClickRecursive(root, click);
             }
         });
+    }
+
+    private static void attachClickRecursive(android.view.View view, android.view.View.OnClickListener listener) {
+        try {
+            if (view.isClickable() || view instanceof android.widget.TextView) {
+                view.setOnClickListener(listener);
+            }
+            if (view instanceof android.view.ViewGroup) {
+                android.view.ViewGroup group = (android.view.ViewGroup) view;
+                for (int i = 0; i < group.getChildCount(); i++) {
+                    attachClickRecursive(group.getChildAt(i), listener);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
     }
 
     /**
