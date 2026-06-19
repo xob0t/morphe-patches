@@ -36,6 +36,7 @@ public final class Blacklist {
     private static final String KEY_SELLERS = "sellers";
     private static final String KEY_OFFER_LABELS = "offer_labels";
     private static final String KEY_SELLER_LABELS = "seller_labels";
+    private static final String KEY_OFFER_SELLER_LABELS = "offer_seller_labels";
 
     /** Suffixes used by the browser extension's export/import format. */
     public static final String SUFFIX_OFFER = "_blacklist_ad";
@@ -51,6 +52,9 @@ public final class Blacklist {
     // metadata, not part of the import/export format.
     private static final java.util.Map<String, String> offerLabels = new java.util.HashMap<>();
     private static final java.util.Map<String, String> sellerLabels = new java.util.HashMap<>();
+    // Seller name of each blocked offer, keyed by offer id. Shown under the offer
+    // in the manager so it's clear who the listing belongs to.
+    private static final java.util.Map<String, String> offerSellerLabels = new java.util.HashMap<>();
 
     private Blacklist() {
     }
@@ -102,6 +106,7 @@ public final class Blacklist {
             readInto(blockedSellers, prefs.getString(KEY_SELLERS, null));
             readMap(offerLabels, prefs.getString(KEY_OFFER_LABELS, null));
             readMap(sellerLabels, prefs.getString(KEY_SELLER_LABELS, null));
+            readMap(offerSellerLabels, prefs.getString(KEY_OFFER_SELLER_LABELS, null));
             loaded = true;
 
             // One-time migration: an earlier version stored the item's internal
@@ -115,6 +120,7 @@ public final class Blacklist {
                 if (id == null || id.isEmpty() || !isAllDigits(id)) {
                     it.remove();
                     offerLabels.remove(id);
+                    offerSellerLabels.remove(id);
                     changed = true;
                 }
             }
@@ -170,6 +176,7 @@ public final class Blacklist {
                 .putString(KEY_SELLERS, new JSONArray(blockedSellers).toString())
                 .putString(KEY_OFFER_LABELS, new JSONObject(offerLabels).toString())
                 .putString(KEY_SELLER_LABELS, new JSONObject(sellerLabels).toString())
+                .putString(KEY_OFFER_SELLER_LABELS, new JSONObject(offerSellerLabels).toString())
                 .apply();
     }
 
@@ -191,6 +198,14 @@ public final class Blacklist {
         }
     }
 
+    /** Seller name recorded for a blocked offer (may be null). */
+    public static String getOfferSellerLabel(String offerId) {
+        ensureLoaded();
+        synchronized (LOCK) {
+            return offerSellerLabels.get(offerId);
+        }
+    }
+
     private static void putOfferLabel(String offerId, String label) {
         if (offerId == null || label == null || label.trim().isEmpty()) {
             return;
@@ -199,6 +214,20 @@ public final class Blacklist {
         synchronized (LOCK) {
             if (blockedOffers.contains(offerId) && !label.equals(offerLabels.get(offerId))) {
                 offerLabels.put(offerId, label.trim());
+                persist();
+            }
+        }
+    }
+
+    private static void putOfferSellerLabel(String offerId, String sellerName) {
+        if (offerId == null || sellerName == null || sellerName.trim().isEmpty()) {
+            return;
+        }
+        ensureLoaded();
+        synchronized (LOCK) {
+            String trimmed = sellerName.trim();
+            if (blockedOffers.contains(offerId) && !trimmed.equals(offerSellerLabels.get(offerId))) {
+                offerSellerLabels.put(offerId, trimmed);
                 persist();
             }
         }
@@ -298,6 +327,7 @@ public final class Blacklist {
         synchronized (LOCK) {
             if (blockedOffers.remove(offerId)) {
                 offerLabels.remove(offerId);
+                offerSellerLabels.remove(offerId);
                 persist();
                 return true;
             }
@@ -342,6 +372,7 @@ public final class Blacklist {
             blockedSellers.clear();
             offerLabels.clear();
             sellerLabels.clear();
+            offerSellerLabels.clear();
             persist();
         }
     }
@@ -396,6 +427,13 @@ public final class Blacklist {
         if (offerId != null && isOfferBlocked(offerId)) {
             // Opportunistically capture a readable label (also labels imported ids).
             putOfferLabel(offerId, callString(element, "getTitle"));
+            Object offerSeller = callObject(element, "getSellerInfo");
+            if (offerSeller == null) {
+                offerSeller = callObject(element, "getSeller");
+            }
+            if (offerSeller != null) {
+                putOfferSellerLabel(offerId, nameOf(offerSeller));
+            }
             return true;
         }
         Object seller = callObject(element, "getSellerInfo");
@@ -425,7 +463,7 @@ public final class Blacklist {
      */
     /** Marker id of the blacklist row injected into the app's Settings screen. */
     private static final String SETTINGS_ENTRY_ID = "avito_blacklist";
-    private static final String SETTINGS_ENTRY_TITLE = "Чёрный список";
+    private static final String SETTINGS_ENTRY_TITLE = "Настройки Morphe";
     private static final String BLACKLIST_ACTIVITY = "app.avito.blacklist.BlacklistActivity";
 
     public static void onBindAdvert(Object viewHolder, Object item) {
@@ -513,7 +551,8 @@ public final class Blacklist {
                             .newInstance(SETTINGS_ENTRY_ID, SETTINGS_ENTRY_TITLE);
                     @SuppressWarnings("unchecked")
                     java.util.List<Object> mutable = (java.util.List<Object>) items;
-                    mutable.add(row);
+                    // Put it first so it's the top entry in the Settings screen.
+                    mutable.add(0, row);
                     return;
                 }
             }
@@ -601,7 +640,14 @@ public final class Blacklist {
         final String offerId = offerIdOf(item);
         final String userKey = sellerUserKey(item);
         final String offerTitle = callString(item, "getTitle");
-        final String sellerName = nameOf(sellerObjectOf(item));
+        final Object sellerObj = sellerObjectOf(item);
+        String sellerName = nameOf(sellerObj);
+        if (isBlank(sellerName)) {
+            // The redesigned tile leaves SellerInfoModel.displayName empty and
+            // shows the store name in the Beduin freeForm tree instead.
+            sellerName = sellerNameFromConstructor(item);
+        }
+        final String sellerNameFinal = sellerName;
 
         java.util.List<String> labels = new ArrayList<>();
         final java.util.List<Runnable> actions = new ArrayList<>();
@@ -612,6 +658,7 @@ public final class Blacklist {
                 public void run() {
                     addOffer(offerId);
                     putOfferLabel(offerId, offerTitle);
+                    putOfferSellerLabel(offerId, sellerNameFinal);
                     collapseMatching(true, offerId);
                     toast(root, "Объявление скрыто");
                 }
@@ -623,7 +670,7 @@ public final class Blacklist {
                 @Override
                 public void run() {
                     addSeller(userKey);
-                    putSellerLabel(userKey, sellerName);
+                    putSellerLabel(userKey, sellerNameFinal);
                     collapseMatching(false, userKey);
                     toast(root, "Объявления продавца скрыты");
                 }
@@ -717,6 +764,40 @@ public final class Blacklist {
             name = parseField(seller.toString(), "name=");
         }
         return isBlank(name) ? null : name;
+    }
+
+    /**
+     * Extracts the seller/store name shown on a redesigned advert tile
+     * ({@code SerpConstructorAdvertItem}). The {@code SellerInfoModel.displayName}
+     * is empty for these; the visible name lives in the Beduin {@code freeForm}
+     * tree under a {@code sellerNameAndRating...} container as a
+     * {@code TextToken(title=<name>)}. Parsed from the item's {@code toString()},
+     * which is the only place it is exposed. Best-effort and fully defensive.
+     */
+    private static String sellerNameFromConstructor(Object item) {
+        try {
+            String s = String.valueOf(item);
+            int anchor = s.indexOf("sellerNameAndRating");
+            if (anchor < 0) {
+                return null;
+            }
+            int t = s.indexOf("title=", anchor);
+            if (t < 0) {
+                return null;
+            }
+            t += "title=".length();
+            int end = s.indexOf(", overridenAttributes", t);
+            if (end < 0) {
+                end = s.indexOf(")", t);
+            }
+            if (end <= t) {
+                return null;
+            }
+            String name = s.substring(t, end).trim();
+            return (name.isEmpty() || "null".equals(name)) ? null : name;
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
     private static Object sellerFieldOf(Object item) {

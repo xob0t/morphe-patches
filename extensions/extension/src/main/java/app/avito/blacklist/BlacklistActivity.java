@@ -315,18 +315,16 @@ public final class BlacklistActivity extends Activity {
             rowItem.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    // Offers use Avito's internal scheme (ru.avito://1/items/<id>),
-                    // routed by the in-app deep-link factory with no network round
-                    // trip. The seller page has no path-based internal form, so it
-                    // uses the avito.ru link (which resolves to the native profile).
-                    String uri = offer
-                            ? "ru.avito://1/items/" + Uri.encode(id)
-                            : "https://www.avito.ru/user/" + Uri.encode(id) + "/profile";
-                    openInApp(uri);
+                    if (offer) {
+                        openOffer(id);
+                    } else {
+                        openSeller(id);
+                    }
                 }
             });
 
             String itemLabel = offer ? Blacklist.getOfferLabel(id) : Blacklist.getSellerLabel(id);
+            String offerSeller = offer ? Blacklist.getOfferSellerLabel(id) : null;
 
             LinearLayout textCol = new LinearLayout(this);
             textCol.setOrientation(LinearLayout.VERTICAL);
@@ -340,6 +338,17 @@ public final class BlacklistActivity extends Activity {
             primary.setMaxLines(2);
             primary.setEllipsize(android.text.TextUtils.TruncateAt.END);
             textCol.addView(primary);
+
+            if (offerSeller != null && !offerSeller.isEmpty()) {
+                TextView sellerView = new TextView(this);
+                sellerView.setTextColor(textSecondary);
+                sellerView.setTextSize(13);
+                sellerView.setText("Продавец: " + offerSeller);
+                sellerView.setMaxLines(1);
+                sellerView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                sellerView.setPadding(0, 2 * dp, 0, 0);
+                textCol.addView(sellerView);
+            }
 
             if (itemLabel != null) {
                 TextView sub = new TextView(this);
@@ -512,6 +521,180 @@ public final class BlacklistActivity extends Activity {
 
     /** Opens a deep link inside the Avito app (implicit, so its own intent-filter
      * routes it to the right deep-link handler). */
+    /**
+     * Opens an advert directly via Avito's standalone
+     * {@code AdvertDetailsActivity} (extra {@code advert_id}). Because it is a
+     * normal activity started from here (same task, no NEW_TASK), it stacks on top
+     * of this screen — pressing back returns to this manager. This avoids the
+     * deep-link route, which would funnel through the single-Activity Launcher and
+     * synthesise a home back-stack that buries this screen.
+     */
+    private void openOffer(String advertId) {
+        try {
+            // AdvertDetailsActivity.onCreate requires a non-null advert_id and a
+            // non-null fast_open_params; advert_screen_source is read too. All are
+            // simple defaults here (no originating Avito screen / fast-open flow).
+            Object fastOpen = newInstanceOf("com.avito.android.advert.item.AdvertDetailsFastOpenParams");
+            if (fastOpen instanceof android.os.Parcelable) {
+                Intent intent = new Intent();
+                intent.setClassName(getPackageName(),
+                        "com.avito.android.advert.AdvertDetailsActivity");
+                intent.putExtra("advert_id", advertId);
+                intent.putExtra("fast_open_params", (android.os.Parcelable) fastOpen);
+                Object screenSource = screenSourceEmpty();
+                if (screenSource instanceof android.os.Parcelable) {
+                    intent.putExtra("advert_screen_source", (android.os.Parcelable) screenSource);
+                }
+                startActivity(intent);
+                return;
+            }
+        } catch (Throwable ignored) {
+        }
+        // Fall back to the internal deep link if the activity/params moved.
+        openInApp("ru.avito://1/items/" + Uri.encode(advertId));
+    }
+
+    /**
+     * Instantiates a class with a "default" value. Tries a no-arg constructor
+     * first; otherwise picks the constructor with the fewest parameters that are
+     * all reference types (so each can be null) and passes nulls. This builds the
+     * empty {@code AdvertDetailsFastOpenParams} (all-nullable 14-arg ctor) without
+     * hard-coding the obfuscated signature.
+     */
+    private Object newInstanceOf(String className) {
+        Class<?> cls;
+        try {
+            cls = Class.forName(className);
+        } catch (Throwable t) {
+            return null;
+        }
+        try {
+            java.lang.reflect.Constructor<?> ctor = cls.getDeclaredConstructor();
+            ctor.setAccessible(true);
+            return ctor.newInstance();
+        } catch (Throwable ignored) {
+        }
+        java.lang.reflect.Constructor<?> best = null;
+        for (java.lang.reflect.Constructor<?> ctor : cls.getDeclaredConstructors()) {
+            boolean allRef = true;
+            for (Class<?> p : ctor.getParameterTypes()) {
+                if (p.isPrimitive()) {
+                    allRef = false;
+                    break;
+                }
+            }
+            if (allRef && (best == null
+                    || ctor.getParameterTypes().length < best.getParameterTypes().length)) {
+                best = ctor;
+            }
+        }
+        if (best == null) {
+            return null;
+        }
+        try {
+            best.setAccessible(true);
+            Class<?>[] params = best.getParameterTypes();
+            Object[] args = new Object[params.length];
+            for (int i = 0; i < params.length; i++) {
+                // Enum fields are written to the parcel via name(), which NPEs on
+                // null, so give each enum its first constant; other refs stay null.
+                if (params[i].isEnum()) {
+                    Object[] constants = params[i].getEnumConstants();
+                    if (constants != null && constants.length > 0) {
+                        args[i] = constants[0];
+                    }
+                }
+            }
+            return best.newInstance(args);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /**
+     * The {@code com.avito.android.rec.ScreenSource$EMPTY} singleton (a Parcelable
+     * "no originating screen" marker). It is a Kotlin object whose INSTANCE field
+     * is obfuscated, so the static self-typed field is found by scanning. Returns
+     * null if the class isn't present.
+     */
+    private Object screenSourceEmpty() {
+        try {
+            Class<?> empty = Class.forName("com.avito.android.rec.ScreenSource$EMPTY");
+            for (java.lang.reflect.Field f : empty.getDeclaredFields()) {
+                if (java.lang.reflect.Modifier.isStatic(f.getModifiers())
+                        && empty.isAssignableFrom(f.getType())) {
+                    f.setAccessible(true);
+                    Object v = f.get(null);
+                    if (v != null) {
+                        return v;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    /**
+     * Opens a seller's public profile via the standalone
+     * {@code ExtendedProfileActivity} (extra {@code extra_args} = an
+     * {@code ExtendedProfileArguments} parcelable whose first String is the
+     * {@code userKey}). Stacks on top of this screen so back returns here. Falls
+     * back to the avito.ru profile link if the reflective build fails.
+     */
+    private void openSeller(String userKey) {
+        try {
+            Object args = buildExtendedProfileArguments(userKey);
+            if (args instanceof android.os.Parcelable) {
+                Intent intent = new Intent();
+                intent.setClassName(getPackageName(),
+                        "com.avito.android.extended_profile.ExtendedProfileActivity");
+                intent.putExtra("extra_args", (android.os.Parcelable) args);
+                startActivity(intent);
+                return;
+            }
+        } catch (Throwable ignored) {
+        }
+        openInApp("https://www.avito.ru/user/" + Uri.encode(userKey) + "/profile");
+    }
+
+    /**
+     * Reflectively builds an {@code ExtendedProfileArguments} for {@code userKey}.
+     * Its fields (from the data-class {@code toString}) are
+     * {@code userKey, contextId, searchParams, withProfileTabs, floatingBuyBlock},
+     * so the primary constructor is {@code (String, String, SearchParams, boolean,
+     * String)} with {@code userKey} first; {@code withProfileTabs=true} opens the
+     * profile on its listings. Falls back to the secondary
+     * {@code (SearchParams, String, String, String, boolean)} ctor. Everything but
+     * {@code userKey} is optional (null). Returns null if neither is found.
+     */
+    private Object buildExtendedProfileArguments(String userKey) {
+        Class<?> argsClass;
+        Class<?> searchParams;
+        try {
+            argsClass = Class.forName(
+                    "com.avito.android.extended_profile.ExtendedProfileArguments");
+            searchParams = Class.forName("com.avito.android.remote.model.SearchParams");
+        } catch (Throwable t) {
+            return null;
+        }
+        // Primary constructor: userKey is the first parameter.
+        try {
+            java.lang.reflect.Constructor<?> ctor = argsClass.getConstructor(
+                    String.class, String.class, searchParams, boolean.class, String.class);
+            return ctor.newInstance(userKey, null, null, true, null);
+        } catch (Throwable ignored) {
+        }
+        // Secondary constructor: SearchParams first, then the strings.
+        try {
+            java.lang.reflect.Constructor<?> ctor = argsClass.getConstructor(
+                    searchParams, String.class, String.class, String.class, boolean.class);
+            return ctor.newInstance(null, userKey, null, null, true);
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
     private void openInApp(String uri) {
         try {
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(uri));
