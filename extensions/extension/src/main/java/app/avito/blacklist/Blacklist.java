@@ -497,36 +497,51 @@ public final class Blacklist {
                 restore(root);
             }
 
-            final android.view.View.OnLongClickListener listener =
-                    new android.view.View.OnLongClickListener() {
+            // Detect the long-press with a GestureDetector fed by a NON-consuming
+            // touch listener (always returns false). Unlike setOnLongClickListener
+            // — which makes every view longClickable, so a leaf that used to let
+            // the tap bubble up to Avito's clickable tile now swallows it and the
+            // advert never opens — returning false lets taps, clicks and gallery
+            // swipes still reach Avito's own handlers.
+            final android.view.GestureDetector detector = new android.view.GestureDetector(
+                    root.getContext(),
+                    new android.view.GestureDetector.SimpleOnGestureListener() {
                         @Override
-                        public boolean onLongClick(android.view.View v) {
-                            showBlockDialog(v.getContext(), root, boundItem);
-                            return true;
+                        public void onLongPress(android.view.MotionEvent e) {
+                            showBlockDialog(root.getContext(), root, boundItem);
+                        }
+                    });
+            final android.view.View.OnTouchListener touch =
+                    new android.view.View.OnTouchListener() {
+                        @Override
+                        public boolean onTouch(android.view.View v, android.view.MotionEvent ev) {
+                            detector.onTouchEvent(ev);
+                            return false;
                         }
                     };
-            root.setOnLongClickListener(listener);
-            // Some snippets (e.g. extended-gallery tiles) contain a scrollable
-            // image pager that consumes the long-press, and its child views are
-            // added during bind. Re-attach across the whole tree after layout so
-            // a long-press anywhere on the tile opens the block menu.
+            // Some snippets (e.g. extended-gallery tiles) have a scrollable image
+            // pager whose child views are added during bind, so re-attach across
+            // the whole tree after layout to detect a long-press anywhere on the
+            // tile. Returning false means we never replace any view's effective
+            // touch handling (its onTouchEvent still runs).
+            attachTouchRecursive(root, touch);
             root.post(new Runnable() {
                 @Override
                 public void run() {
-                    attachLongPressRecursive(root, listener);
+                    attachTouchRecursive(root, touch);
                 }
             });
         } catch (Throwable ignored) {
         }
     }
 
-    private static void attachLongPressRecursive(android.view.View view, android.view.View.OnLongClickListener listener) {
+    private static void attachTouchRecursive(android.view.View view, android.view.View.OnTouchListener listener) {
         try {
-            view.setOnLongClickListener(listener);
+            view.setOnTouchListener(listener);
             if (view instanceof android.view.ViewGroup) {
                 android.view.ViewGroup group = (android.view.ViewGroup) view;
                 for (int i = 0; i < group.getChildCount(); i++) {
-                    attachLongPressRecursive(group.getChildAt(i), listener);
+                    attachTouchRecursive(group.getChildAt(i), listener);
                 }
             }
         } catch (Throwable ignored) {
