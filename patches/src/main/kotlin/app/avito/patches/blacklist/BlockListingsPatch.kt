@@ -45,8 +45,10 @@ private val registerBlacklistActivityPatch = resourcePatch {
             val activity = document.createElement("activity")
             activity.setAttribute("android:name", BLACKLIST_ACTIVITY)
             activity.setAttribute("android:exported", "true")
-            activity.setAttribute("android:label", "Avito Blacklist")
-            activity.setAttribute("android:theme", "@android:style/Theme.Material.Light.DarkActionBar")
+            activity.setAttribute("android:label", "Чёрный список")
+            // Use the app's own theme so the screen follows Avito's colours and
+            // light/dark appearance.
+            activity.setAttribute("android:theme", "@style/Theme.Avito")
 
             application.appendChild(activity)
         }
