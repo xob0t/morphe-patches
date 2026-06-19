@@ -103,6 +103,24 @@ public final class Blacklist {
             readMap(offerLabels, prefs.getString(KEY_OFFER_LABELS, null));
             readMap(sellerLabels, prefs.getString(KEY_SELLER_LABELS, null));
             loaded = true;
+
+            // One-time migration: an earlier version stored the item's internal
+            // (often negative) id instead of the advert id. Such entries can't
+            // filter or open, so drop any offer id that isn't a plain numeric
+            // advert id.
+            boolean changed = false;
+            Iterator<String> it = blockedOffers.iterator();
+            while (it.hasNext()) {
+                String id = it.next();
+                if (id == null || id.isEmpty() || !isAllDigits(id)) {
+                    it.remove();
+                    offerLabels.remove(id);
+                    changed = true;
+                }
+            }
+            if (changed) {
+                persist();
+            }
         }
     }
 
@@ -642,14 +660,15 @@ public final class Blacklist {
         if (stringId != null && !stringId.isEmpty() && isAllDigits(stringId)) {
             return stringId;
         }
+        // Last resort: a string-valued getId() that is itself a numeric advert id.
+        // The item's *long* getId() is an internal id (often a hashCode-like value
+        // that is not a real advert id and cannot be navigated to or matched), so
+        // it is deliberately never used as a fallback.
         Object id = callObject(item, "getId");
         if (id instanceof String && isAllDigits((String) id)) {
             return (String) id;
         }
-        if ((id instanceof Long || id instanceof Integer) && ((Number) id).longValue() > 0) {
-            return String.valueOf(id);
-        }
-        return stringId;
+        return null;
     }
 
     /**
