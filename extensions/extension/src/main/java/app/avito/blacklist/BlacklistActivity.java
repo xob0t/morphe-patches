@@ -315,10 +315,14 @@ public final class BlacklistActivity extends Activity {
             rowItem.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    String url = offer
-                            ? "https://www.avito.ru/items/" + Uri.encode(id)
+                    // Offers use Avito's internal scheme (ru.avito://1/items/<id>),
+                    // routed by the in-app deep-link factory with no network round
+                    // trip. The seller page has no path-based internal form, so it
+                    // uses the avito.ru link (which resolves to the native profile).
+                    String uri = offer
+                            ? "ru.avito://1/items/" + Uri.encode(id)
                             : "https://www.avito.ru/user/" + Uri.encode(id) + "/profile";
-                    openInApp(url);
+                    openInApp(uri);
                 }
             });
 
@@ -506,18 +510,15 @@ public final class BlacklistActivity extends Activity {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
-    /** Opens an avito.ru URL inside the Avito app (falls back to the system handler). */
-    private void openInApp(String url) {
-        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-        intent.setPackage(getPackageName());
+    /** Opens a deep link inside the Avito app (implicit, so its own intent-filter
+     * routes it to the right deep-link handler). */
+    private void openInApp(String uri) {
         try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(uri));
+            intent.setPackage(getPackageName());
             startActivity(intent);
         } catch (Throwable t) {
-            try {
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
-            } catch (Throwable ignored) {
-                toast("Не удалось открыть");
-            }
+            toast("Не удалось открыть");
         }
     }
 
