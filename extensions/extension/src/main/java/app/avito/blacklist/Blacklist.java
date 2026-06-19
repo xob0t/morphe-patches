@@ -891,11 +891,16 @@ public final class Blacklist {
 
     private static void collapse(android.view.View view) {
         try {
+            ensureBlockedFullSpan(view);
             android.view.ViewGroup.LayoutParams lp = view.getLayoutParams();
             if (lp != null) {
                 if (!originalHeights.containsKey(view)) {
                     originalHeights.put(view, lp.height);
                 }
+                // In the 2-column staggered SERP grid, a 0-height tile still
+                // reserves its column slot, leaving an empty gap. Making it
+                // full-span collapses that slot so the remaining tiles close up.
+                setFullSpan(lp, true);
                 lp.height = 0;
                 view.setLayoutParams(lp);
             }
@@ -913,11 +918,114 @@ public final class Blacklist {
         try {
             android.view.ViewGroup.LayoutParams lp = view.getLayoutParams();
             if (lp != null) {
+                setFullSpan(lp, false);
                 lp.height = original;
                 view.setLayoutParams(lp);
             }
             view.setVisibility(android.view.View.VISIBLE);
         } catch (Throwable ignored) {
+        }
+    }
+
+    /**
+     * Toggles {@code StaggeredGridLayoutManager.LayoutParams.setFullSpan} via
+     * reflection (so the extension needs no androidx dependency). No-op when the
+     * tile isn't in a staggered grid (the method is absent on other LayoutParams).
+     */
+    private static void setFullSpan(android.view.ViewGroup.LayoutParams lp, boolean full) {
+        try {
+            lp.getClass().getMethod("setFullSpan", boolean.class).invoke(lp, full);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /**
+     * In a {@link androidx.recyclerview.widget.GridLayoutManager} feed, a collapsed
+     * (0-height) tile still occupies its grid cell, leaving an empty slot next to
+     * its row partner. Wrap the manager's {@code SpanSizeLookup} so blocked items
+     * span the full width — a full-width 0-height row is invisible and the
+     * remaining tiles close up. Installed once per RecyclerView; a miss is
+     * harmless (tile just stays collapsed-in-place as before).
+     */
+    private static void ensureBlockedFullSpan(android.view.View view) {
+        try {
+            android.view.ViewParent p = view.getParent();
+            while (p != null && !(p instanceof androidx.recyclerview.widget.RecyclerView)) {
+                p = p.getParent();
+            }
+            if (p == null) {
+                return;
+            }
+            androidx.recyclerview.widget.RecyclerView rv =
+                    (androidx.recyclerview.widget.RecyclerView) p;
+            androidx.recyclerview.widget.RecyclerView.LayoutManager lm = rv.getLayoutManager();
+            if (!(lm instanceof androidx.recyclerview.widget.GridLayoutManager)) {
+                return;
+            }
+            androidx.recyclerview.widget.GridLayoutManager glm =
+                    (androidx.recyclerview.widget.GridLayoutManager) lm;
+            androidx.recyclerview.widget.RecyclerView.Adapter<?> adapter = rv.getAdapter();
+            if (adapter == null) {
+                return;
+            }
+            androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup current =
+                    glm.getSpanSizeLookup();
+            if (!(current instanceof BlockedSpanSizeLookup)) {
+                glm.setSpanSizeLookup(
+                        new BlockedSpanSizeLookup(current, adapter, glm.getSpanCount()));
+            }
+            glm.getSpanSizeLookup().invalidateSpanIndexCache();
+            rv.requestLayout();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** Returns the grid span count for blocked items (full width), else delegates. */
+    static final class BlockedSpanSizeLookup
+            extends androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup {
+        private final androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup delegate;
+        private final androidx.recyclerview.widget.RecyclerView.Adapter<?> adapter;
+        private final int spanCount;
+        private java.lang.reflect.Method getItem;
+
+        BlockedSpanSizeLookup(
+                androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup delegate,
+                androidx.recyclerview.widget.RecyclerView.Adapter<?> adapter,
+                int spanCount) {
+            this.delegate = delegate;
+            this.adapter = adapter;
+            this.spanCount = spanCount < 1 ? 1 : spanCount;
+            try {
+                for (java.lang.reflect.Method m : adapter.getClass().getMethods()) {
+                    if (m.getName().equals("getItem")
+                            && m.getParameterTypes().length == 1
+                            && m.getParameterTypes()[0] == int.class) {
+                        m.setAccessible(true);
+                        getItem = m;
+                        break;
+                    }
+                }
+            } catch (Throwable ignored) {
+            }
+            setSpanIndexCacheEnabled(true);
+        }
+
+        @Override
+        public int getSpanSize(int position) {
+            try {
+                if (getItem != null) {
+                    Object item = getItem.invoke(adapter, position);
+                    if (item != null && isItemBlocked(item)) {
+                        return spanCount;
+                    }
+                }
+            } catch (Throwable ignored) {
+            }
+            try {
+                return delegate != null ? delegate.getSpanSize(position) : 1;
+            } catch (Throwable t) {
+                return 1;
+            }
         }
     }
 

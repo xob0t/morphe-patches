@@ -90,46 +90,51 @@ val blockListingsPatch = bytecodePatch(
         println("Block listings: installed SERP feed filter in ${SerpElementsConverterFingerprint.originalClassDef.type}")
 
         // Long-press to block: hook the konveyor adapter-presenter bind
-        // `com.avito.konveyor.adapter.h.e(viewHolder, position, payloads)` — the
+        // `<SimpleAdapterPresenter>.e(viewHolder, position, payloads)` — the
         // dispatch every Avito list bind funnels through (the SERP's
-        // GridLayoutAppendingAdapter -> ListRecyclerAdapter -> this). `getItem`'s
-        // return type is read from the stable konveyor `i` interface so the call
-        // is version-independent. The extension attaches a long-press handler for
-        // advert items. A miss must never abort the feed filter above.
-        val getItemReturnType = classDefByOrNull("Lcom/avito/konveyor/adapter/i;")
-            ?.methods
-            ?.firstOrNull { it.name == "getItem" && it.parameterTypes.map { p -> p.toString() } == listOf("I") }
-            ?.returnType
-
+        // GridLayoutAppendingAdapter -> ListRecyclerAdapter -> this). The
+        // extension attaches a long-press handler + collapses blocked advert tiles.
+        //
+        // Matched STRUCTURALLY, not by name: R8 repackages the konveyor classes
+        // differently per release (`com/avito/konveyor/adapter/{i,h,b}` on <=226.5,
+        // `xt/a` + `sl1/{b,g}` on 227.0), but the SimpleAdapterPresenter always has
+        // both a `getItem(int)` returning a reference (the bound item; `getItem`
+        // keeps its name across obfuscation) and a bind method `e(viewHolder, int,
+        // List)V` on the same class. getItem is called directly on the concrete
+        // class so no interface name is needed. A miss must never abort the feed
+        // filter above.
         var bindHooks = 0
-        if (getItemReturnType != null) {
-            classDefForEach { classDef ->
-                if (!classDef.type.startsWith("Lcom/avito/konveyor/adapter/")) return@classDefForEach
-                if ("Lcom/avito/konveyor/adapter/i;" !in classDef.interfaces) return@classDefForEach
+        classDefForEach { classDef ->
+            val getItem = classDef.methods.firstOrNull { method ->
+                method.name == "getItem" &&
+                    method.parameterTypes.map { it.toString() } == listOf("I") &&
+                    method.returnType.startsWith("L")
+            } ?: return@classDefForEach
 
-                val bind = classDef.methods.firstOrNull { method ->
-                    method.name == "e" &&
-                        method.implementation != null &&
-                        method.returnType == "V" &&
-                        method.parameterTypes.map { it.toString() } == listOf(
-                            "Lcom/avito/konveyor/adapter/b;",
-                            "I",
-                            "Ljava/util/List;",
-                        )
-                } ?: return@classDefForEach
+            val bind = classDef.methods.firstOrNull { method ->
+                method.name == "e" &&
+                    method.implementation != null &&
+                    method.returnType == "V" &&
+                    method.parameterTypes.map { it.toString() }.let { params ->
+                        params.size == 3 &&
+                            params[0].startsWith("L") &&
+                            params[1] == "I" &&
+                            params[2] == "Ljava/util/List;"
+                    }
+            } ?: return@classDefForEach
 
-                mutableClassDefBy(classDef).methods
-                    .first { it.name == "e" && it.parameterTypes == bind.parameterTypes }
-                    .addInstructions(
-                        0,
-                        """
-                            invoke-interface {p0, p2}, Lcom/avito/konveyor/adapter/i;->getItem(I)$getItemReturnType
-                            move-result-object v0
-                            invoke-static {p1, v0}, $BLACKLIST_CLASS->onBindAdvert(Ljava/lang/Object;Ljava/lang/Object;)V
-                        """,
-                    )
-                bindHooks++
-            }
+            mutableClassDefBy(classDef).methods
+                .first { it.name == "e" && it.parameterTypes == bind.parameterTypes }
+                .addInstructions(
+                    0,
+                    """
+                        invoke-virtual {p0, p2}, ${classDef.type}->getItem(I)${getItem.returnType}
+                        move-result-object v0
+                        invoke-static {p1, v0}, $BLACKLIST_CLASS->onBindAdvert(Ljava/lang/Object;Ljava/lang/Object;)V
+                    """,
+                )
+            bindHooks++
+            println("Block listings: hooked adapter presenter ${classDef.type}")
         }
         println("Block listings: installed long-press block handler in $bindHooks adapter presenter(s)")
 
