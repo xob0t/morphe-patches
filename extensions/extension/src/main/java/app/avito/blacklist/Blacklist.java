@@ -34,6 +34,8 @@ public final class Blacklist {
     public static final String PREFS_NAME = "avito_blacklist";
     private static final String KEY_OFFERS = "offers";
     private static final String KEY_SELLERS = "sellers";
+    private static final String KEY_OFFER_LABELS = "offer_labels";
+    private static final String KEY_SELLER_LABELS = "seller_labels";
 
     /** Suffixes used by the browser extension's export/import format. */
     public static final String SUFFIX_OFFER = "_blacklist_ad";
@@ -45,6 +47,10 @@ public final class Blacklist {
     private static Context appContext;
     private static final Set<String> blockedOffers = new LinkedHashSet<>();
     private static final Set<String> blockedSellers = new LinkedHashSet<>();
+    // Human-readable labels (offer title / seller name) keyed by id. Local-only
+    // metadata, not part of the import/export format.
+    private static final java.util.Map<String, String> offerLabels = new java.util.HashMap<>();
+    private static final java.util.Map<String, String> sellerLabels = new java.util.HashMap<>();
 
     private Blacklist() {
     }
@@ -94,6 +100,8 @@ public final class Blacklist {
             }
             readInto(blockedOffers, prefs.getString(KEY_OFFERS, null));
             readInto(blockedSellers, prefs.getString(KEY_SELLERS, null));
+            readMap(offerLabels, prefs.getString(KEY_OFFER_LABELS, null));
+            readMap(sellerLabels, prefs.getString(KEY_SELLER_LABELS, null));
             loaded = true;
         }
     }
@@ -115,6 +123,25 @@ public final class Blacklist {
         }
     }
 
+    private static void readMap(java.util.Map<String, String> target, String json) {
+        target.clear();
+        if (json == null || json.isEmpty()) {
+            return;
+        }
+        try {
+            JSONObject obj = new JSONObject(json);
+            Iterator<String> keys = obj.keys();
+            while (keys.hasNext()) {
+                String key = keys.next();
+                String value = obj.optString(key, null);
+                if (value != null && !value.isEmpty()) {
+                    target.put(key, value);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     private static void persist() {
         SharedPreferences prefs = prefs();
         if (prefs == null) {
@@ -123,7 +150,53 @@ public final class Blacklist {
         prefs.edit()
                 .putString(KEY_OFFERS, new JSONArray(blockedOffers).toString())
                 .putString(KEY_SELLERS, new JSONArray(blockedSellers).toString())
+                .putString(KEY_OFFER_LABELS, new JSONObject(offerLabels).toString())
+                .putString(KEY_SELLER_LABELS, new JSONObject(sellerLabels).toString())
                 .apply();
+    }
+
+    // ---------------------------------------------------------------------
+    // Labels (human-readable offer title / seller name)
+    // ---------------------------------------------------------------------
+
+    public static String getOfferLabel(String offerId) {
+        ensureLoaded();
+        synchronized (LOCK) {
+            return offerLabels.get(offerId);
+        }
+    }
+
+    public static String getSellerLabel(String userKey) {
+        ensureLoaded();
+        synchronized (LOCK) {
+            return sellerLabels.get(userKey);
+        }
+    }
+
+    private static void putOfferLabel(String offerId, String label) {
+        if (offerId == null || label == null || label.trim().isEmpty()) {
+            return;
+        }
+        ensureLoaded();
+        synchronized (LOCK) {
+            if (blockedOffers.contains(offerId) && !label.equals(offerLabels.get(offerId))) {
+                offerLabels.put(offerId, label.trim());
+                persist();
+            }
+        }
+    }
+
+    private static void putSellerLabel(String userKey, String label) {
+        if (userKey == null || label == null || label.trim().isEmpty()) {
+            return;
+        }
+        ensureLoaded();
+        synchronized (LOCK) {
+            if (blockedSellers.contains(userKey) && !label.equals(sellerLabels.get(userKey))) {
+                sellerLabels.put(userKey, label.trim());
+                persist();
+            }
+        }
     }
 
     // ---------------------------------------------------------------------
@@ -206,6 +279,7 @@ public final class Blacklist {
         ensureLoaded();
         synchronized (LOCK) {
             if (blockedOffers.remove(offerId)) {
+                offerLabels.remove(offerId);
                 persist();
                 return true;
             }
@@ -235,6 +309,7 @@ public final class Blacklist {
         ensureLoaded();
         synchronized (LOCK) {
             if (blockedSellers.remove(userKey)) {
+                sellerLabels.remove(userKey);
                 persist();
                 return true;
             }
@@ -247,6 +322,8 @@ public final class Blacklist {
         synchronized (LOCK) {
             blockedOffers.clear();
             blockedSellers.clear();
+            offerLabels.clear();
+            sellerLabels.clear();
             persist();
         }
     }
@@ -299,6 +376,8 @@ public final class Blacklist {
     private static boolean shouldHide(Object element) {
         String offerId = callString(element, "getId");
         if (offerId != null && isOfferBlocked(offerId)) {
+            // Opportunistically capture a readable label (also labels imported ids).
+            putOfferLabel(offerId, callString(element, "getTitle"));
             return true;
         }
         Object seller = callObject(element, "getSellerInfo");
@@ -307,7 +386,10 @@ public final class Blacklist {
         }
         if (seller != null) {
             String userKey = callString(seller, "getUserKey");
-            return userKey != null && isSellerBlocked(userKey);
+            if (userKey != null && isSellerBlocked(userKey)) {
+                putSellerLabel(userKey, nameOf(seller));
+                return true;
+            }
         }
         return false;
     }
@@ -483,6 +565,8 @@ public final class Blacklist {
     private static void showBlockDialog(android.content.Context ctx, final android.view.View root, Object item) {
         final String offerId = offerIdOf(item);
         final String userKey = sellerUserKey(item);
+        final String offerTitle = callString(item, "getTitle");
+        final String sellerName = nameOf(sellerObjectOf(item));
 
         java.util.List<String> labels = new ArrayList<>();
         final java.util.List<Runnable> actions = new ArrayList<>();
@@ -492,6 +576,7 @@ public final class Blacklist {
                 @Override
                 public void run() {
                     addOffer(offerId);
+                    putOfferLabel(offerId, offerTitle);
                     collapseMatching(true, offerId);
                     toast(root, "Объявление скрыто");
                 }
@@ -503,6 +588,7 @@ public final class Blacklist {
                 @Override
                 public void run() {
                     addSeller(userKey);
+                    putSellerLabel(userKey, sellerName);
                     collapseMatching(false, userKey);
                     toast(root, "Объявления продавца скрыты");
                 }
@@ -552,10 +638,7 @@ public final class Blacklist {
      * {@code toString()} ("...userKey=<value>, ..."), which is stable.
      */
     private static String sellerUserKey(Object item) {
-        Object seller = callObject(item, "getSellerInfo");
-        if (seller == null) {
-            seller = sellerFieldOf(item);
-        }
+        Object seller = sellerObjectOf(item);
         if (seller == null) {
             return null;
         }
@@ -563,7 +646,36 @@ public final class Blacklist {
         if (key != null && !key.isEmpty()) {
             return key;
         }
-        return parseUserKey(seller.toString());
+        return parseField(seller.toString(), "userKey=");
+    }
+
+    private static Object sellerObjectOf(Object item) {
+        Object seller = callObject(item, "getSellerInfo");
+        if (seller == null) {
+            seller = callObject(item, "getSeller");
+        }
+        if (seller == null) {
+            seller = sellerFieldOf(item);
+        }
+        return seller;
+    }
+
+    /** The seller's display name, for a readable label. */
+    private static String nameOf(Object seller) {
+        if (seller == null) {
+            return null;
+        }
+        String name = callString(seller, "getDisplayName");
+        if (isBlank(name)) {
+            name = callString(seller, "getName");
+        }
+        if (isBlank(name)) {
+            name = parseField(seller.toString(), "displayName=");
+        }
+        if (isBlank(name)) {
+            name = parseField(seller.toString(), "name=");
+        }
+        return isBlank(name) ? null : name;
     }
 
     private static Object sellerFieldOf(Object item) {
@@ -582,15 +694,20 @@ public final class Blacklist {
         return null;
     }
 
-    private static String parseUserKey(String s) {
+    private static boolean isBlank(String s) {
+        return s == null || s.trim().isEmpty();
+    }
+
+    /** Extracts {@code key<value>} up to the next ',' or ')' from a data-class toString. */
+    private static String parseField(String s, String key) {
         if (s == null) {
             return null;
         }
-        int i = s.indexOf("userKey=");
+        int i = s.indexOf(key);
         if (i < 0) {
             return null;
         }
-        i += "userKey=".length();
+        i += key.length();
         int j = i;
         while (j < s.length() && s.charAt(j) != ',' && s.charAt(j) != ')') {
             j++;

@@ -311,13 +311,32 @@ public final class BlacklistActivity extends Activity {
             rowItem.setGravity(Gravity.CENTER_VERTICAL);
             rowItem.setPadding(0, 12 * dp, 0, 12 * dp);
 
-            TextView value = new TextView(this);
-            value.setText(id);
-            value.setTextColor(textPrimary);
-            value.setTextSize(15);
-            value.setLayoutParams(new LinearLayout.LayoutParams(
+            String itemLabel = offer ? Blacklist.getOfferLabel(id) : Blacklist.getSellerLabel(id);
+
+            LinearLayout textCol = new LinearLayout(this);
+            textCol.setOrientation(LinearLayout.VERTICAL);
+            textCol.setLayoutParams(new LinearLayout.LayoutParams(
                     0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            rowItem.addView(value);
+
+            TextView primary = new TextView(this);
+            primary.setTextColor(textPrimary);
+            primary.setTextSize(15);
+            primary.setText(itemLabel != null ? itemLabel : id);
+            primary.setMaxLines(2);
+            primary.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            textCol.addView(primary);
+
+            if (itemLabel != null) {
+                TextView sub = new TextView(this);
+                sub.setTextColor(textSecondary);
+                sub.setTextSize(12);
+                sub.setText(id);
+                sub.setMaxLines(1);
+                sub.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                sub.setPadding(0, 2 * dp, 0, 0);
+                textCol.addView(sub);
+            }
+            rowItem.addView(textCol);
 
             TextView remove = new TextView(this);
             remove.setText("Удалить");
