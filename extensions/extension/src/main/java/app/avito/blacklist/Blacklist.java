@@ -579,42 +579,41 @@ public final class Blacklist {
         if (root == null) {
             return;
         }
-        final android.view.View.OnClickListener click = new android.view.View.OnClickListener() {
-            @Override
-            public void onClick(android.view.View v) {
-                try {
-                    android.content.Intent intent = new android.content.Intent();
-                    intent.setClassName(v.getContext().getPackageName(), BLACKLIST_ACTIVITY);
-                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
-                    v.getContext().startActivity(intent);
-                } catch (Throwable ignored) {
-                }
-            }
-        };
-        // Deferred + recursive so this listener wins over the one the settings
-        // binder installs after this callback, and lands on the actual clickable
-        // child view (not only the row root).
+        // Detect the tap with a GestureDetector fed by a non-consuming touch
+        // listener (returns false). This is robust to whichever click/touch
+        // handling Avito's settings binder installs (and to it varying by app
+        // version): our detector sees the tap regardless of ordering, while
+        // returning false leaves Avito's own row handling intact (it just has no
+        // action for our id). A real tap (not a list scroll) opens the manager.
+        final android.view.GestureDetector detector = new android.view.GestureDetector(
+                root.getContext(),
+                new android.view.GestureDetector.SimpleOnGestureListener() {
+                    @Override
+                    public boolean onSingleTapUp(android.view.MotionEvent e) {
+                        try {
+                            android.content.Intent intent = new android.content.Intent();
+                            intent.setClassName(root.getContext().getPackageName(), BLACKLIST_ACTIVITY);
+                            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                            root.getContext().startActivity(intent);
+                        } catch (Throwable ignored) {
+                        }
+                        return false;
+                    }
+                });
+        final android.view.View.OnTouchListener touch =
+                new android.view.View.OnTouchListener() {
+                    @Override
+                    public boolean onTouch(android.view.View v, android.view.MotionEvent ev) {
+                        detector.onTouchEvent(ev);
+                        return false;
+                    }
+                };
         root.post(new Runnable() {
             @Override
             public void run() {
-                attachClickRecursive(root, click);
+                attachTouchRecursive(root, touch);
             }
         });
-    }
-
-    private static void attachClickRecursive(android.view.View view, android.view.View.OnClickListener listener) {
-        try {
-            if (view.isClickable() || view instanceof android.widget.TextView) {
-                view.setOnClickListener(listener);
-            }
-            if (view instanceof android.view.ViewGroup) {
-                android.view.ViewGroup group = (android.view.ViewGroup) view;
-                for (int i = 0; i < group.getChildCount(); i++) {
-                    attachClickRecursive(group.getChildAt(i), listener);
-                }
-            }
-        } catch (Throwable ignored) {
-        }
     }
 
     /**
