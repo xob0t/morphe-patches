@@ -346,13 +346,51 @@ public final class Blacklist {
                 return;
             }
             final Object boundItem = item;
-            root.setOnLongClickListener(new android.view.View.OnLongClickListener() {
+
+            // Track the bound view so blocking a seller can immediately hide all
+            // of that seller's currently-visible tiles. Re-apply the hidden state
+            // deterministically on every (re)bind so recycled views never leak a
+            // collapsed state onto a different advert, and so any blocked item the
+            // feed filter missed is still hidden here.
+            boundAdvertViews.put(root, boundItem);
+            if (isItemBlocked(boundItem)) {
+                collapse(root);
+            } else {
+                restore(root);
+            }
+
+            final android.view.View.OnLongClickListener listener =
+                    new android.view.View.OnLongClickListener() {
+                        @Override
+                        public boolean onLongClick(android.view.View v) {
+                            showBlockDialog(v.getContext(), root, boundItem);
+                            return true;
+                        }
+                    };
+            root.setOnLongClickListener(listener);
+            // Some snippets (e.g. extended-gallery tiles) contain a scrollable
+            // image pager that consumes the long-press, and its child views are
+            // added during bind. Re-attach across the whole tree after layout so
+            // a long-press anywhere on the tile opens the block menu.
+            root.post(new Runnable() {
                 @Override
-                public boolean onLongClick(android.view.View v) {
-                    showBlockDialog(v.getContext(), root, boundItem);
-                    return true;
+                public void run() {
+                    attachLongPressRecursive(root, listener);
                 }
             });
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void attachLongPressRecursive(android.view.View view, android.view.View.OnLongClickListener listener) {
+        try {
+            view.setOnLongClickListener(listener);
+            if (view instanceof android.view.ViewGroup) {
+                android.view.ViewGroup group = (android.view.ViewGroup) view;
+                for (int i = 0; i < group.getChildCount(); i++) {
+                    attachLongPressRecursive(group.getChildAt(i), listener);
+                }
+            }
         } catch (Throwable ignored) {
         }
     }
@@ -454,7 +492,7 @@ public final class Blacklist {
                 @Override
                 public void run() {
                     addOffer(offerId);
-                    collapse(root);
+                    collapseMatching(true, offerId);
                     toast(root, "Объявление скрыто");
                 }
             });
@@ -465,8 +503,8 @@ public final class Blacklist {
                 @Override
                 public void run() {
                     addSeller(userKey);
-                    collapse(root);
-                    toast(root, "Продавец скрыт");
+                    collapseMatching(false, userKey);
+                    toast(root, "Объявления продавца скрыты");
                 }
             });
         }
@@ -561,14 +599,71 @@ public final class Blacklist {
         return (value.isEmpty() || "null".equals(value)) ? null : value;
     }
 
-    private static void collapse(android.view.View root) {
-        try {
-            android.view.ViewGroup.LayoutParams lp = root.getLayoutParams();
-            if (lp != null) {
-                lp.height = 0;
-                root.setLayoutParams(lp);
+    /** Advert tiles currently bound to a view, so a block can hide them at once. */
+    private static final java.util.Map<android.view.View, Object> boundAdvertViews =
+            java.util.Collections.synchronizedMap(new java.util.WeakHashMap<android.view.View, Object>());
+    /** Original heights of collapsed views, to restore them on rebind. */
+    private static final java.util.Map<android.view.View, Integer> originalHeights =
+            java.util.Collections.synchronizedMap(new java.util.WeakHashMap<android.view.View, Integer>());
+
+    private static boolean isItemBlocked(Object item) {
+        if (offerCount() == 0 && sellerCount() == 0) {
+            return false;
+        }
+        String offerId = offerIdOf(item);
+        if (offerId != null && isOfferBlocked(offerId)) {
+            return true;
+        }
+        String userKey = sellerUserKey(item);
+        return userKey != null && isSellerBlocked(userKey);
+    }
+
+    /** Immediately collapse every currently-bound tile that matches the block. */
+    private static void collapseMatching(boolean isOffer, String id) {
+        if (id == null) {
+            return;
+        }
+        java.util.List<java.util.Map.Entry<android.view.View, Object>> entries;
+        synchronized (boundAdvertViews) {
+            entries = new ArrayList<>(boundAdvertViews.entrySet());
+        }
+        for (java.util.Map.Entry<android.view.View, Object> entry : entries) {
+            Object item = entry.getValue();
+            String value = isOffer ? offerIdOf(item) : sellerUserKey(item);
+            if (id.equals(value)) {
+                collapse(entry.getKey());
             }
-            root.setVisibility(android.view.View.GONE);
+        }
+    }
+
+    private static void collapse(android.view.View view) {
+        try {
+            android.view.ViewGroup.LayoutParams lp = view.getLayoutParams();
+            if (lp != null) {
+                if (!originalHeights.containsKey(view)) {
+                    originalHeights.put(view, lp.height);
+                }
+                lp.height = 0;
+                view.setLayoutParams(lp);
+            }
+            view.setVisibility(android.view.View.GONE);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** Undo a previous {@link #collapse}; no-op for views that were never collapsed. */
+    private static void restore(android.view.View view) {
+        Integer original = originalHeights.remove(view);
+        if (original == null) {
+            return;
+        }
+        try {
+            android.view.ViewGroup.LayoutParams lp = view.getLayoutParams();
+            if (lp != null) {
+                lp.height = original;
+                view.setLayoutParams(lp);
+            }
+            view.setVisibility(android.view.View.VISIBLE);
         } catch (Throwable ignored) {
         }
     }

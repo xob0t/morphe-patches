@@ -58,12 +58,13 @@ public final class BlacklistActivity extends Activity {
         setTitle("Чёрный список");
 
         dp = Math.round(getResources().getDisplayMetrics().density);
-        colorBackground = themeColor(android.R.attr.colorBackground, Color.WHITE);
-        textPrimary = themeColor(android.R.attr.textColorPrimary, Color.BLACK);
-        textSecondary = themeColor(android.R.attr.textColorSecondary, Color.GRAY);
-        accent = themeColor(android.R.attr.colorAccent, 0xFF0A7CFF);
-        colorSurface = blend(colorBackground, textPrimary, 0.04f);
-        divider = blend(colorBackground, textPrimary, 0.12f);
+        // Avito design-system colours (DayNight: resolve to light/dark automatically).
+        colorBackground = avitoColor("white", themeColor(android.R.attr.colorBackground, Color.WHITE));
+        textPrimary = avitoColor("black", themeColor(android.R.attr.textColorPrimary, Color.BLACK));
+        textSecondary = avitoColor("gray54", themeColor(android.R.attr.textColorSecondary, Color.GRAY));
+        accent = avitoColor("blue", 0xFF00AAFF);
+        colorSurface = avitoColor("gray4", blend(colorBackground, textPrimary, 0.05f));
+        divider = avitoColor("gray8", blend(colorBackground, textPrimary, 0.12f));
 
         LinearLayout outer = new LinearLayout(this);
         outer.setOrientation(LinearLayout.VERTICAL);
@@ -138,18 +139,34 @@ public final class BlacklistActivity extends Activity {
         bar.setMinimumHeight(56 * dp);
         bar.setBackgroundColor(colorBackground);
 
-        TextView back = new TextView(this);
-        back.setText("←");
-        back.setTextSize(22);
-        back.setTextColor(textPrimary);
-        back.setPadding(16 * dp, 12 * dp, 16 * dp, 12 * dp);
-        back.setOnClickListener(new View.OnClickListener() {
+        View.OnClickListener backAction = new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 finish();
             }
-        });
-        bar.addView(back);
+        };
+        // Avito's own back icon (theme homeAsUpIndicator / navigationIcon), with a
+        // text fallback if it can't be resolved.
+        android.graphics.drawable.Drawable backIcon = themeDrawable(android.R.attr.homeAsUpIndicator);
+        if (backIcon == null) {
+            backIcon = themeDrawable(android.R.attr.navigationIcon);
+        }
+        if (backIcon != null) {
+            android.widget.ImageButton back = new android.widget.ImageButton(this);
+            back.setImageDrawable(backIcon);
+            back.setBackground(themeDrawable(android.R.attr.selectableItemBackgroundBorderless));
+            back.setPadding(16 * dp, 12 * dp, 16 * dp, 12 * dp);
+            back.setOnClickListener(backAction);
+            bar.addView(back);
+        } else {
+            TextView back = new TextView(this);
+            back.setText("←");
+            back.setTextSize(22);
+            back.setTextColor(textPrimary);
+            back.setPadding(16 * dp, 12 * dp, 16 * dp, 12 * dp);
+            back.setOnClickListener(backAction);
+            bar.addView(back);
+        }
 
         TextView title = new TextView(this);
         title.setText("Чёрный список");
@@ -473,6 +490,35 @@ public final class BlacklistActivity extends Activity {
         } catch (Throwable ignored) {
         }
         return fallback;
+    }
+
+    /** Resolves an Avito design-system colour attribute (e.g. "blue", "black") by name. */
+    private int avitoColor(String attrName, int fallback) {
+        try {
+            int id = getResources().getIdentifier(attrName, "attr", getPackageName());
+            if (id != 0) {
+                TypedValue tv = new TypedValue();
+                if (getTheme().resolveAttribute(id, tv, true)) {
+                    if (tv.resourceId != 0) {
+                        return getResources().getColor(tv.resourceId, getTheme());
+                    }
+                    return tv.data;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return fallback;
+    }
+
+    private android.graphics.drawable.Drawable themeDrawable(int attr) {
+        try {
+            TypedValue tv = new TypedValue();
+            if (getTheme().resolveAttribute(attr, tv, true) && tv.resourceId != 0) {
+                return getResources().getDrawable(tv.resourceId, getTheme());
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
     }
 
     /** White or black text, whichever contrasts with the accent fill. */
