@@ -615,19 +615,24 @@ public final class Blacklist {
     }
 
     /**
-     * The numeric advert id, matching what the feed filter blocks. Both item
-     * types expose {@code getId()} (long for the redesigned item, the advert id);
-     * falls back to the conveyor {@code getStringId()}.
+     * The real numeric advert id, matching what the feed filter blocks and what
+     * the browser-extension export uses. The conveyor {@code getStringId()} is the
+     * advert id string (same value the network model's {@code getId()} returns);
+     * the item's {@code getId()} long is an internal id and must not be used.
      */
     private static String offerIdOf(Object item) {
-        Object id = callObject(item, "getId");
-        if (id instanceof Long || id instanceof Integer) {
-            return String.valueOf(id);
+        String stringId = callString(item, "getStringId");
+        if (stringId != null && !stringId.isEmpty() && isAllDigits(stringId)) {
+            return stringId;
         }
-        if (id instanceof String && !((String) id).isEmpty()) {
+        Object id = callObject(item, "getId");
+        if (id instanceof String && isAllDigits((String) id)) {
             return (String) id;
         }
-        return callString(item, "getStringId");
+        if ((id instanceof Long || id instanceof Integer) && ((Number) id).longValue() > 0) {
+            return String.valueOf(id);
+        }
+        return stringId;
     }
 
     /**

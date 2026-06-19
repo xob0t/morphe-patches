@@ -310,6 +310,17 @@ public final class BlacklistActivity extends Activity {
             rowItem.setOrientation(LinearLayout.HORIZONTAL);
             rowItem.setGravity(Gravity.CENTER_VERTICAL);
             rowItem.setPadding(0, 12 * dp, 0, 12 * dp);
+            // Tap a row to open the advert / seller page in the app.
+            rowItem.setBackground(themeDrawable(android.R.attr.selectableItemBackground));
+            rowItem.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    String url = offer
+                            ? "https://www.avito.ru/items/" + Uri.encode(id)
+                            : "https://www.avito.ru/user/" + Uri.encode(id) + "/profile";
+                    openInApp(url);
+                }
+            });
 
             String itemLabel = offer ? Blacklist.getOfferLabel(id) : Blacklist.getSellerLabel(id);
 
@@ -493,6 +504,21 @@ public final class BlacklistActivity extends Activity {
 
     private void toast(String message) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+
+    /** Opens an avito.ru URL inside the Avito app (falls back to the system handler). */
+    private void openInApp(String url) {
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+        intent.setPackage(getPackageName());
+        try {
+            startActivity(intent);
+        } catch (Throwable t) {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+            } catch (Throwable ignored) {
+                toast("Не удалось открыть");
+            }
+        }
     }
 
     // -- Theme helpers ------------------------------------------------------
