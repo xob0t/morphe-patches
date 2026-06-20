@@ -285,7 +285,7 @@ public final class MorpheBlockMenu {
                     toggle.toggle();
                     boolean nowBlocked = toggle.blocked();
                     applyTint(mi.getIcon(), nowBlocked);
-                    toast(ctx, nowBlocked ? blockedMsg : unblockedMsg);
+                    toast(ctx, nowBlocked ? blockedMsg : unblockedMsg, iconName, nowBlocked);
                     return true;
                 }
             });
@@ -408,10 +408,51 @@ public final class MorpheBlockMenu {
         }
     }
 
-    private static void toast(Context ctx, String message) {
+    /**
+     * A toast that looks like the standard dark pill but carries a leading Avito
+     * icon (text toasts can't be given an icon on API 11+, so we supply a custom
+     * view; it renders fine since these always fire while the app is foreground).
+     * {@code blocked} tints the icon red (blocked) or white (restored). Falls back
+     * to a plain text toast if anything goes wrong.
+     */
+    public static void toast(Context ctx, String message, String iconName, boolean blocked) {
         try {
-            android.widget.Toast.makeText(ctx, message, android.widget.Toast.LENGTH_LONG).show();
+            float d = ctx.getResources().getDisplayMetrics().density;
+            android.widget.LinearLayout row = new android.widget.LinearLayout(ctx);
+            row.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+            row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+            bg.setColor(0xFF2B2B2B);
+            bg.setCornerRadius(24f * d);
+            row.setBackground(bg);
+            row.setPadding((int) (20 * d), (int) (13 * d), (int) (20 * d), (int) (13 * d));
+
+            Drawable icon = drawableByName(ctx, iconName);
+            if (icon != null) {
+                android.widget.ImageView iv = new android.widget.ImageView(ctx);
+                iv.setImageDrawable(applyTint(icon, blocked));
+                int size = (int) (20 * d);
+                android.widget.LinearLayout.LayoutParams ip =
+                        new android.widget.LinearLayout.LayoutParams(size, size);
+                ip.rightMargin = (int) (12 * d);
+                row.addView(iv, ip);
+            }
+            android.widget.TextView tv = new android.widget.TextView(ctx);
+            tv.setText(message);
+            tv.setTextColor(0xFFFFFFFF);
+            tv.setTextSize(14f);
+            tv.setMaxWidth((int) (260 * d));
+            row.addView(tv);
+
+            android.widget.Toast t = new android.widget.Toast(ctx);
+            t.setView(row);
+            t.setDuration(android.widget.Toast.LENGTH_LONG);
+            t.show();
         } catch (Throwable ignored) {
+            try {
+                android.widget.Toast.makeText(ctx, message, android.widget.Toast.LENGTH_LONG).show();
+            } catch (Throwable t2) {
+            }
         }
     }
 }

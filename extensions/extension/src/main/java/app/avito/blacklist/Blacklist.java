@@ -810,7 +810,7 @@ public final class Blacklist {
                     putOfferLabel(offerId, offerTitle);
                     putOfferSellerLabel(offerId, sellerNameFinal);
                     collapseMatching(true, offerId);
-                    toast(root, "Объявление в чёрном списке — скрыто из ленты");
+                    toast(root, "Объявление в чёрном списке — скрыто из ленты", "common_ic_block_24");
                 }
             });
         }
@@ -823,7 +823,7 @@ public final class Blacklist {
                     putSellerLabel(userKey, sellerNameFinal);
                     collapseMatching(false, userKey);
                     String who = isBlank(sellerNameFinal) ? "Продавец" : sellerNameFinal;
-                    toast(root, who + " в чёрном списке — его объявления скрыты");
+                    toast(root, who + " в чёрном списке — его объявления скрыты", "common_ic_block_user_24");
                 }
             });
         }
@@ -1170,9 +1170,11 @@ public final class Blacklist {
         }
     }
 
-    private static void toast(android.view.View anchor, String message) {
+    private static void toast(android.view.View anchor, String message, String iconName) {
         try {
-            android.widget.Toast.makeText(anchor.getContext(), message, android.widget.Toast.LENGTH_LONG).show();
+            // Reuse the icon toast from the block-menu helper (these run on the main
+            // thread after a user tap, so touching that class here is safe).
+            app.avito.morphe.MorpheBlockMenu.toast(anchor.getContext(), message, iconName, true);
         } catch (Throwable ignored) {
         }
     }
