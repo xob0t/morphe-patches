@@ -301,6 +301,18 @@ public final class BlacklistActivity extends Activity {
                 sub.setPadding(0, 2 * dp, 0, 0);
                 textCol.addView(sub);
             }
+
+            long blockedAt = offer ? Blacklist.getOfferTime(id) : Blacklist.getSellerTime(id);
+            if (blockedAt > 0) {
+                TextView when = new TextView(this);
+                when.setTextColor(textSecondary);
+                when.setTextSize(12);
+                when.setText("Заблокировано " + android.text.format.DateUtils.getRelativeTimeSpanString(
+                        blockedAt, System.currentTimeMillis(),
+                        android.text.format.DateUtils.MINUTE_IN_MILLIS));
+                when.setPadding(0, 2 * dp, 0, 0);
+                textCol.addView(when);
+            }
             rowItem.addView(textCol);
 
             TextView remove = new TextView(this);

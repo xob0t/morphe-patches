@@ -37,6 +37,8 @@ public final class Blacklist {
     private static final String KEY_OFFER_LABELS = "offer_labels";
     private static final String KEY_SELLER_LABELS = "seller_labels";
     private static final String KEY_OFFER_SELLER_LABELS = "offer_seller_labels";
+    private static final String KEY_OFFER_TIMES = "offer_times";
+    private static final String KEY_SELLER_TIMES = "seller_times";
 
     /** Suffixes used by the browser extension's export/import format. */
     public static final String SUFFIX_OFFER = "_blacklist_ad";
@@ -55,6 +57,10 @@ public final class Blacklist {
     // Seller name of each blocked offer, keyed by offer id. Shown under the offer
     // in the manager so it's clear who the listing belongs to.
     private static final java.util.Map<String, String> offerSellerLabels = new java.util.HashMap<>();
+    // When each id was blocked (epoch millis), keyed by id. Used to sort the
+    // manager most-recent-first. Local-only metadata, not part of import/export.
+    private static final java.util.Map<String, Long> offerTimes = new java.util.HashMap<>();
+    private static final java.util.Map<String, Long> sellerTimes = new java.util.HashMap<>();
 
     private Blacklist() {
     }
@@ -107,6 +113,8 @@ public final class Blacklist {
             readMap(offerLabels, prefs.getString(KEY_OFFER_LABELS, null));
             readMap(sellerLabels, prefs.getString(KEY_SELLER_LABELS, null));
             readMap(offerSellerLabels, prefs.getString(KEY_OFFER_SELLER_LABELS, null));
+            readTimes(offerTimes, prefs.getString(KEY_OFFER_TIMES, null));
+            readTimes(sellerTimes, prefs.getString(KEY_SELLER_TIMES, null));
             loaded = true;
 
             // One-time migration: an earlier version stored the item's internal
@@ -166,6 +174,25 @@ public final class Blacklist {
         }
     }
 
+    private static void readTimes(java.util.Map<String, Long> target, String json) {
+        target.clear();
+        if (json == null || json.isEmpty()) {
+            return;
+        }
+        try {
+            JSONObject obj = new JSONObject(json);
+            Iterator<String> keys = obj.keys();
+            while (keys.hasNext()) {
+                String key = keys.next();
+                long value = obj.optLong(key, 0L);
+                if (value > 0L) {
+                    target.put(key, value);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     private static void persist() {
         SharedPreferences prefs = prefs();
         if (prefs == null) {
@@ -177,6 +204,8 @@ public final class Blacklist {
                 .putString(KEY_OFFER_LABELS, new JSONObject(offerLabels).toString())
                 .putString(KEY_SELLER_LABELS, new JSONObject(sellerLabels).toString())
                 .putString(KEY_OFFER_SELLER_LABELS, new JSONObject(offerSellerLabels).toString())
+                .putString(KEY_OFFER_TIMES, new JSONObject(offerTimes).toString())
+                .putString(KEY_SELLER_TIMES, new JSONObject(sellerTimes).toString())
                 .apply();
     }
 
@@ -274,7 +303,7 @@ public final class Blacklist {
         ensureLoaded();
         synchronized (LOCK) {
             List<String> list = new ArrayList<>(blockedOffers);
-            Collections.sort(list);
+            sortByRecency(list, offerTimes);
             return list;
         }
     }
@@ -282,8 +311,44 @@ public final class Blacklist {
     public static List<String> getSellers() {
         ensureLoaded();
         synchronized (LOCK) {
-            return new ArrayList<>(blockedSellers);
+            List<String> list = new ArrayList<>(blockedSellers);
+            sortByRecency(list, sellerTimes);
+            return list;
         }
+    }
+
+    /** When the offer was blocked (epoch millis), or 0 if unknown (pre-timestamp entry). */
+    public static long getOfferTime(String offerId) {
+        ensureLoaded();
+        synchronized (LOCK) {
+            Long t = offerTimes.get(offerId);
+            return t == null ? 0L : t;
+        }
+    }
+
+    /** When the seller was blocked (epoch millis), or 0 if unknown. */
+    public static long getSellerTime(String userKey) {
+        ensureLoaded();
+        synchronized (LOCK) {
+            Long t = sellerTimes.get(userKey);
+            return t == null ? 0L : t;
+        }
+    }
+
+    /** Sorts ids most-recently-blocked first; entries without a timestamp (0) sink
+     *  to the bottom, tie-broken by id for a stable order. */
+    private static void sortByRecency(List<String> ids, final java.util.Map<String, Long> times) {
+        Collections.sort(ids, new java.util.Comparator<String>() {
+            @Override
+            public int compare(String a, String b) {
+                long ta = times.containsKey(a) ? times.get(a) : 0L;
+                long tb = times.containsKey(b) ? times.get(b) : 0L;
+                if (ta != tb) {
+                    return ta > tb ? -1 : 1;
+                }
+                return a.compareTo(b);
+            }
+        });
     }
 
     public static int offerCount() {
@@ -315,6 +380,7 @@ public final class Blacklist {
         ensureLoaded();
         synchronized (LOCK) {
             if (blockedOffers.add(offerId)) {
+                offerTimes.put(offerId, System.currentTimeMillis());
                 persist();
                 return true;
             }
@@ -328,6 +394,7 @@ public final class Blacklist {
             if (blockedOffers.remove(offerId)) {
                 offerLabels.remove(offerId);
                 offerSellerLabels.remove(offerId);
+                offerTimes.remove(offerId);
                 persist();
                 return true;
             }
@@ -346,6 +413,7 @@ public final class Blacklist {
         ensureLoaded();
         synchronized (LOCK) {
             if (blockedSellers.add(userKey)) {
+                sellerTimes.put(userKey, System.currentTimeMillis());
                 persist();
                 return true;
             }
@@ -358,6 +426,7 @@ public final class Blacklist {
         synchronized (LOCK) {
             if (blockedSellers.remove(userKey)) {
                 sellerLabels.remove(userKey);
+                sellerTimes.remove(userKey);
                 persist();
                 return true;
             }
@@ -373,6 +442,8 @@ public final class Blacklist {
             offerLabels.clear();
             sellerLabels.clear();
             offerSellerLabels.clear();
+            offerTimes.clear();
+            sellerTimes.clear();
             persist();
         }
     }
@@ -976,6 +1047,19 @@ public final class Blacklist {
             int before = blockedOffers.size() + blockedSellers.size();
             blockedOffers.addAll(offers);
             blockedSellers.addAll(sellers);
+            // Stamp import time on any entry that doesn't already have one, so
+            // imported items still sort sensibly (just-imported batch at the top).
+            long now = System.currentTimeMillis();
+            for (String offer : blockedOffers) {
+                if (!offerTimes.containsKey(offer)) {
+                    offerTimes.put(offer, now);
+                }
+            }
+            for (String seller : blockedSellers) {
+                if (!sellerTimes.containsKey(seller)) {
+                    sellerTimes.put(seller, now);
+                }
+            }
             int added = (blockedOffers.size() + blockedSellers.size()) - before;
             persist();
             return added;
