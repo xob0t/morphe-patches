@@ -17,9 +17,9 @@ https://github.com/xob0t/morphe-patches
 ## Patches
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.3.8](https://github.com/xob0t/morphe-patches/releases/tag/v1.3.8)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;21 patches total
+> **[v1.4.0-dev.1](https://github.com/xob0t/morphe-patches/releases/tag/v1.4.0-dev.1)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;24 patches total
 <details open>
-<summary>📦 Avito&nbsp;&nbsp;•&nbsp;&nbsp;4 patches</summary>
+<summary>📦 Avito&nbsp;&nbsp;•&nbsp;&nbsp;7 patches</summary>
 <br>
 
 **🎯 Supported versions:**
@@ -30,9 +30,12 @@ https://github.com/xob0t/morphe-patches
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
 | [Avito privacy](#avito-privacy) | Disables Avito first-party clickstream analytics and Avito's direct Adjust telemetry wrapper. |  |
-| [Disable update prompts](#disable-update-prompts) | Prevents Avito's force-update screen opener from launching update screens. |  |
-| [Hide Avi bottom tab](#hide-avi-bottom-tab) | Removes the Avi assistant button from Avito's bottom navigation bar. |  |
+| [Block listings](#block-listings) | Hides Avito offers from blacklisted adverts or sellers and adds a blacklist manager (import/export compatible with the Ave Blacklist extension). |  |
+| [Disable update prompts](#disable-update-prompts) | Prevents Avito's force-update screen opener from launching update screens. Toggleable in Настройки Morphe. |  |
+| [Hide Avi bottom tab](#hide-avi-bottom-tab) | Removes the Avi assistant button from Avito's bottom navigation bar. Toggleable in Настройки Morphe (needs an app restart to apply). |  |
+| [Morphe settings](#morphe-settings) | Adds a "Настройки Morphe" entry to Avito's settings that hosts the configuration for the other Morphe patches. |  |
 | [Remove ads](#remove-ads) | Disables Avito ads by removing ad SDK entry points and short-circuiting commercial banner loading. |  |
+| [Single-row home categories](#single-row-home-categories) | Collapses the home-screen category rubricator from two rows into a single horizontally scrollable row. Toggleable in Настройки Morphe (needs an app restart to apply). |  |
 
 </details>
 
