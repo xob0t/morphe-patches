@@ -20,7 +20,13 @@ private val listBannerWrapperGetters = setOf(
 )
 
 private val mainBannerListGetters = setOf(
+    // `getMainBannersCarousel` is the pre-7.6.8001 name for the main hero slider;
+    // 7.6.8001 renamed/split it into the `getTopSlider*` family. Both are kept so
+    // the top banners are emptied across old and new builds.
     "getMainBannersCarousel",
+    "getTopSlider",
+    "getTopSliderNF",
+    "getTopSliderVF",
     "getMarketingCarousel",
     "getSecondaryBannersCarousel",
     "getTvBanners",
