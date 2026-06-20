@@ -111,6 +111,15 @@ public final class MorpheSettings {
         return isEnabled("avito_hide_avi_tab", true) ? null : tab;
     }
 
+    /**
+     * Gate for the "single-row home categories" feature, injected into the
+     * rubricator tile's getRowLine(): when on, every tile reports row 1 so the
+     * category rubricator collapses to one row. Off → stock (two rows).
+     */
+    public static boolean singleRowCategories() {
+        return isEnabled("avito_single_row_categories", true);
+    }
+
     // ---------------------------------------------------------------------
     // Settings-screen integration (called from patched bytecode)
     // ---------------------------------------------------------------------
