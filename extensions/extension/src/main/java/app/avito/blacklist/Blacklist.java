@@ -388,6 +388,15 @@ public final class Blacklist {
         }
     }
 
+    /** Block an offer and capture its title / seller name so the manager shows a
+     *  readable label (used when blocking from the advert detail screen). */
+    public static boolean addOffer(String offerId, String title, String sellerName) {
+        boolean added = addOffer(offerId);
+        putOfferLabel(offerId, title);
+        putOfferSellerLabel(offerId, sellerName);
+        return added;
+    }
+
     public static boolean removeOffer(String offerId) {
         ensureLoaded();
         synchronized (LOCK) {
@@ -419,6 +428,14 @@ public final class Blacklist {
             }
             return false;
         }
+    }
+
+    /** Block a seller and capture their display name for the manager label (used
+     *  when blocking from the advert detail / seller screen). */
+    public static boolean addSeller(String userKey, String name) {
+        boolean added = addSeller(userKey);
+        putSellerLabel(userKey, name);
+        return added;
     }
 
     public static boolean removeSeller(String userKey) {
@@ -962,6 +979,46 @@ public final class Blacklist {
             android.widget.Toast.makeText(anchor.getContext(), message, android.widget.Toast.LENGTH_SHORT).show();
         } catch (Throwable ignored) {
         }
+    }
+
+    // Advert-toolbar block actions. The bytecode hook lives here, on this
+    // always-initialized class, rather than on the UI helper: the presenter's
+    // toolbar-build method runs inside a reactive pipeline, and triggering a fresh
+    // class's static init on that stack silently stalls the page at its skeleton.
+    // We therefore only stash references on that stack and bounce to the main
+    // thread, where MorpheBlockMenu initializes safely and does the real work.
+    private static volatile Object pendingAdvertPresenter;
+    private static volatile Object pendingAdvert;
+    private static android.os.Handler advertToolbarHandler;
+    private static final Runnable ADVERT_TOOLBAR_INSTALL = new Runnable() {
+        @Override
+        public void run() {
+            app.avito.morphe.MorpheBlockMenu.installAdvert(pendingAdvertPresenter, pendingAdvert);
+        }
+    };
+
+    /**
+     * Entry hook for the advert-detail toolbar (called from the presenter's
+     * reactive build stack). Stores references and defers; does no reflection,
+     * view work, or foreign-class init here.
+     */
+    public static void onAdvertToolbar(Object presenter, Object style, Object advertDetails) {
+        try {
+            pendingAdvertPresenter = presenter;
+            pendingAdvert = advertDetails;
+            android.os.Handler h = advertToolbarHandler();
+            // Coalesce the pipeline's many emissions into a single install.
+            h.removeCallbacks(ADVERT_TOOLBAR_INSTALL);
+            h.postDelayed(ADVERT_TOOLBAR_INSTALL, 450);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static synchronized android.os.Handler advertToolbarHandler() {
+        if (advertToolbarHandler == null) {
+            advertToolbarHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+        }
+        return advertToolbarHandler;
     }
 
     public static String callString(Object target, String method) {

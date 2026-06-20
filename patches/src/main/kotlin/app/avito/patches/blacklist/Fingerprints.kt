@@ -5,6 +5,31 @@ import app.morphe.patcher.Fingerprint
 private const val SERP_DISPLAY_TYPE = "Lcom/avito/android/remote/model/SerpDisplayType;"
 private const val LIST = "Ljava/util/List;"
 private const val STRING = "Ljava/lang/String;"
+private const val ADVERT_DETAILS = "Lcom/avito/android/remote/model/AdvertDetails;"
+private const val ADVERT_DETAILS_STYLE = "Lcom/avito/android/advert_details/AdvertDetailsStyle;"
+
+/**
+ * Matches `AdvertDetailsToolbarPresenter`'s navbar-setup method, which builds the
+ * advert-detail toolbar (and inflates its menu) and receives the full
+ * `AdvertDetails`. We hook its entry to add block-offer / block-seller actions.
+ *
+ * Identified purely by its distinctive, stable parameter shape — an
+ * `AdvertDetailsStyle`, an `AdvertDetails`, a `String` and a `boolean`, returning
+ * void — so it survives the per-release minification of the class/method names.
+ * Both model/style types keep their real names across releases.
+ */
+object AdvertDetailsToolbarMenuFingerprint : Fingerprint(
+    returnType = "V",
+    parameters = listOf(
+        ADVERT_DETAILS_STYLE,
+        ADVERT_DETAILS,
+        STRING,
+        "Z",
+    ),
+    // Only the concrete presenter implementation — not the abstract interface
+    // declaration with the same signature (which has no body to patch).
+    custom = { method, _ -> method.implementation != null },
+)
 
 /**
  * Matches the SERP element converter that turns a list of network

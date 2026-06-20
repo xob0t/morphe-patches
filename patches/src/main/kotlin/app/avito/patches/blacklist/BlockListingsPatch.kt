@@ -10,6 +10,7 @@ import app.morphe.patcher.patch.resourcePatch
 import org.w3c.dom.Element
 
 private const val BLACKLIST_CLASS = "Lapp/avito/blacklist/Blacklist;"
+private const val BLOCK_MENU_CLASS = "Lapp/avito/morphe/MorpheBlockMenu;"
 private const val BLACKLIST_ACTIVITY = "app.avito.blacklist.BlacklistActivity"
 
 private fun Element.childrenNamed(name: String): List<Element> {
@@ -85,6 +86,22 @@ val blockListingsPatch = bytecodePatch(
             "invoke-static/range {p1 .. p1}, $BLACKLIST_CLASS->filterSerpElements(Ljava/util/List;)V",
         )
         println("Block listings: installed SERP feed filter in ${SerpElementsConverterFingerprint.originalClassDef.type}")
+
+        // Add block-offer / block-seller actions to the advert-detail toolbar. The
+        // presenter setup method gets the AdvertDetails and builds the toolbar, so we
+        // pass it (p2) and the presenter (p0) to the extension. Optional: skip if the
+        // method isn't present on this build instead of aborting.
+        val toolbar = AdvertDetailsToolbarMenuFingerprint.methodOrNull
+        if (toolbar != null) {
+            toolbar.addInstructions(
+                0,
+                "invoke-static/range {p0 .. p2}, " +
+                    "$BLACKLIST_CLASS->onAdvertToolbar(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V",
+            )
+            println("Block listings: added block actions to the advert toolbar")
+        } else {
+            println("Block listings: advert toolbar presenter not found on this build; skipped detail buttons")
+        }
 
         // Register the blacklist manager as a sub-screen of Настройки Morphe.
         MorpheSettingsRegistry.addScreen("avito_blacklist", "Чёрный список", BLACKLIST_ACTIVITY)
