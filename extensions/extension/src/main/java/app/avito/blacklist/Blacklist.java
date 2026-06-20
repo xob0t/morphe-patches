@@ -648,6 +648,13 @@ public final class Blacklist {
                     new android.view.GestureDetector.SimpleOnGestureListener() {
                         @Override
                         public void onLongPress(android.view.MotionEvent e) {
+                            // Subtle haptic tick on proc (respects the system haptic
+                            // setting; no VIBRATE permission needed).
+                            try {
+                                root.performHapticFeedback(
+                                        android.view.HapticFeedbackConstants.LONG_PRESS);
+                            } catch (Throwable ignored) {
+                            }
                             showBlockDialog(root.getContext(), root, boundItem);
                         }
                     });
