@@ -3,7 +3,6 @@ package app.avito.patches.ads
 import app.avito.patches.shared.Constants.COMPATIBILITY_AVITO
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
-import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
 import com.android.tools.smali.dexlib2.Opcode
@@ -261,21 +260,35 @@ val removeAdsPatch = bytecodePatch(
     dependsOn(removeAdResourcesPatch)
 
     execute {
-        HeroBannerWidgetConverterFingerprint.method.addInstructions(
-            0,
-            """
-                const/4 v0, 0x0
-                return-object v0
-            """,
-        )
+        // Each ad surface is patched independently and tolerates absence: ad
+        // entry points come and go across releases (e.g. the hero banner widget
+        // doesn't exist on older builds), so a missing fingerprint skips that
+        // surface instead of aborting the whole patch.
+        var bannerSurfaces = 0
 
-        HeroBannerToolbarConfigFingerprint.method.addInstructions(
-            0,
-            """
-                const/4 p0, 0x0
-                return-object p0
-            """,
-        )
+        // Home hero banner widget: null the converter so the widget never builds.
+        HeroBannerWidgetConverterFingerprint.methodOrNull?.let { method ->
+            method.addInstructions(
+                0,
+                """
+                    const/4 v0, 0x0
+                    return-object v0
+                """,
+            )
+            bannerSurfaces++
+        }
+
+        // Hero banner toolbar config: return null so no banner toolbar is shown.
+        HeroBannerToolbarConfigFingerprint.methodOrNull?.let { method ->
+            method.addInstructions(
+                0,
+                """
+                    const/4 p0, 0x0
+                    return-object p0
+                """,
+            )
+            bannerSurfaces++
+        }
 
         var galleryTeaserConvertersPatched = 0
         classDefForEach { classDef ->
@@ -293,8 +306,11 @@ val removeAdsPatch = bytecodePatch(
                 )
             galleryTeaserConvertersPatched++
         }
-        val commercialBannerLoaderMethod = CommercialBannerLoaderErrorFingerprint.method
-        val rxErrorFactory = commercialBannerLoaderMethod.instructionsOrNull
+
+        // Commercial banner loader: emit an Rx error instead of loading a banner.
+        // Skip the surface if the loader (or its Rx error factory) isn't present.
+        val commercialBannerLoaderMethod = CommercialBannerLoaderErrorFingerprint.methodOrNull
+        val rxErrorFactory = commercialBannerLoaderMethod?.instructionsOrNull
             ?.firstNotNullOfOrNull { instruction ->
                 if (instruction.opcode !in setOf(Opcode.INVOKE_STATIC, Opcode.INVOKE_STATIC_RANGE)) {
                     return@firstNotNullOfOrNull null
@@ -303,20 +319,23 @@ val removeAdsPatch = bytecodePatch(
                 instruction.methodReferenceOrNull()
                     ?.takeIf { it.isRxThrowableObservableFactory() }
             }
-            ?: throw PatchException("Commercial banner loader RxJava error factory was not found")
+        if (commercialBannerLoaderMethod != null && rxErrorFactory != null) {
+            commercialBannerLoaderMethod.addInstructions(
+                0,
+                """
+                    new-instance v0, Ljava/lang/RuntimeException;
+                    const-string v1, "Avito ads disabled"
+                    invoke-direct {v0, v1}, Ljava/lang/RuntimeException;-><init>(Ljava/lang/String;)V
+                    invoke-static {v0}, ${rxErrorFactory.definingClass}->${rxErrorFactory.name}(Ljava/lang/Throwable;)${rxErrorFactory.returnType}
+                    move-result-object v0
+                    return-object v0
+                """,
+            )
+            bannerSurfaces++
+        } else {
+            println("Remove ads: commercial banner loader not present on this build; skipped")
+        }
 
-        commercialBannerLoaderMethod.addInstructions(
-            0,
-            """
-                new-instance v0, Ljava/lang/RuntimeException;
-                const-string v1, "Avito ads disabled"
-                invoke-direct {v0, v1}, Ljava/lang/RuntimeException;-><init>(Ljava/lang/String;)V
-                invoke-static {v0}, ${rxErrorFactory.definingClass}->${rxErrorFactory.name}(Ljava/lang/Throwable;)${rxErrorFactory.returnType}
-                move-result-object v0
-                return-object v0
-            """,
-        )
-
-        println("Remove ads: disabled home hero banner, hero banner toolbar config, and $galleryTeaserConvertersPatched gallery Beduin teaser converter(s).")
+        println("Remove ads: patched $bannerSurfaces banner surface(s) and $galleryTeaserConvertersPatched gallery Beduin teaser converter(s).")
     }
 }
