@@ -28,6 +28,7 @@ import org.json.JSONObject;
 public final class MorpheSettingsActivity extends Activity {
 
     private MorpheTheme theme;
+    private View restartBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,7 +60,51 @@ public final class MorpheSettingsActivity extends Activity {
         scroll.addView(list);
 
         renderEntries(list);
+
+        restartBar = buildRestartBar();
+        outer.addView(restartBar);
+
         setContentView(outer);
+    }
+
+    /** A bottom bar offering to restart the app, shown when a restart-required
+     *  toggle is changed. */
+    private View buildRestartBar() {
+        LinearLayout bar = new LinearLayout(this);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        bar.setBackgroundColor(theme.colorSurface);
+        bar.setPadding(16 * theme.dp, 12 * theme.dp, 16 * theme.dp, 12 * theme.dp);
+        bar.setVisibility(View.GONE);
+
+        TextView msg = new TextView(this);
+        msg.setText("Изменения вступят в силу после перезапуска");
+        msg.setTextColor(theme.textSecondary);
+        msg.setTextSize(13);
+        msg.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        bar.addView(msg);
+
+        TextView btn = new TextView(this);
+        btn.setText("Перезапустить");
+        btn.setTextColor(theme.accent);
+        btn.setTextSize(14);
+        btn.setAllCaps(true);
+        btn.setPadding(12 * theme.dp, 8 * theme.dp, 0, 8 * theme.dp);
+        btn.setBackground(theme.themeDrawable(android.R.attr.selectableItemBackground));
+        btn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                MorpheSettings.restart(MorpheSettingsActivity.this);
+            }
+        });
+        bar.addView(btn);
+        return bar;
+    }
+
+    private void showRestartBar() {
+        if (restartBar != null) {
+            restartBar.setVisibility(View.VISIBLE);
+        }
     }
 
     private void renderEntries(LinearLayout list) {
@@ -98,6 +143,7 @@ public final class MorpheSettingsActivity extends Activity {
         String title = e.optString("title", key);
         String summary = e.optString("summary", null);
         boolean def = e.optBoolean("default", true);
+        final boolean restartRequired = e.optBoolean("restart", false);
 
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -130,6 +176,9 @@ public final class MorpheSettingsActivity extends Activity {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 MorpheSettings.setEnabled(key, isChecked);
+                if (restartRequired) {
+                    showRestartBar();
+                }
             }
         });
         row.addView(sw);

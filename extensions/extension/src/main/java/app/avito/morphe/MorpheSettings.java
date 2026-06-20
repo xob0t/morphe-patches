@@ -70,6 +70,47 @@ public final class MorpheSettings {
         }
     }
 
+    /**
+     * Cold-restarts the app to apply settings that only take effect at startup.
+     * Schedules a relaunch of the launcher activity via AlarmManager (so it fires
+     * after this process dies — more reliable than start-then-exit) and kills the
+     * process.
+     */
+    public static void restart(Context ctx) {
+        try {
+            if (ctx == null) {
+                ctx = context();
+            }
+            if (ctx != null) {
+                Intent launch = ctx.getPackageManager().getLaunchIntentForPackage(ctx.getPackageName());
+                if (launch != null) {
+                    launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    int flags = android.app.PendingIntent.FLAG_CANCEL_CURRENT
+                            | android.app.PendingIntent.FLAG_IMMUTABLE;
+                    android.app.PendingIntent pending =
+                            android.app.PendingIntent.getActivity(ctx, 0, launch, flags);
+                    android.app.AlarmManager am =
+                            (android.app.AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+                    if (am != null && pending != null) {
+                        am.set(android.app.AlarmManager.RTC, System.currentTimeMillis() + 250, pending);
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        Runtime.getRuntime().exit(0);
+    }
+
+    /**
+     * Gate helper for the "hide Avi tab" feature, injected after the tab's field
+     * load: returns {@code null} (so the bottom-nav builder drops the tab) while
+     * the toggle is on, otherwise the tab unchanged. Needs an app restart to take
+     * effect because the nav bar is built once at startup.
+     */
+    public static Object aviTabOrNull(Object tab) {
+        return isEnabled("avito_hide_avi_tab", true) ? null : tab;
+    }
+
     // ---------------------------------------------------------------------
     // Settings-screen integration (called from patched bytecode)
     // ---------------------------------------------------------------------
