@@ -675,16 +675,73 @@ public final class Blacklist {
         }
     }
 
-    public static void attachTouchRecursive(android.view.View view, android.view.View.OnTouchListener listener) {
+    public static void attachTouchRecursive(android.view.View view, android.view.View.OnTouchListener observer) {
         try {
-            view.setOnTouchListener(listener);
+            // CHAIN rather than replace: some tile views — notably the "extended"
+            // snippet's swipeable photo gallery — open the advert through their OWN
+            // OnTouchListener. A plain setOnTouchListener would overwrite it, so
+            // tapping the photos would do nothing. We preserve any existing listener
+            // and call it after feeding our (non-consuming) long-press observer.
+            android.view.View.OnTouchListener existing = existingTouchListener(view);
+            android.view.View.OnTouchListener original =
+                    (existing instanceof ChainTouch) ? ((ChainTouch) existing).original : existing;
+            view.setOnTouchListener(new ChainTouch(observer, original));
             if (view instanceof android.view.ViewGroup) {
                 android.view.ViewGroup group = (android.view.ViewGroup) view;
                 for (int i = 0; i < group.getChildCount(); i++) {
-                    attachTouchRecursive(group.getChildAt(i), listener);
+                    attachTouchRecursive(group.getChildAt(i), observer);
                 }
             }
         } catch (Throwable ignored) {
+        }
+    }
+
+    /**
+     * Feeds touches to our long-press observer (which always returns false), then
+     * delegates to the view's pre-existing OnTouchListener so its native behaviour
+     * — e.g. the photo gallery's tap-to-open — is preserved.
+     */
+    private static final class ChainTouch implements android.view.View.OnTouchListener {
+        private final android.view.View.OnTouchListener observer;
+        final android.view.View.OnTouchListener original;
+
+        ChainTouch(android.view.View.OnTouchListener observer, android.view.View.OnTouchListener original) {
+            this.observer = observer;
+            this.original = original;
+        }
+
+        @Override
+        public boolean onTouch(android.view.View v, android.view.MotionEvent ev) {
+            try {
+                observer.onTouch(v, ev);
+            } catch (Throwable ignored) {
+            }
+            try {
+                if (original != null) {
+                    return original.onTouch(v, ev);
+                }
+            } catch (Throwable ignored) {
+            }
+            return false;
+        }
+    }
+
+    /** Reads a View's current OnTouchListener (hidden field) so it can be chained. */
+    private static android.view.View.OnTouchListener existingTouchListener(android.view.View view) {
+        try {
+            java.lang.reflect.Field liField = android.view.View.class.getDeclaredField("mListenerInfo");
+            liField.setAccessible(true);
+            Object listenerInfo = liField.get(view);
+            if (listenerInfo == null) {
+                return null;
+            }
+            java.lang.reflect.Field otField = listenerInfo.getClass().getDeclaredField("mOnTouchListener");
+            otField.setAccessible(true);
+            Object value = otField.get(listenerInfo);
+            return (value instanceof android.view.View.OnTouchListener)
+                    ? (android.view.View.OnTouchListener) value : null;
+        } catch (Throwable ignored) {
+            return null;
         }
     }
 
