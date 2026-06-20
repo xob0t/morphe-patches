@@ -131,6 +131,7 @@ public final class BlacklistActivity extends Activity {
         if (backIcon != null) {
             android.widget.ImageButton back = new android.widget.ImageButton(this);
             back.setImageDrawable(backIcon);
+            back.setColorFilter(accent);
             back.setBackground(themeDrawable(android.R.attr.selectableItemBackgroundBorderless));
             back.setPadding(16 * dp, 12 * dp, 16 * dp, 12 * dp);
             back.setOnClickListener(backAction);
@@ -138,8 +139,8 @@ public final class BlacklistActivity extends Activity {
         } else {
             TextView back = new TextView(this);
             back.setText("←");
-            back.setTextSize(22);
-            back.setTextColor(textPrimary);
+            back.setTextSize(24);
+            back.setTextColor(accent);
             back.setPadding(16 * dp, 12 * dp, 16 * dp, 12 * dp);
             back.setOnClickListener(backAction);
             bar.addView(back);
@@ -147,7 +148,7 @@ public final class BlacklistActivity extends Activity {
 
         TextView title = new TextView(this);
         title.setText("Чёрный список");
-        title.setTextSize(20);
+        title.setTextSize(22);
         title.setTextColor(textPrimary);
         title.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         bar.addView(title);
@@ -291,15 +292,31 @@ public final class BlacklistActivity extends Activity {
 
     private void addSection(List<String> items, final boolean offer) {
         if (items.isEmpty()) {
+            LinearLayout emptyBox = new LinearLayout(this);
+            emptyBox.setOrientation(LinearLayout.VERTICAL);
+            emptyBox.setGravity(Gravity.CENTER_HORIZONTAL);
+            emptyBox.setPadding(24 * dp, 56 * dp, 24 * dp, 8 * dp);
+            emptyBox.setLayoutParams(new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
             TextView empty = new TextView(this);
             empty.setText("Список пуст");
-            empty.setTextColor(textSecondary);
-            empty.setTextSize(14);
-            empty.setPadding(0, 24 * dp, 0, 8 * dp);
-            empty.setGravity(Gravity.CENTER_HORIZONTAL);
-            empty.setLayoutParams(new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            listContainer.addView(empty);
+            empty.setTextColor(textPrimary);
+            empty.setTextSize(16);
+            empty.setGravity(Gravity.CENTER);
+            emptyBox.addView(empty);
+
+            TextView hint = new TextView(this);
+            hint.setText(offer
+                    ? "Долгое нажатие на объявление в ленте добавит его сюда"
+                    : "Заблокируйте продавца долгим нажатием на его объявление");
+            hint.setTextColor(textSecondary);
+            hint.setTextSize(13);
+            hint.setGravity(Gravity.CENTER);
+            hint.setPadding(0, 6 * dp, 0, 0);
+            emptyBox.addView(hint);
+
+            listContainer.addView(emptyBox);
             return;
         }
 
@@ -307,7 +324,8 @@ public final class BlacklistActivity extends Activity {
             LinearLayout rowItem = new LinearLayout(this);
             rowItem.setOrientation(LinearLayout.HORIZONTAL);
             rowItem.setGravity(Gravity.CENTER_VERTICAL);
-            rowItem.setPadding(0, 12 * dp, 0, 12 * dp);
+            rowItem.setMinimumHeight(64 * dp);
+            rowItem.setPadding(0, 14 * dp, 0, 14 * dp);
             // Tap a row to open the advert / seller page in the app.
             rowItem.setBackground(themeDrawable(android.R.attr.selectableItemBackground));
             rowItem.setOnClickListener(new View.OnClickListener() {
@@ -326,12 +344,14 @@ public final class BlacklistActivity extends Activity {
 
             LinearLayout textCol = new LinearLayout(this);
             textCol.setOrientation(LinearLayout.VERTICAL);
-            textCol.setLayoutParams(new LinearLayout.LayoutParams(
-                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            LinearLayout.LayoutParams colLp = new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            colLp.rightMargin = 8 * dp;
+            textCol.setLayoutParams(colLp);
 
             TextView primary = new TextView(this);
             primary.setTextColor(textPrimary);
-            primary.setTextSize(15);
+            primary.setTextSize(16);
             primary.setText(itemLabel != null ? itemLabel : id);
             primary.setMaxLines(2);
             primary.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -341,42 +361,51 @@ public final class BlacklistActivity extends Activity {
                 TextView sellerView = new TextView(this);
                 sellerView.setTextColor(textSecondary);
                 sellerView.setTextSize(13);
-                sellerView.setText("Продавец: " + offerSeller);
+                sellerView.setText(offerSeller);
                 sellerView.setMaxLines(1);
                 sellerView.setEllipsize(android.text.TextUtils.TruncateAt.END);
-                sellerView.setPadding(0, 2 * dp, 0, 0);
+                sellerView.setPadding(0, 3 * dp, 0, 0);
                 textCol.addView(sellerView);
             }
 
-            if (itemLabel != null) {
-                TextView sub = new TextView(this);
-                sub.setTextColor(textSecondary);
-                sub.setTextSize(12);
-                sub.setText(id);
-                sub.setMaxLines(1);
-                sub.setEllipsize(android.text.TextUtils.TruncateAt.END);
-                sub.setPadding(0, 2 * dp, 0, 0);
-                textCol.addView(sub);
+            // One muted meta line: "<advert id> · <when blocked>" (id only when the
+            // title is a readable label, so it isn't shown twice; time without a
+            // verbose prefix).
+            StringBuilder meta = new StringBuilder();
+            if (offer && itemLabel != null) {
+                meta.append(id);
             }
-
             long blockedAt = offer ? Blacklist.getOfferTime(id) : Blacklist.getSellerTime(id);
             if (blockedAt > 0) {
-                TextView when = new TextView(this);
-                when.setTextColor(textSecondary);
-                when.setTextSize(12);
-                when.setText("Заблокировано " + android.text.format.DateUtils.getRelativeTimeSpanString(
+                if (meta.length() > 0) {
+                    meta.append("  ·  ");
+                }
+                meta.append(android.text.format.DateUtils.getRelativeTimeSpanString(
                         blockedAt, System.currentTimeMillis(),
                         android.text.format.DateUtils.MINUTE_IN_MILLIS));
-                when.setPadding(0, 2 * dp, 0, 0);
-                textCol.addView(when);
+            }
+            if (meta.length() > 0) {
+                TextView metaView = new TextView(this);
+                metaView.setTextColor(textSecondary);
+                metaView.setTextSize(12);
+                metaView.setText(meta.toString());
+                metaView.setMaxLines(1);
+                metaView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                metaView.setPadding(0, 3 * dp, 0, 0);
+                textCol.addView(metaView);
             }
             rowItem.addView(textCol);
 
+            // Compact remove (✕) affordance instead of a "Delete" text button.
             TextView remove = new TextView(this);
-            remove.setText("Удалить");
-            remove.setTextColor(accent);
-            remove.setTextSize(14);
-            remove.setPadding(12 * dp, 8 * dp, 0, 8 * dp);
+            remove.setText("✕");
+            remove.setTextColor(textSecondary);
+            remove.setTextSize(17);
+            remove.setGravity(Gravity.CENTER);
+            remove.setMinWidth(44 * dp);
+            remove.setMinHeight(44 * dp);
+            remove.setBackground(themeDrawable(android.R.attr.selectableItemBackgroundBorderless));
+            remove.setContentDescription("Удалить");
             remove.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -386,6 +415,7 @@ public final class BlacklistActivity extends Activity {
                         Blacklist.removeSeller(id);
                     }
                     refresh();
+                    toast("Удалено");
                 }
             });
             rowItem.addView(remove);
