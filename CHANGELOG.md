@@ -1,3 +1,13 @@
+## [1.4.0-dev.6](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.5...v1.4.0-dev.6) (2026-06-20)
+
+### 🐛 Bug Fixes
+
+* **avito:** range-encode the Favorites tab param hook (codex review) ([29fa0d5](https://github.com/xob0t/morphe-patches/commit/29fa0d56da2983df17b92d886ed210c0b900b369))
+
+### ✨ New Features
+
+* **avito:** show an Avito icon in the block/unblock toasts ([99b2090](https://github.com/xob0t/morphe-patches/commit/99b2090a8b00fc5646aa5000918696bb410fefad))
+
 ## [1.4.0-dev.5](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.4...v1.4.0-dev.5) (2026-06-20)
 
 ### 🐛 Bug Fixes
