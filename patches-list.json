@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0-dev.4",
+  "version": "1.4.0-dev.5",
   "patches": [
     {
       "name": "Block listings",
@@ -211,57 +211,6 @@
       "name": "Disable update prompts",
       "description": "Prevents Avito's force-update screen opener from launching update screens. Toggleable in Настройки Morphe.",
       "default": true,
-      "dependencies": [
-        "BytecodePatch"
-      ],
-      "compatiblePackages": [
-        {
-          "packageName": "com.avito.android",
-          "name": "Avito",
-          "description": null,
-          "apkFileType": "APK",
-          "appIconColor": "#00AAFF",
-          "signatures": null,
-          "targets": [
-            {
-              "version": "227.0",
-              "isExperimental": false,
-              "minSdk": 28,
-              "description": null
-            },
-            {
-              "version": "226.5",
-              "isExperimental": false,
-              "minSdk": 28,
-              "description": null
-            },
-            {
-              "version": "225.5",
-              "isExperimental": false,
-              "minSdk": 28,
-              "description": null
-            },
-            {
-              "version": "224.6",
-              "isExperimental": false,
-              "minSdk": 28,
-              "description": null
-            },
-            {
-              "version": null,
-              "isExperimental": false,
-              "minSdk": 28,
-              "description": null
-            }
-          ]
-        }
-      ],
-      "options": []
-    },
-    {
-      "name": "Hide Avi bottom tab",
-      "description": "Removes the Avi assistant button from Avito's bottom navigation bar. Toggleable in Настройки Morphe (needs an app restart to apply).",
-      "default": false,
       "dependencies": [
         "BytecodePatch"
       ],
@@ -627,6 +576,57 @@
       "default": false,
       "dependencies": [],
       "compatiblePackages": null,
+      "options": []
+    },
+    {
+      "name": "UI tweaks",
+      "description": "Optional interface tweaks, each toggleable in Настройки Morphe: hide the \"Подписки\" tab in Избранное, and hide the Avi assistant tab in the bottom navigation.",
+      "default": false,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "com.avito.android",
+          "name": "Avito",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#00AAFF",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "227.0",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
+              "version": "226.5",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
+              "version": "225.5",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
+              "version": "224.6",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
+              "version": null,
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            }
+          ]
+        }
+      ],
       "options": []
     }
   ]

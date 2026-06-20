@@ -1,3 +1,22 @@
+## [1.4.0-dev.5](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.4...v1.4.0-dev.5) (2026-06-20)
+
+### 🐛 Bug Fixes
+
+* **avito:** chain tile touch listeners so gallery photos stay tappable ([a53ecd8](https://github.com/xob0t/morphe-patches/commit/a53ecd8ccf90d29113b6be3c0278a936fe468eca))
+
+### ✨ New Features
+
+* **avito:** add block offer/seller actions to the advert toolbar ([45a03a7](https://github.com/xob0t/morphe-patches/commit/45a03a77665b49602ed0beb81525459a685b7185))
+* **avito:** add block-seller button to the seller profile toolbar ([5304689](https://github.com/xob0t/morphe-patches/commit/530468931fde7013608ec8c5647707d0d36718d0))
+* **avito:** dismiss tile block menu by tapping outside, drop Cancel row ([3f9fbb1](https://github.com/xob0t/morphe-patches/commit/3f9fbb12b5056b3f2240423d3a620050655e5b32))
+* **avito:** filter blocked items from the grid data, not just collapse ([85e6540](https://github.com/xob0t/morphe-patches/commit/85e6540265492a038e47ea62281ca55d0835c155))
+* **avito:** informative block toasts + rounded Avito-themed block menu ([6f64ec1](https://github.com/xob0t/morphe-patches/commit/6f64ec14abe2ba4efb72d747e73d8ed51a69d415))
+* **avito:** subtle haptic feedback when the block long-press procs ([7113577](https://github.com/xob0t/morphe-patches/commit/7113577ccd0727b4e5d8dee5a8287dbf79b0a4ef))
+* **avito:** UI tweak — hide "Спросите у продавца" (icebreakers) block ([28ececa](https://github.com/xob0t/morphe-patches/commit/28ececaf3f74d684c7171a799c43b19d74949ad2))
+* **avito:** UI tweak — hide installments (Рассрочка) everywhere ([80e8a95](https://github.com/xob0t/morphe-patches/commit/80e8a95dfe4e300ded4af126e9b9bcb7cffbda05))
+* **avito:** UI tweaks patch — hide "Подписки" favorites tab + Avi tab ([9c471f2](https://github.com/xob0t/morphe-patches/commit/9c471f277e1071f56c07aee038b0e1f8624745e2))
+* **avito:** use the rounded Avito-themed sheet for the clear-blacklist dialog ([a053bdc](https://github.com/xob0t/morphe-patches/commit/a053bdc3f45c4d7bee85444e4001b794696abaae))
+
 ## [1.4.0-dev.4](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.3...v1.4.0-dev.4) (2026-06-20)
 
 ### ✨ New Features
