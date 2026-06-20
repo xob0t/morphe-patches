@@ -1,3 +1,9 @@
+## [1.4.0-dev.4](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.3...v1.4.0-dev.4) (2026-06-20)
+
+### ✨ New Features
+
+* **wildberries:** 7.6.8001 support + matchAll refactor for big-sale gate ([#9](https://github.com/xob0t/morphe-patches/issues/9)) ([87af3da](https://github.com/xob0t/morphe-patches/commit/87af3da65d2f6d39c277764749cd56dc44a10d5a)), closes [#6](https://github.com/xob0t/morphe-patches/issues/6)
+
 ## [1.4.0-dev.3](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.2...v1.4.0-dev.3) (2026-06-20)
 
 ### 🐛 Bug Fixes

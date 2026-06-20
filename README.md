@@ -17,7 +17,7 @@ https://github.com/xob0t/morphe-patches
 ## Patches
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.4.0-dev.3](https://github.com/xob0t/morphe-patches/releases/tag/v1.4.0-dev.3)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;24 patches total
+> **[v1.4.0-dev.4](https://github.com/xob0t/morphe-patches/releases/tag/v1.4.0-dev.4)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;24 patches total
 <details open>
 <summary>📦 Avito&nbsp;&nbsp;•&nbsp;&nbsp;7 patches</summary>
 <br>
@@ -76,8 +76,8 @@ https://github.com/xob0t/morphe-patches
 
 **🎯 Supported versions:**
 
-| 7.6.1000-rustore | 7.0.6000 |
-| :---: | :---: |
+| 7.6.8001 | 7.6.1000-rustore | 7.0.6000 |
+| :---: | :---: | :---: |
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
