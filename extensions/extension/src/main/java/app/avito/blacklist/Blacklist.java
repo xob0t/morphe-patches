@@ -17,13 +17,13 @@ import java.util.Set;
 /**
  * Runtime blacklist for Avito offers (adverts) and sellers (users).
  *
- * <p>Mirrors the data model of the "Ave Blacklist" browser extension:
- * <ul>
- *   <li>offers are identified by their numeric advert id, stored with the
- *       {@code _blacklist_ad} suffix in exported databases;</li>
- *   <li>sellers are identified by their long {@code userKey} hash, stored with
- *       the {@code _blacklist_user} suffix.</li>
- * </ul>
+ * <p>Offers are identified by their numeric advert id, sellers by their long
+ * {@code userKey} hash. Internally and in our own export both are kept as proper
+ * structured data (arrays of objects carrying the id, readable labels and the
+ * block timestamp — see {@link #exportNative()}). For migration we still
+ * <em>import</em> the "Ave Blacklist" browser extension's flatter formats — the
+ * {@code "<id>_blacklist_ad": true} object and raw id arrays — but we don't
+ * reproduce that lossy schema on export.
  *
  * <p>All feed-facing entry points are defensive: any failure leaves the feed
  * untouched (fail-open) so a blacklist bug can never break the app.
@@ -1291,54 +1291,78 @@ public final class Blacklist {
     // ---------------------------------------------------------------------
 
     /**
-     * Full-database export, matching the extension's {@code avito_blacklist_database.json}:
-     * a JSON object mapping {@code "<id>_blacklist_ad"} / {@code "<userKey>_blacklist_user"}
-     * to {@code true}.
+     * Native export: a clean, versioned, lossless snapshot that round-trips
+     * everything we keep — ids plus the readable labels and the block timestamps —
+     * structured as proper arrays of objects:
+     *
+     * <pre>{@code
+     * {
+     *   "version": 1,
+     *   "offers":  [ { "id": "123", "title": "…", "seller": "…", "blockedAt": 171… } ],
+     *   "sellers": [ { "userKey": "abc…", "name": "…", "blockedAt": 171… } ]
+     * }
+     * }</pre>
+     *
+     * Deliberately NOT the browser extension's flat {@code "<id>_blacklist_ad": true}
+     * schema, which can't carry labels or timestamps and encodes the entry type in a
+     * string-key suffix. ({@link #importText} still accepts that legacy schema and
+     * raw id arrays, so data can be migrated in from the extension.)
      */
-    public static String exportFull() {
+    public static String exportNative() {
         ensureLoaded();
-        JSONObject obj = new JSONObject();
-        synchronized (LOCK) {
-            try {
-                for (String offer : blockedOffers) {
-                    obj.put(offer + SUFFIX_OFFER, true);
-                }
-                for (String seller : blockedSellers) {
-                    obj.put(seller + SUFFIX_SELLER, true);
-                }
-            } catch (Throwable ignored) {
-            }
-        }
         try {
-            return obj.toString(2);
+            JSONObject root = new JSONObject();
+            root.put("version", 1);
+            JSONArray offersArr = new JSONArray();
+            JSONArray sellersArr = new JSONArray();
+            synchronized (LOCK) {
+                for (String id : blockedOffers) {
+                    JSONObject o = new JSONObject();
+                    o.put("id", id);
+                    putIfPresent(o, "title", offerLabels.get(id));
+                    putIfPresent(o, "seller", offerSellerLabels.get(id));
+                    Long t = offerTimes.get(id);
+                    if (t != null) {
+                        o.put("blockedAt", t.longValue());
+                    }
+                    offersArr.put(o);
+                }
+                for (String userKey : blockedSellers) {
+                    JSONObject s = new JSONObject();
+                    s.put("userKey", userKey);
+                    putIfPresent(s, "name", sellerLabels.get(userKey));
+                    Long t = sellerTimes.get(userKey);
+                    if (t != null) {
+                        s.put("blockedAt", t.longValue());
+                    }
+                    sellersArr.put(s);
+                }
+            }
+            root.put("offers", offersArr);
+            root.put("sellers", sellersArr);
+            return root.toString(2);
         } catch (Throwable t) {
-            return obj.toString();
+            return "{\"version\":1,\"offers\":[],\"sellers\":[]}";
         }
     }
 
-    /** Export only raw offer ids as a JSON array (extension's offers export). */
-    public static String exportOffers() {
-        ensureLoaded();
-        synchronized (LOCK) {
-            return new JSONArray(blockedOffers).toString();
-        }
-    }
-
-    /** Export only raw seller ids as a JSON array (extension's users export). */
-    public static String exportSellers() {
-        ensureLoaded();
-        synchronized (LOCK) {
-            return new JSONArray(blockedSellers).toString();
+    private static void putIfPresent(JSONObject obj, String key, String value) throws org.json.JSONException {
+        if (value != null && !value.isEmpty()) {
+            obj.put(key, value);
         }
     }
 
     /**
-     * Imports a blacklist from text. Accepts:
+     * Imports a blacklist from text. Accepts, in order of preference:
      * <ul>
-     *   <li>the full-database object format ({@code {"<id>_blacklist_ad": true, ...}});</li>
+     *   <li>our native format ({@code {"offers":[…],"sellers":[…]}}) — restores
+     *       ids plus labels and timestamps (see {@link #exportNative()});</li>
+     *   <li>the browser extension's flat object ({@code {"<id>_blacklist_ad": true, …}});</li>
      *   <li>a JSON array of raw ids (classified by length: long hashes are
-     *       sellers, short numerics are offers, mirroring the extension).</li>
+     *       sellers, short numerics are offers).</li>
      * </ul>
+     * The last two carry ids only, so labels/timestamps are filled in as the item
+     * is encountered later (or stamped at import time).
      *
      * @param replace when true, the current blacklist is cleared first.
      * @return number of newly added entries, or -1 on parse failure.
@@ -1353,6 +1377,11 @@ public final class Blacklist {
         }
         Set<String> offers = new LinkedHashSet<>();
         Set<String> sellers = new LinkedHashSet<>();
+        java.util.Map<String, String> impOfferTitles = new java.util.HashMap<>();
+        java.util.Map<String, String> impOfferSellers = new java.util.HashMap<>();
+        java.util.Map<String, String> impSellerNames = new java.util.HashMap<>();
+        java.util.Map<String, Long> impOfferTimes = new java.util.HashMap<>();
+        java.util.Map<String, Long> impSellerTimes = new java.util.HashMap<>();
         try {
             if (text.charAt(0) == '[') {
                 JSONArray arr = new JSONArray(text);
@@ -1361,9 +1390,59 @@ public final class Blacklist {
                 }
             } else {
                 JSONObject obj = new JSONObject(text);
-                Iterator<String> keys = obj.keys();
-                while (keys.hasNext()) {
-                    classifyKey(keys.next(), offers, sellers);
+                JSONArray nativeOffers = obj.optJSONArray("offers");
+                JSONArray nativeSellers = obj.optJSONArray("sellers");
+                if (nativeOffers != null || nativeSellers != null) {
+                    // Native format: objects with id/label/timestamp (tolerant of
+                    // bare-id strings too).
+                    if (nativeOffers != null) {
+                        for (int i = 0; i < nativeOffers.length(); i++) {
+                            JSONObject o = nativeOffers.optJSONObject(i);
+                            if (o == null) {
+                                classifyRaw(nativeOffers.optString(i, ""), offers, sellers);
+                                continue;
+                            }
+                            String id = o.optString("id", "").trim();
+                            if (id.isEmpty()) {
+                                continue;
+                            }
+                            offers.add(id);
+                            putNonEmpty(impOfferTitles, id, o.optString("title", null));
+                            putNonEmpty(impOfferSellers, id, o.optString("seller", null));
+                            long t = o.optLong("blockedAt", 0L);
+                            if (t > 0) {
+                                impOfferTimes.put(id, t);
+                            }
+                        }
+                    }
+                    if (nativeSellers != null) {
+                        for (int i = 0; i < nativeSellers.length(); i++) {
+                            JSONObject s = nativeSellers.optJSONObject(i);
+                            if (s == null) {
+                                String raw = nativeSellers.optString(i, "").trim();
+                                if (!raw.isEmpty()) {
+                                    sellers.add(raw);
+                                }
+                                continue;
+                            }
+                            String key = s.optString("userKey", "").trim();
+                            if (key.isEmpty()) {
+                                continue;
+                            }
+                            sellers.add(key);
+                            putNonEmpty(impSellerNames, key, s.optString("name", null));
+                            long t = s.optLong("blockedAt", 0L);
+                            if (t > 0) {
+                                impSellerTimes.put(key, t);
+                            }
+                        }
+                    }
+                } else {
+                    // Legacy browser-extension object: "<id>_blacklist_ad": true.
+                    Iterator<String> keys = obj.keys();
+                    while (keys.hasNext()) {
+                        classifyKey(keys.next(), offers, sellers);
+                    }
                 }
             }
         } catch (Throwable t) {
@@ -1375,10 +1454,21 @@ public final class Blacklist {
             if (replace) {
                 blockedOffers.clear();
                 blockedSellers.clear();
+                offerLabels.clear();
+                offerSellerLabels.clear();
+                sellerLabels.clear();
+                offerTimes.clear();
+                sellerTimes.clear();
             }
             int before = blockedOffers.size() + blockedSellers.size();
             blockedOffers.addAll(offers);
             blockedSellers.addAll(sellers);
+            // Restore any labels/timestamps the import carried (native format).
+            offerLabels.putAll(impOfferTitles);
+            offerSellerLabels.putAll(impOfferSellers);
+            sellerLabels.putAll(impSellerNames);
+            offerTimes.putAll(impOfferTimes);
+            sellerTimes.putAll(impSellerTimes);
             // Stamp import time on any entry that doesn't already have one, so
             // imported items still sort sensibly (just-imported batch at the top).
             long now = System.currentTimeMillis();
@@ -1440,5 +1530,11 @@ public final class Blacklist {
             }
         }
         return true;
+    }
+
+    private static void putNonEmpty(java.util.Map<String, String> map, String key, String value) {
+        if (value != null && !value.isEmpty() && !"null".equals(value)) {
+            map.put(key, value);
+        }
     }
 }

@@ -484,11 +484,11 @@ public final class BlacklistActivity extends Activity {
     // -- Import / export via the Storage Access Framework --------------------
 
     private void startExport() {
-        pendingExport = Blacklist.exportFull();
+        pendingExport = Blacklist.exportNative();
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("application/json");
-        intent.putExtra(Intent.EXTRA_TITLE, "avito_blacklist_database.json");
+        intent.putExtra(Intent.EXTRA_TITLE, "avito_blacklist.json");
         try {
             startActivityForResult(intent, REQ_EXPORT);
         } catch (Throwable t) {
