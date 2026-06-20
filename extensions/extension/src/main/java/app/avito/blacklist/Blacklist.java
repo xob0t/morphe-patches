@@ -710,7 +710,7 @@ public final class Blacklist {
                     putOfferLabel(offerId, offerTitle);
                     putOfferSellerLabel(offerId, sellerNameFinal);
                     collapseMatching(true, offerId);
-                    toast(root, "Объявление скрыто");
+                    toast(root, "Объявление в чёрном списке — скрыто из ленты");
                 }
             });
         }
@@ -722,28 +722,131 @@ public final class Blacklist {
                     addSeller(userKey);
                     putSellerLabel(userKey, sellerNameFinal);
                     collapseMatching(false, userKey);
-                    toast(root, "Объявления продавца скрыты");
+                    String who = isBlank(sellerNameFinal) ? "Продавец" : sellerNameFinal;
+                    toast(root, who + " в чёрном списке — его объявления скрыты");
                 }
             });
         }
         if (actions.isEmpty()) {
             return;
         }
+        showRoundedMenu(ctx, "Чёрный список", labels, actions);
+    }
+
+    /**
+     * A rounded, Avito-themed action sheet, code-built to match the app's
+     * design-system colours (the stock {@link android.app.AlertDialog} has square
+     * corners and an off-palette surface). Each label maps to the action at the
+     * same index; an extra "Отмена" row dismisses.
+     */
+    private static void showRoundedMenu(android.content.Context ctx, String title,
+                                        java.util.List<String> labels,
+                                        final java.util.List<Runnable> actions) {
         try {
-            new android.app.AlertDialog.Builder(ctx)
-                    .setTitle("Чёрный список")
-                    .setItems(labels.toArray(new CharSequence[0]), new android.content.DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(android.content.DialogInterface dialog, int which) {
-                            if (which >= 0 && which < actions.size()) {
-                                actions.get(which).run();
-                            }
-                        }
-                    })
-                    .setNegativeButton("Отмена", null)
-                    .show();
+            final float d = ctx.getResources().getDisplayMetrics().density;
+            int surface = avitoAttrColor(ctx, "white", 0xFF1A1A1A);
+            int textPrimary = avitoAttrColor(ctx, "black", 0xFFFFFFFF);
+            int textSecondary = avitoAttrColor(ctx, "gray54", 0xFF8C8C8C);
+
+            android.widget.LinearLayout content = new android.widget.LinearLayout(ctx);
+            content.setOrientation(android.widget.LinearLayout.VERTICAL);
+            android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+            bg.setColor(surface);
+            bg.setCornerRadius(22f * d);
+            content.setBackground(bg);
+            content.setPadding(0, (int) (12 * d), 0, (int) (8 * d));
+
+            android.widget.TextView header = new android.widget.TextView(ctx);
+            header.setText(title);
+            header.setTextColor(textSecondary);
+            header.setTextSize(13f);
+            header.setPadding((int) (24 * d), (int) (6 * d), (int) (24 * d), (int) (10 * d));
+            content.addView(header);
+
+            final android.app.Dialog dialog = new android.app.Dialog(ctx);
+
+            android.util.TypedValue ripple = new android.util.TypedValue();
+            ctx.getTheme().resolveAttribute(android.R.attr.selectableItemBackground, ripple, true);
+
+            for (int i = 0; i < labels.size(); i++) {
+                final Runnable action = actions.get(i);
+                android.widget.TextView row = new android.widget.TextView(ctx);
+                row.setText(labels.get(i));
+                row.setTextColor(textPrimary);
+                row.setTextSize(16f);
+                row.setPadding((int) (24 * d), (int) (15 * d), (int) (24 * d), (int) (15 * d));
+                row.setClickable(true);
+                if (ripple.resourceId != 0) {
+                    row.setBackgroundResource(ripple.resourceId);
+                }
+                row.setOnClickListener(new android.view.View.OnClickListener() {
+                    @Override
+                    public void onClick(android.view.View v) {
+                        dialog.dismiss();
+                        action.run();
+                    }
+                });
+                content.addView(row);
+            }
+
+            android.widget.TextView cancel = new android.widget.TextView(ctx);
+            cancel.setText("Отмена");
+            cancel.setTextColor(textSecondary);
+            cancel.setTextSize(16f);
+            cancel.setPadding((int) (24 * d), (int) (15 * d), (int) (24 * d), (int) (15 * d));
+            cancel.setClickable(true);
+            if (ripple.resourceId != 0) {
+                cancel.setBackgroundResource(ripple.resourceId);
+            }
+            cancel.setOnClickListener(new android.view.View.OnClickListener() {
+                @Override
+                public void onClick(android.view.View v) {
+                    dialog.dismiss();
+                }
+            });
+            content.addView(cancel);
+
+            dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+            int margin = (int) (28 * d);
+            android.widget.FrameLayout wrap = new android.widget.FrameLayout(ctx);
+            android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.leftMargin = lp.rightMargin = margin;
+            lp.gravity = android.view.Gravity.CENTER;
+            wrap.addView(content, lp);
+            dialog.setContentView(wrap);
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(
+                        new android.graphics.drawable.ColorDrawable(0x99000000));
+                dialog.getWindow().setLayout(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT);
+            }
+            dialog.show();
         } catch (Throwable ignored) {
         }
+    }
+
+    /** Resolves an Avito design-system colour attribute (e.g. "white"/"black"). */
+    private static int avitoAttrColor(android.content.Context ctx, String attrName, int fallback) {
+        try {
+            int id = ctx.getResources().getIdentifier(attrName, "attr", ctx.getPackageName());
+            if (id != 0) {
+                android.util.TypedValue tv = new android.util.TypedValue();
+                if (ctx.getTheme().resolveAttribute(id, tv, true)) {
+                    if (tv.type >= android.util.TypedValue.TYPE_FIRST_COLOR_INT
+                            && tv.type <= android.util.TypedValue.TYPE_LAST_COLOR_INT) {
+                        return tv.data;
+                    }
+                    if (tv.resourceId != 0) {
+                        return ctx.getResources().getColor(tv.resourceId, ctx.getTheme());
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return fallback;
     }
 
     /**
@@ -976,7 +1079,7 @@ public final class Blacklist {
 
     private static void toast(android.view.View anchor, String message) {
         try {
-            android.widget.Toast.makeText(anchor.getContext(), message, android.widget.Toast.LENGTH_SHORT).show();
+            android.widget.Toast.makeText(anchor.getContext(), message, android.widget.Toast.LENGTH_LONG).show();
         } catch (Throwable ignored) {
         }
     }
