@@ -501,6 +501,15 @@ val removeWildberriesAdsPatch = bytecodePatch(
                 }
 
                 classType.isWildberriesClass() -> {
+                    // This is the catch-all branch for every `ru.wildberries.*` class,
+                    // but only a handful actually declare `isBigSaleSearchBarEnabled`.
+                    // Check the immutable classDef first so we never allocate a mutable
+                    // proxy for the thousands of classes that don't match — materialising
+                    // one per class here is what exhausted the patcher's heap (see #6).
+                    if (classDef.methods.none { it.isBooleanMethod("isBigSaleSearchBarEnabled") }) {
+                        return@classDefForEach
+                    }
+
                     mutableClassDefBy(classDef).methods.forEach { method ->
                         if (method.isBooleanMethod("isBigSaleSearchBarEnabled")) {
                             method.addInstructions(

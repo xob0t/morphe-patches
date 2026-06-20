@@ -61,6 +61,8 @@ public final class MorpheTheme {
         if (backIcon != null) {
             android.widget.ImageButton back = new android.widget.ImageButton(host);
             back.setImageDrawable(backIcon);
+            // Avito tints the settings back arrow with the accent colour.
+            back.setColorFilter(accent);
             back.setBackground(themeDrawable(android.R.attr.selectableItemBackgroundBorderless));
             back.setPadding(16 * dp, 12 * dp, 16 * dp, 12 * dp);
             back.setOnClickListener(backAction);
@@ -68,8 +70,8 @@ public final class MorpheTheme {
         } else {
             TextView back = new TextView(host);
             back.setText("←");
-            back.setTextSize(22);
-            back.setTextColor(textPrimary);
+            back.setTextSize(24);
+            back.setTextColor(accent);
             back.setPadding(16 * dp, 12 * dp, 16 * dp, 12 * dp);
             back.setOnClickListener(backAction);
             bar.addView(back);
@@ -77,8 +79,12 @@ public final class MorpheTheme {
 
         TextView titleView = new TextView(host);
         titleView.setText(title);
-        titleView.setTextSize(20);
+        titleView.setTextSize(22);
         titleView.setTextColor(textPrimary);
+        LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        titleLp.leftMargin = 8 * dp;
+        titleView.setLayoutParams(titleLp);
         bar.addView(titleView);
         return bar;
     }
