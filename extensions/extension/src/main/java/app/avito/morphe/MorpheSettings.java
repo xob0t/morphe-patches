@@ -124,6 +124,16 @@ public final class MorpheSettings {
     }
 
     /**
+     * Gate for the "hide ask-seller (Спросите у продавца / icebreakers)" tweak,
+     * injected at the return of {@code AdvertDetails.getIcebreakers()} — the single
+     * source the block reads. Returns {@code null} (already a valid value for offers
+     * without icebreakers) while the toggle is on, otherwise the value unchanged.
+     */
+    public static Object icebreakersOrNull(Object icebreakers) {
+        return isEnabled("avito_hide_ask_seller", true) ? null : icebreakers;
+    }
+
+    /**
      * Gate for the "single-row home categories" feature, injected into the
      * rubricator tile's getRowLine(): when on, every tile reports row 1 so the
      * category rubricator collapses to one row. Off → stock (two rows).
