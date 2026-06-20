@@ -533,6 +533,42 @@ public final class Blacklist {
         }
     }
 
+    /**
+     * Removes blocked adverts from a converter's OUTPUT list of adapter items
+     * (the {@code AdvertItem}s about to populate the grid), using the same robust
+     * id/seller resolution as the long-press bind ({@link #isItemBlocked}). This is
+     * the reliable place to sanitize every feed (search and home alike): the items
+     * are gone before the grid is laid out, so Avito builds it with no gaps —
+     * unlike the input {@link #filterSerpElements} pass, whose network-model
+     * getters miss some feeds and leave the bind-time collapse to paper over them.
+     */
+    public static void filterAdvertItems(List<?> items) {
+        if (items == null || items.isEmpty()) {
+            return;
+        }
+        if (offerCount() == 0 && sellerCount() == 0) {
+            return;
+        }
+        try {
+            Iterator<?> it = items.iterator();
+            while (it.hasNext()) {
+                Object item = it.next();
+                if (item == null || !item.getClass().getName().endsWith("AdvertItem")) {
+                    continue;
+                }
+                if (isItemBlocked(item)) {
+                    try {
+                        it.remove();
+                    } catch (Throwable removeFailed) {
+                        // Immutable list: stop trying, leave the grid intact.
+                        return;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     private static boolean shouldHide(Object element) {
         String offerId = callString(element, "getId");
         if (offerId != null && isOfferBlocked(offerId)) {

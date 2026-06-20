@@ -4,9 +4,12 @@ import app.avito.patches.settings.MorpheSettingsRegistry
 import app.avito.patches.settings.morpheSettingsPatch
 import app.avito.patches.shared.Constants.COMPATIBILITY_AVITO
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
+import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import org.w3c.dom.Element
 
 private const val BLACKLIST_CLASS = "Lapp/avito/blacklist/Blacklist;"
@@ -79,13 +82,43 @@ val blockListingsPatch = bytecodePatch(
         val converter = SerpElementsConverterFingerprint.methodOrNull
             ?: throw PatchException("SERP elements converter was not found")
 
-        // p1 is the first parameter: the List<SerpElement> to be converted.
-        // Range form is used so the call is valid regardless of register count.
+        // Two-stage feed sanitization in the obfuscated converter:
+        //
+        // 1) INPUT: remove blocked network SerpElements up front (p1, the
+        //    List<SerpElement>). Cheap, and it captures readable labels for the
+        //    blacklist manager. Range form so it's valid regardless of register count.
+        // 2) OUTPUT: just before the method returns its ArrayList of adapter items,
+        //    remove any blocked AdvertItem that the input pass missed. The input
+        //    getters (network model) don't cover every feed — notably the home grid
+        //    — so this output pass, which uses the same robust id resolution as the
+        //    long-press bind, is what guarantees blocked items never reach the grid
+        //    (no leftover gaps) across both search and home.
         converter.addInstructions(
             0,
             "invoke-static/range {p1 .. p1}, $BLACKLIST_CLASS->filterSerpElements(Ljava/util/List;)V",
         )
-        println("Block listings: installed SERP feed filter in ${SerpElementsConverterFingerprint.originalClassDef.type}")
+
+        // Inject before every return-object (descending, so earlier indices stay
+        // valid) — the returned register holds the ArrayList of items.
+        val returnIndices = converter.instructionsOrNull
+            ?.toList().orEmpty()
+            .mapIndexedNotNull { index, instruction ->
+                if (instruction.opcode == Opcode.RETURN_OBJECT) index else null
+            }
+            .reversed()
+        for (returnIndex in returnIndices) {
+            val itemsRegister =
+                (converter.instructionsOrNull!!.toList()[returnIndex] as OneRegisterInstruction).registerA
+            converter.addInstructions(
+                returnIndex,
+                "invoke-static/range {v$itemsRegister .. v$itemsRegister}, " +
+                    "$BLACKLIST_CLASS->filterAdvertItems(Ljava/util/List;)V",
+            )
+        }
+        println(
+            "Block listings: installed SERP feed filter (in+out, ${returnIndices.size} returns) " +
+                "in ${SerpElementsConverterFingerprint.originalClassDef.type}",
+        )
 
         // Add block-offer / block-seller actions to the advert-detail toolbar. The
         // presenter setup method gets the AdvertDetails and builds the toolbar, so we
