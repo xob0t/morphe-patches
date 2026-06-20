@@ -3,16 +3,12 @@ package app.avito.blacklist;
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
-import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
-import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -95,32 +91,6 @@ public final class BlacklistActivity extends Activity {
         header.setPadding(0, 0, 0, 16 * dp);
         root.addView(header);
 
-        addInputRow(root, "ID объявления", true);
-        addInputRow(root, "ID продавца (userKey)", false);
-
-        LinearLayout buttons = new LinearLayout(this);
-        buttons.setOrientation(LinearLayout.HORIZONTAL);
-        buttons.setPadding(0, 8 * dp, 0, 0);
-        buttons.addView(secondaryButton("Импорт", new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startImport();
-            }
-        }));
-        buttons.addView(secondaryButton("Экспорт", new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startExport();
-            }
-        }));
-        buttons.addView(secondaryButton("Очистить", new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                confirmClear();
-            }
-        }));
-        root.addView(buttons);
-
         listContainer = new LinearLayout(this);
         listContainer.setOrientation(LinearLayout.VERTICAL);
         listContainer.setPadding(0, 16 * dp, 0, 0);
@@ -172,9 +142,55 @@ public final class BlacklistActivity extends Activity {
         title.setText("Чёрный список");
         title.setTextSize(20);
         title.setTextColor(textPrimary);
+        title.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         bar.addView(title);
 
+        // Overflow (⋮) menu: import / export / clear live here instead of as
+        // always-visible buttons, keeping the screen focused on the list itself.
+        TextView overflow = new TextView(this);
+        overflow.setText("⋮");
+        overflow.setTextSize(22);
+        overflow.setTextColor(textPrimary);
+        overflow.setGravity(Gravity.CENTER);
+        overflow.setMinWidth(48 * dp);
+        overflow.setPadding(12 * dp, 12 * dp, 16 * dp, 12 * dp);
+        overflow.setBackground(themeDrawable(android.R.attr.selectableItemBackgroundBorderless));
+        overflow.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showOverflowMenu(v);
+            }
+        });
+        bar.addView(overflow);
+
         return bar;
+    }
+
+    /** Import / export / clear, grouped into the top-bar overflow menu. */
+    private void showOverflowMenu(View anchor) {
+        android.widget.PopupMenu menu = new android.widget.PopupMenu(this, anchor);
+        menu.getMenu().add(0, 1, 0, "Импорт");
+        menu.getMenu().add(0, 2, 1, "Экспорт");
+        menu.getMenu().add(0, 3, 2, "Очистить");
+        menu.setOnMenuItemClickListener(new android.widget.PopupMenu.OnMenuItemClickListener() {
+            @Override
+            public boolean onMenuItemClick(android.view.MenuItem item) {
+                switch (item.getItemId()) {
+                    case 1:
+                        startImport();
+                        return true;
+                    case 2:
+                        startExport();
+                        return true;
+                    case 3:
+                        confirmClear();
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+        });
+        menu.show();
     }
 
     private void handleIntentExtras(Intent intent) {
@@ -199,81 +215,6 @@ public final class BlacklistActivity extends Activity {
     }
 
     // -- UI building --------------------------------------------------------
-
-    private void addInputRow(LinearLayout parent, String hint, final boolean offer) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, 0, 0, 8 * dp);
-
-        final EditText input = new EditText(this);
-        input.setHint(hint);
-        input.setTextColor(textPrimary);
-        input.setHintTextColor(textSecondary);
-        input.setTextSize(15);
-        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-        input.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        row.addView(input);
-
-        Button add = primaryButton("Добавить", new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String value = input.getText().toString().trim();
-                if (value.isEmpty()) {
-                    return;
-                }
-                boolean added = offer ? Blacklist.addOffer(value) : Blacklist.addSeller(value);
-                input.setText("");
-                refresh();
-                toast(added ? "Добавлено" : "Уже в списке");
-            }
-        });
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.leftMargin = 8 * dp;
-        add.setLayoutParams(lp);
-        row.addView(add);
-
-        parent.addView(row);
-    }
-
-    private Button primaryButton(String text, View.OnClickListener listener) {
-        Button button = baseButton(text, listener);
-        button.setTextColor(onAccentColor());
-        button.setBackground(pill(accent));
-        return button;
-    }
-
-    private Button secondaryButton(String text, View.OnClickListener listener) {
-        Button button = baseButton(text, listener);
-        button.setTextColor(accent);
-        button.setBackground(pill(colorSurface));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        lp.rightMargin = 8 * dp;
-        button.setLayoutParams(lp);
-        return button;
-    }
-
-    private Button baseButton(String text, View.OnClickListener listener) {
-        Button button = new Button(this);
-        button.setText(text);
-        button.setAllCaps(false);
-        button.setTextSize(14);
-        button.setMinHeight(44 * dp);
-        button.setMinimumHeight(44 * dp);
-        button.setPadding(16 * dp, 0, 16 * dp, 0);
-        button.setStateListAnimator(null);
-        button.setOnClickListener(listener);
-        return button;
-    }
-
-    private GradientDrawable pill(int fill) {
-        GradientDrawable d = new GradientDrawable();
-        d.setColor(fill);
-        d.setCornerRadius(12 * dp);
-        return d;
-    }
 
     private void refresh() {
         int offers = Blacklist.offerCount();
@@ -748,15 +689,6 @@ public final class BlacklistActivity extends Activity {
         } catch (Throwable ignored) {
         }
         return null;
-    }
-
-    /** White or black text, whichever contrasts with the accent fill. */
-    private int onAccentColor() {
-        int r = Color.red(accent);
-        int g = Color.green(accent);
-        int b = Color.blue(accent);
-        double luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
-        return luminance > 0.6 ? Color.BLACK : Color.WHITE;
     }
 
     private static int blend(int base, int over, float ratio) {
