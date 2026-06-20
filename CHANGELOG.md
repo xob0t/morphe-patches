@@ -1,3 +1,17 @@
+## [1.4.0-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.1...v1.4.0-dev.2) (2026-06-20)
+
+### 🐛 Bug Fixes
+
+* **avito:** make Avito privacy degrade gracefully (227 support) ([998da9e](https://github.com/xob0t/morphe-patches/commit/998da9e1593b34a390cd3290769b6a58ad76f016))
+
+### ✨ New Features
+
+* **avito:** disable clickstream via tracker method (227 primary) ([39b5906](https://github.com/xob0t/morphe-patches/commit/39b59061c0b2f3165ed5c715c0eecf50d188b7e9))
+
+### 🚀 Updated App Support
+
+* **avito:** add 227.0 to supported versions ([3102350](https://github.com/xob0t/morphe-patches/commit/310235000c3147df8c0617fb39cd5a7b10aa8d8c))
+
 ## [1.4.0-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.3.8...v1.4.0-dev.1) (2026-06-20)
 
 ### 🐛 Bug Fixes

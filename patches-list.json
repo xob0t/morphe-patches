@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0-dev.1",
+  "version": "1.4.0-dev.2",
   "patches": [
     {
       "name": "Avito privacy",
@@ -15,6 +15,12 @@
           "appIconColor": "#00AAFF",
           "signatures": null,
           "targets": [
+            {
+              "version": "227.0",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
             {
               "version": "226.5",
               "isExperimental": false,
@@ -61,6 +67,12 @@
           "appIconColor": "#00AAFF",
           "signatures": null,
           "targets": [
+            {
+              "version": "227.0",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
             {
               "version": "226.5",
               "isExperimental": false,
@@ -212,6 +224,12 @@
           "signatures": null,
           "targets": [
             {
+              "version": "227.0",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
               "version": "226.5",
               "isExperimental": false,
               "minSdk": 28,
@@ -257,6 +275,12 @@
           "signatures": null,
           "targets": [
             {
+              "version": "227.0",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
               "version": "226.5",
               "isExperimental": false,
               "minSdk": 28,
@@ -301,6 +325,12 @@
           "appIconColor": "#00AAFF",
           "signatures": null,
           "targets": [
+            {
+              "version": "227.0",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
             {
               "version": "226.5",
               "isExperimental": false,
@@ -476,6 +506,12 @@
           "signatures": null,
           "targets": [
             {
+              "version": "227.0",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
               "version": "226.5",
               "isExperimental": false,
               "minSdk": 28,
@@ -520,6 +556,12 @@
           "appIconColor": "#00AAFF",
           "signatures": null,
           "targets": [
+            {
+              "version": "227.0",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
             {
               "version": "226.5",
               "isExperimental": false,
