@@ -789,26 +789,18 @@ public final class Blacklist {
                 content.addView(row);
             }
 
-            android.widget.TextView cancel = new android.widget.TextView(ctx);
-            cancel.setText("Отмена");
-            cancel.setTextColor(textSecondary);
-            cancel.setTextSize(16f);
-            cancel.setPadding((int) (24 * d), (int) (15 * d), (int) (24 * d), (int) (15 * d));
-            cancel.setClickable(true);
-            if (ripple.resourceId != 0) {
-                cancel.setBackgroundResource(ripple.resourceId);
-            }
-            cancel.setOnClickListener(new android.view.View.OnClickListener() {
+            dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+            int margin = (int) (28 * d);
+            android.widget.FrameLayout wrap = new android.widget.FrameLayout(ctx);
+            // Tapping the dimmed area outside the panel dismisses (no Cancel button);
+            // the panel itself is clickable so its own taps don't fall through.
+            wrap.setOnClickListener(new android.view.View.OnClickListener() {
                 @Override
                 public void onClick(android.view.View v) {
                     dialog.dismiss();
                 }
             });
-            content.addView(cancel);
-
-            dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
-            int margin = (int) (28 * d);
-            android.widget.FrameLayout wrap = new android.widget.FrameLayout(ctx);
+            content.setClickable(true);
             android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                     android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -816,6 +808,7 @@ public final class Blacklist {
             lp.gravity = android.view.Gravity.CENTER;
             wrap.addView(content, lp);
             dialog.setContentView(wrap);
+            dialog.setCanceledOnTouchOutside(true);
             if (dialog.getWindow() != null) {
                 dialog.getWindow().setBackgroundDrawable(
                         new android.graphics.drawable.ColorDrawable(0x99000000));
