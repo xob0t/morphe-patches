@@ -130,6 +130,15 @@ val morpheSettingsPatch = bytecodePatch(
                 .first { it.name == "e" && it.parameterTypes == bind.parameterTypes }
                 .addInstructions(
                     0,
+                    // Pass the params (p0/p1/p2) straight to the invokes and use only
+                    // v0 as scratch — a true local that the original code re-initialises
+                    // before use, so clobbering it at entry is safe. We can't introduce
+                    // a second scratch register: with few locals v1 aliases a parameter
+                    // register the original method relies on, which corrupts it. The
+                    // trade-off is that a non-range invoke can't encode a param register
+                    // above v15; if a future build's bind method ever has that many
+                    // locals the patch fails loudly at assembly (not a silent runtime
+                    // break), and these konveyor bind methods are small in practice.
                     """
                         invoke-virtual {p0, p2}, ${classDef.type}->getItem(I)${getItem.returnType}
                         move-result-object v0

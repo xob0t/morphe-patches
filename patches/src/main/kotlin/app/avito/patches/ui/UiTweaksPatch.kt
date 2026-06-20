@@ -74,7 +74,7 @@ val uiTweaksPatch = bytecodePatch(
             tabConsumer.addInstructions(
                 0,
                 """
-                    invoke-static { p1 }, $MORPHE_SETTINGS_CLASS->withoutSubscriptionsTab(Ljava/util/List;)Ljava/util/List;
+                    invoke-static/range { p1 .. p1 }, $MORPHE_SETTINGS_CLASS->withoutSubscriptionsTab(Ljava/util/List;)Ljava/util/List;
                     move-result-object p1
                 """,
             )
