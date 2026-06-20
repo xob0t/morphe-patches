@@ -13,21 +13,34 @@ val avitoPrivacyPatch = bytecodePatch(
     compatibleWith(COMPATIBILITY_AVITO)
 
     execute {
-        ClickstreamEnqueueRunnableFingerprint.method.addInstructions(
-            0,
-            "return-void",
+        // Each telemetry entry point is patched independently and tolerates
+        // absence. Avito's analytics get repackaged across releases (e.g. on 227.0
+        // R8 merges the clickstream enqueue runnable into a shared lambda dispatcher,
+        // so its fingerprint deliberately no longer matches — neutering that merged
+        // method would break the unrelated lambdas sharing it). A missing fingerprint
+        // skips that entry point instead of aborting the whole patch.
+        val targets = listOf(
+            "clickstream enqueue" to ClickstreamEnqueueRunnableFingerprint.methodOrNull,
+            "Adjust init" to AdjustInitFingerprint.methodOrNull,
+            "Adjust trackEvent" to AdjustTrackEventFingerprint.methodOrNull,
+            "Adjust userId" to AdjustUserIdFingerprint.methodOrNull,
+            "Adjust pushToken" to AdjustPushTokenFingerprint.methodOrNull,
         )
 
-        listOf(
-            AdjustInitFingerprint.method,
-            AdjustTrackEventFingerprint.method,
-            AdjustUserIdFingerprint.method,
-            AdjustPushTokenFingerprint.method,
-        ).forEach { method ->
-            method.addInstructions(
-                0,
-                "return-void",
-            )
+        var disabled = 0
+        val skipped = mutableListOf<String>()
+        targets.forEach { (label, method) ->
+            if (method == null) {
+                skipped += label
+            } else {
+                method.addInstructions(0, "return-void")
+                disabled++
+            }
         }
+
+        println(
+            "Avito privacy: disabled $disabled telemetry entry point(s)" +
+                if (skipped.isEmpty()) "." else "; skipped (absent on this build): ${skipped.joinToString()}.",
+        )
     }
 }
