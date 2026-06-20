@@ -4,8 +4,11 @@ import app.avito.patches.settings.MorpheSettingsRegistry
 import app.avito.patches.settings.morpheSettingsPatch
 import app.avito.patches.shared.Constants.COMPATIBILITY_AVITO
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
+import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.patch.bytecodePatch
+import app.morphe.patcher.util.smali.ExternalLabel
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
@@ -20,6 +23,9 @@ private const val MORPHE_SETTINGS_CLASS = "Lapp/avito/morphe/MorpheSettings;"
 private const val ADVERT_DETAILS = "Lcom/avito/android/remote/model/AdvertDetails;"
 private const val CREDIT_BROKER_PRODUCT = "Lcom/avito/android/remote/model/credit_broker/CreditBrokerProduct;"
 private const val ICE_BREAKERS = "Lcom/avito/android/remote/model/IceBreakers;"
+private const val VISUAL_RUBRICATOR_ELEMENT =
+    "Lcom/avito/android/visual_rubricator/element/VisualRubricatorWidgetElementItemImpl;"
+private const val INTEGER = "Ljava/lang/Integer;"
 
 private val AVI_TAB_NAMES = setOf("AI_ASSISTANT", "AI_ASSISTANT_SELLER")
 
@@ -42,7 +48,10 @@ private fun Method.hasFieldReference(fields: Set<String>): Boolean =
  * A collection of optional interface tweaks, each gated by its own toggle in
  * Настройки Morphe so it can be turned off without rebuilding:
  *
+ *  - **Force home categories into a single row.**
  *  - **Hide the "Подписки" tab** on the Избранное (Favorites) screen.
+ *  - **Hide the installments (Рассрочка)** surfaces and the **"Спросите у
+ *    продавца"** block on offer pages.
  *  - **Hide the Avi assistant tab** in the bottom navigation bar.
  *
  * Each tweak is applied independently and degrades gracefully: if the target
@@ -52,14 +61,54 @@ private fun Method.hasFieldReference(fields: Set<String>): Boolean =
 @Suppress("unused")
 val uiTweaksPatch = bytecodePatch(
     name = "UI tweaks",
-    description = "Optional interface tweaks, each toggleable in Настройки Morphe: hide the \"Подписки\" tab " +
-        "in Избранное, and hide the Avi assistant tab in the bottom navigation.",
+    description = "Optional interface tweaks, each toggleable in Настройки Morphe: single-row home " +
+        "categories, hide the \"Подписки\" tab in Избранное, hide installments (Рассрочка) and the " +
+        "\"Спросите у продавца\" block on offers, and hide the Avi assistant tab in the bottom navigation.",
     default = false,
 ) {
     compatibleWith(COMPATIBILITY_AVITO)
     dependsOn(morpheSettingsPatch)
 
     execute {
+        // --- Force the home-screen categories into a single row -----------------
+        // The DoubleRows visual rubricator routes each tile to row_first/row_second
+        // by its getRowLine(); when the toggle is on, make every tile report row 1
+        // so the second row collapses and all categories land in one scrollable row.
+        // The class/method keep their real names across 213–227.
+        val rubricatorElement = classDefByOrNull(VISUAL_RUBRICATOR_ELEMENT)
+        val getRowLine = rubricatorElement?.methods?.firstOrNull {
+            it.name == "getRowLine" && it.parameterTypes.isEmpty() && it.returnType == INTEGER
+        }
+        if (rubricatorElement == null || getRowLine == null) {
+            println("UI tweaks: rubricator getRowLine() not found; single-row categories skipped")
+        } else {
+            val rowLineMethod = mutableClassDefBy(rubricatorElement).methods
+                .single { it.name == getRowLine.name && it.parameterTypes == getRowLine.parameterTypes }
+            rowLineMethod.addInstructionsWithLabels(
+                0,
+                """
+                    invoke-static {}, $MORPHE_SETTINGS_CLASS->singleRowCategories()Z
+                    move-result v0
+                    if-eqz v0, :stock
+                    const/4 v0, 0x1
+                    invoke-static {v0}, $INTEGER->valueOf(I)$INTEGER
+                    move-result-object v0
+                    return-object v0
+                """,
+                ExternalLabel("stock", rowLineMethod.getInstruction(0)),
+            )
+            // Restart-required: the rubricator items are diffed and won't rebind on a
+            // simple settings round-trip.
+            MorpheSettingsRegistry.addSwitch(
+                key = "avito_single_row_categories",
+                title = "Категории в одну строку",
+                summary = "Показывать категории на главной одной строкой",
+                default = true,
+                restartRequired = true,
+            )
+            println("UI tweaks: gated single-row home categories behind the toggle.")
+        }
+
         // --- Hide the "Подписки" (subscribed sellers) tab in Избранное ----------
         // Replace the tab list at the entry of the presenter method that consumes
         // it and builds the tab strip (the active path; the obvious builder A.a is
