@@ -157,6 +157,8 @@ public final class MorpheSettings {
             }
         } catch (Throwable ignored) {
         }
+        // Collapse the leftover "Реклама скрыта" empty-ad stub (ads are removed).
+        AdCleanup.onBind(viewHolder);
         Blacklist.onBindAdvert(viewHolder, item);
     }
 
