@@ -112,6 +112,18 @@ public final class MorpheSettings {
     }
 
     /**
+     * Gate for the "hide installments (Рассрочка)" tweak, injected at the return of
+     * {@code AdvertDetails.getCreditInfo()} — the single source every installment
+     * surface reads (the offer-page block, the contact-bar row, …). Returns
+     * {@code null} (a value the field is already nullable to, so each consumer
+     * natively renders nothing) while the toggle is on, otherwise the value
+     * unchanged.
+     */
+    public static Object creditInfoOrNull(Object creditInfo) {
+        return isEnabled("avito_hide_installments", true) ? null : creditInfo;
+    }
+
+    /**
      * Gate for the "single-row home categories" feature, injected into the
      * rubricator tile's getRowLine(): when on, every tile reports row 1 so the
      * category rubricator collapses to one row. Off → stock (two rows).

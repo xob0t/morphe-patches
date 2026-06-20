@@ -17,6 +17,8 @@ import com.android.tools.smali.dexlib2.iface.reference.StringReference
 private const val NAVIGATION_TAB = "Lcom/avito/android/bottom_navigation/NavigationTab;"
 private const val BOTTOM_NAVIGATION_SPACE = "Lcom/avito/android/bottom_navigation/space/BottomNavigationSpace;"
 private const val MORPHE_SETTINGS_CLASS = "Lapp/avito/morphe/MorpheSettings;"
+private const val ADVERT_DETAILS = "Lcom/avito/android/remote/model/AdvertDetails;"
+private const val CREDIT_BROKER_PRODUCT = "Lcom/avito/android/remote/model/credit_broker/CreditBrokerProduct;"
 
 private val AVI_TAB_NAMES = setOf("AI_ASSISTANT", "AI_ASSISTANT_SELLER")
 
@@ -85,6 +87,48 @@ val uiTweaksPatch = bytecodePatch(
                 "UI tweaks: gated the Favorites subscriptions tab in " +
                     "${FavoritesTabsConsumerFingerprint.originalClassDef.type}->${tabConsumer.name}",
             )
+        }
+
+        // --- Hide installments (Рассрочка) everywhere ---------------------------
+        // Null AdvertDetails.getCreditInfo() — the single source every installment
+        // surface reads (the offer-page block, the contact-bar row, …) — so each
+        // consumer natively renders nothing (the field is already nullable). Routes
+        // the getter's return through creditInfoOrNull when the toggle is on.
+        val advertDetailsClass = classDefByOrNull(ADVERT_DETAILS)
+        val getCreditInfo = advertDetailsClass?.methods?.firstOrNull {
+            it.name == "getCreditInfo" && it.parameterTypes.isEmpty()
+        }
+        if (advertDetailsClass == null || getCreditInfo == null) {
+            println("UI tweaks: AdvertDetails.getCreditInfo not found; installments skipped")
+        } else {
+            val method = mutableClassDefBy(advertDetailsClass).methods.first {
+                it.name == "getCreditInfo" && it.parameterTypes.isEmpty()
+            }
+            val returnIndices = method.instructionsOrNull
+                ?.toList().orEmpty()
+                .mapIndexedNotNull { index, instruction ->
+                    if (instruction.opcode == Opcode.RETURN_OBJECT) index else null
+                }
+                .reversed()
+            for (returnIndex in returnIndices) {
+                val register =
+                    (method.instructionsOrNull!!.toList()[returnIndex] as OneRegisterInstruction).registerA
+                method.addInstructions(
+                    returnIndex,
+                    """
+                        invoke-static/range { v$register .. v$register }, $MORPHE_SETTINGS_CLASS->creditInfoOrNull(Ljava/lang/Object;)Ljava/lang/Object;
+                        move-result-object v$register
+                        check-cast v$register, $CREDIT_BROKER_PRODUCT
+                    """,
+                )
+            }
+            MorpheSettingsRegistry.addSwitch(
+                key = "avito_hide_installments",
+                title = "Скрыть рассрочку",
+                summary = "Убрать рассрочку со страниц объявлений",
+                default = true,
+            )
+            println("UI tweaks: gated AdvertDetails.getCreditInfo (${returnIndices.size} returns).")
         }
 
         // --- Hide the Avi assistant tab in the bottom navigation ----------------
