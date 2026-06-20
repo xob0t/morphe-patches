@@ -404,23 +404,63 @@ public final class BlacklistActivity extends Activity {
     }
 
     private void confirmClear() {
+        final int offers = Blacklist.offerCount();
+        final int sellers = Blacklist.sellerCount();
+        if (offers == 0 && sellers == 0) {
+            toast("Список пуст");
+            return;
+        }
+
+        final List<CharSequence> labels = new java.util.ArrayList<>();
+        final List<Runnable> actions = new java.util.ArrayList<>();
+        if (offers > 0) {
+            labels.add("Только объявления (" + offers + ")");
+            actions.add(new Runnable() {
+                @Override
+                public void run() {
+                    Blacklist.clearOffers();
+                    refresh();
+                    toast("Объявления очищены");
+                }
+            });
+        }
+        if (sellers > 0) {
+            labels.add("Только продавцов (" + sellers + ")");
+            actions.add(new Runnable() {
+                @Override
+                public void run() {
+                    Blacklist.clearSellers();
+                    refresh();
+                    toast("Продавцы очищены");
+                }
+            });
+        }
+        if (offers > 0 && sellers > 0) {
+            labels.add("Объявления и продавцов");
+            actions.add(new Runnable() {
+                @Override
+                public void run() {
+                    Blacklist.clear();
+                    refresh();
+                    toast("Очищено");
+                }
+            });
+        }
+
         try {
             new android.app.AlertDialog.Builder(this)
-                    .setTitle("Очистить чёрный список?")
-                    .setMessage("Все заблокированные объявления и продавцы будут удалены.")
-                    .setPositiveButton("Очистить", new android.content.DialogInterface.OnClickListener() {
+                    .setTitle("Очистить чёрный список")
+                    .setItems(labels.toArray(new CharSequence[0]), new android.content.DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(android.content.DialogInterface dialog, int which) {
-                            Blacklist.clear();
-                            refresh();
-                            toast("Очищено");
+                            if (which >= 0 && which < actions.size()) {
+                                actions.get(which).run();
+                            }
                         }
                     })
                     .setNegativeButton("Отмена", null)
                     .show();
-        } catch (Throwable t) {
-            Blacklist.clear();
-            refresh();
+        } catch (Throwable ignored) {
         }
     }
 

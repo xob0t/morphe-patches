@@ -448,6 +448,29 @@ public final class Blacklist {
         }
     }
 
+    /** Clears only blocked offers (adverts), leaving blocked sellers intact. */
+    public static void clearOffers() {
+        ensureLoaded();
+        synchronized (LOCK) {
+            blockedOffers.clear();
+            offerLabels.clear();
+            offerSellerLabels.clear();
+            offerTimes.clear();
+            persist();
+        }
+    }
+
+    /** Clears only blocked sellers, leaving blocked offers intact. */
+    public static void clearSellers() {
+        ensureLoaded();
+        synchronized (LOCK) {
+            blockedSellers.clear();
+            sellerLabels.clear();
+            sellerTimes.clear();
+            persist();
+        }
+    }
+
     // ---------------------------------------------------------------------
     // Feed filtering (called from patched bytecode)
     // ---------------------------------------------------------------------
