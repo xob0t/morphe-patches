@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0-dev.6",
+  "version": "1.4.0-dev.7",
   "patches": [
     {
       "name": "Block listings",
@@ -326,6 +326,12 @@
           "signatures": null,
           "targets": [
             {
+              "version": "19.22.0",
+              "isExperimental": false,
+              "minSdk": 26,
+              "description": null
+            },
+            {
               "version": "19.16.0",
               "isExperimental": false,
               "minSdk": 26,
@@ -496,57 +502,6 @@
       "options": []
     },
     {
-      "name": "Single-row home categories",
-      "description": "Collapses the home-screen category rubricator from two rows into a single horizontally scrollable row. Toggleable in Настройки Morphe (needs an app restart to apply).",
-      "default": false,
-      "dependencies": [
-        "BytecodePatch"
-      ],
-      "compatiblePackages": [
-        {
-          "packageName": "com.avito.android",
-          "name": "Avito",
-          "description": null,
-          "apkFileType": "APK",
-          "appIconColor": "#00AAFF",
-          "signatures": null,
-          "targets": [
-            {
-              "version": "227.0",
-              "isExperimental": false,
-              "minSdk": 28,
-              "description": null
-            },
-            {
-              "version": "226.5",
-              "isExperimental": false,
-              "minSdk": 28,
-              "description": null
-            },
-            {
-              "version": "225.5",
-              "isExperimental": false,
-              "minSdk": 28,
-              "description": null
-            },
-            {
-              "version": "224.6",
-              "isExperimental": false,
-              "minSdk": 28,
-              "description": null
-            },
-            {
-              "version": null,
-              "isExperimental": false,
-              "minSdk": 28,
-              "description": null
-            }
-          ]
-        }
-      ],
-      "options": []
-    },
-    {
       "name": "Spoof USB debugging status",
       "description": "Spoofs USB debugging and related developer settings through common Android APIs.",
       "default": false,
@@ -580,7 +535,7 @@
     },
     {
       "name": "UI tweaks",
-      "description": "Optional interface tweaks, each toggleable in Настройки Morphe: hide the \"Подписки\" tab in Избранное, and hide the Avi assistant tab in the bottom navigation.",
+      "description": "Optional interface tweaks, each toggleable in Настройки Morphe: single-row home categories, hide the \"Подписки\" tab in Избранное, hide installments (Рассрочка) and the \"Спросите у продавца\" block on offers, and hide the Avi assistant tab in the bottom navigation.",
       "default": false,
       "dependencies": [
         "BytecodePatch"

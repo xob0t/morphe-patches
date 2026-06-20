@@ -1,3 +1,9 @@
+## [1.4.0-dev.7](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.6...v1.4.0-dev.7) (2026-06-20)
+
+### 🚀 Updated App Support
+
+* **ozon:** add 19.22.0 to supported versions ([#10](https://github.com/xob0t/morphe-patches/issues/10)) ([7d785d6](https://github.com/xob0t/morphe-patches/commit/7d785d69663e25f97a4f0a3107b386dc067d6839))
+
 ## [1.4.0-dev.6](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.5...v1.4.0-dev.6) (2026-06-20)
 
 ### 🐛 Bug Fixes
