@@ -1,7 +1,6 @@
 package app.avito.patches.blacklist
 
 import app.morphe.patcher.Fingerprint
-import app.morphe.patcher.string
 
 private const val SERP_DISPLAY_TYPE = "Lcom/avito/android/remote/model/SerpDisplayType;"
 private const val LIST = "Ljava/util/List;"
@@ -38,23 +37,5 @@ object SerpElementsConverterFingerprint : Fingerprint(
                     params[3] == STRING &&
                     params.drop(4).contains(LIST)
             }
-    },
-)
-
-/**
- * Matches the Avito settings-screen list builder
- * (`com.avito.android.settings.mvi.m.a(...)`), which assembles the `ArrayList`
- * of settings rows. Identified by its return type and the stable settings row
- * key strings it references. The patch appends a "Чёрный список" row to the
- * returned list.
- */
-object SettingsListBuilderFingerprint : Fingerprint(
-    returnType = "Ljava/util/ArrayList;",
-    filters = listOf(
-        string("notifications"),
-        string("helpCenter"),
-    ),
-    custom = { _, classDef ->
-        classDef.type.startsWith("Lcom/avito/android/settings/")
     },
 )

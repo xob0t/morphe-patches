@@ -1,0 +1,177 @@
+package app.avito.morphe;
+
+import android.app.Activity;
+import android.os.Bundle;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.CompoundButton;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.Switch;
+import android.widget.TextView;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+/**
+ * Generic, code-built "Настройки Morphe" screen. Renders the entries registered by
+ * Avito patches (baked into {@link MorpheSettings#config()} as JSON):
+ * <ul>
+ *   <li>{@code switch} — a toggle persisted to {@code avito_morphe_settings};
+ *       feature code reads it via {@link MorpheSettings#isEnabled}.</li>
+ *   <li>{@code screen} — a row that opens another Activity (e.g. the blacklist
+ *       manager). Stacks in the same task so back returns here.</li>
+ * </ul>
+ * Styled with {@link MorpheTheme} so it matches Avito's palette and light/dark.
+ */
+public final class MorpheSettingsActivity extends Activity {
+
+    private MorpheTheme theme;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setTitle(MorpheSettings.SETTINGS_ENTRY_TITLE);
+        theme = new MorpheTheme(this);
+
+        LinearLayout outer = new LinearLayout(this);
+        outer.setOrientation(LinearLayout.VERTICAL);
+        outer.setBackgroundColor(theme.colorBackground);
+        outer.addView(theme.buildTopBar(MorpheSettings.SETTINGS_ENTRY_TITLE, new Runnable() {
+            @Override
+            public void run() {
+                finish();
+            }
+        }));
+        outer.addView(theme.makeDivider());
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.setBackgroundColor(theme.colorBackground);
+        scroll.setFillViewport(true);
+        scroll.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        outer.addView(scroll);
+
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        list.setPadding(16 * theme.dp, 8 * theme.dp, 16 * theme.dp, 24 * theme.dp);
+        scroll.addView(list);
+
+        renderEntries(list);
+        setContentView(outer);
+    }
+
+    private void renderEntries(LinearLayout list) {
+        JSONArray entries;
+        try {
+            entries = new JSONArray(MorpheSettings.config());
+        } catch (Throwable t) {
+            entries = new JSONArray();
+        }
+        if (entries.length() == 0) {
+            TextView empty = new TextView(this);
+            empty.setText("Нет доступных настроек");
+            empty.setTextColor(theme.textSecondary);
+            empty.setTextSize(14);
+            empty.setPadding(0, 16 * theme.dp, 0, 0);
+            list.addView(empty);
+            return;
+        }
+        for (int i = 0; i < entries.length(); i++) {
+            JSONObject e = entries.optJSONObject(i);
+            if (e == null) {
+                continue;
+            }
+            String type = e.optString("type");
+            if ("switch".equals(type)) {
+                list.addView(buildSwitchRow(e));
+            } else if ("screen".equals(type)) {
+                list.addView(buildScreenRow(e));
+            }
+            list.addView(theme.makeDivider());
+        }
+    }
+
+    private View buildSwitchRow(JSONObject e) {
+        final String key = e.optString("key");
+        String title = e.optString("title", key);
+        String summary = e.optString("summary", null);
+        boolean def = e.optBoolean("default", true);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, 12 * theme.dp, 0, 12 * theme.dp);
+
+        LinearLayout textCol = new LinearLayout(this);
+        textCol.setOrientation(LinearLayout.VERTICAL);
+        textCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView titleView = new TextView(this);
+        titleView.setText(title);
+        titleView.setTextColor(theme.textPrimary);
+        titleView.setTextSize(15);
+        textCol.addView(titleView);
+
+        if (summary != null && !summary.isEmpty()) {
+            TextView sub = new TextView(this);
+            sub.setText(summary);
+            sub.setTextColor(theme.textSecondary);
+            sub.setTextSize(12);
+            sub.setPadding(0, 2 * theme.dp, 0, 0);
+            textCol.addView(sub);
+        }
+        row.addView(textCol);
+
+        Switch sw = new Switch(this);
+        sw.setChecked(MorpheSettings.isEnabled(key, def));
+        sw.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                MorpheSettings.setEnabled(key, isChecked);
+            }
+        });
+        row.addView(sw);
+        return row;
+    }
+
+    private View buildScreenRow(JSONObject e) {
+        String title = e.optString("title", e.optString("key"));
+        final String activity = e.optString("activity", null);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, 14 * theme.dp, 0, 14 * theme.dp);
+        row.setBackground(theme.themeDrawable(android.R.attr.selectableItemBackground));
+        row.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (activity == null || activity.isEmpty()) {
+                    return;
+                }
+                try {
+                    android.content.Intent intent = new android.content.Intent();
+                    intent.setClassName(getPackageName(), activity);
+                    startActivity(intent);
+                } catch (Throwable ignored) {
+                }
+            }
+        });
+
+        TextView titleView = new TextView(this);
+        titleView.setText(title);
+        titleView.setTextColor(theme.textPrimary);
+        titleView.setTextSize(15);
+        titleView.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(titleView);
+
+        TextView chevron = new TextView(this);
+        chevron.setText("›");
+        chevron.setTextColor(theme.textSecondary);
+        chevron.setTextSize(20);
+        row.addView(chevron);
+        return row;
+    }
+}

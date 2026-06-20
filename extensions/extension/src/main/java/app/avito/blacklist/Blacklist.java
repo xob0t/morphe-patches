@@ -460,20 +460,13 @@ public final class Blacklist {
      *
      * <p>Matches both the legacy {@code AdvertItem} and the redesigned
      * {@code SerpConstructorAdvertItem} (both class names contain "AdvertItem").
+     *
+     * <p>Called (via {@code MorpheSettings.onBind}) for every list bind that isn't
+     * the Morphe settings row.
      */
-    /** Marker id of the blacklist row injected into the app's Settings screen. */
-    private static final String SETTINGS_ENTRY_ID = "avito_blacklist";
-    private static final String SETTINGS_ENTRY_TITLE = "Настройки Morphe";
-    private static final String BLACKLIST_ACTIVITY = "app.avito.blacklist.BlacklistActivity";
-
     public static void onBindAdvert(Object viewHolder, Object item) {
         try {
             if (viewHolder == null || item == null) {
-                return;
-            }
-            // Our injected Settings row: wire its click to open the manager.
-            if (SETTINGS_ENTRY_ID.equals(callString(item, "getStringId"))) {
-                wireSettingsRow(itemViewOf(viewHolder));
                 return;
             }
             if (!item.getClass().getName().endsWith("AdvertItem")) {
@@ -535,7 +528,7 @@ public final class Blacklist {
         }
     }
 
-    private static void attachTouchRecursive(android.view.View view, android.view.View.OnTouchListener listener) {
+    public static void attachTouchRecursive(android.view.View view, android.view.View.OnTouchListener listener) {
         try {
             view.setOnTouchListener(listener);
             if (view instanceof android.view.ViewGroup) {
@@ -549,79 +542,11 @@ public final class Blacklist {
     }
 
     /**
-     * Appends the "Чёрный список" row to the app's settings list. Called from the
-     * patched settings-list builder. Clones the runtime class of an existing
-     * navigation row (found by its stable "notifications" id) so no obfuscated
-     * class name is hard-coded.
-     */
-    public static void addSettingsEntry(java.util.List<?> items) {
-        try {
-            if (items == null || items.isEmpty()) {
-                return;
-            }
-            for (Object existing : items) {
-                if ("notifications".equals(callString(existing, "getStringId"))) {
-                    Object row = existing.getClass()
-                            .getConstructor(String.class, String.class)
-                            .newInstance(SETTINGS_ENTRY_ID, SETTINGS_ENTRY_TITLE);
-                    @SuppressWarnings("unchecked")
-                    java.util.List<Object> mutable = (java.util.List<Object>) items;
-                    // Put it first so it's the top entry in the Settings screen.
-                    mutable.add(0, row);
-                    return;
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-    }
-
-    private static void wireSettingsRow(final android.view.View root) {
-        if (root == null) {
-            return;
-        }
-        // Detect the tap with a GestureDetector fed by a non-consuming touch
-        // listener (returns false). This is robust to whichever click/touch
-        // handling Avito's settings binder installs (and to it varying by app
-        // version): our detector sees the tap regardless of ordering, while
-        // returning false leaves Avito's own row handling intact (it just has no
-        // action for our id). A real tap (not a list scroll) opens the manager.
-        final android.view.GestureDetector detector = new android.view.GestureDetector(
-                root.getContext(),
-                new android.view.GestureDetector.SimpleOnGestureListener() {
-                    @Override
-                    public boolean onSingleTapUp(android.view.MotionEvent e) {
-                        try {
-                            android.content.Intent intent = new android.content.Intent();
-                            intent.setClassName(root.getContext().getPackageName(), BLACKLIST_ACTIVITY);
-                            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
-                            root.getContext().startActivity(intent);
-                        } catch (Throwable ignored) {
-                        }
-                        return false;
-                    }
-                });
-        final android.view.View.OnTouchListener touch =
-                new android.view.View.OnTouchListener() {
-                    @Override
-                    public boolean onTouch(android.view.View v, android.view.MotionEvent ev) {
-                        detector.onTouchEvent(ev);
-                        return false;
-                    }
-                };
-        root.post(new Runnable() {
-            @Override
-            public void run() {
-                attachTouchRecursive(root, touch);
-            }
-        });
-    }
-
-    /**
      * Returns the row view of a {@code RecyclerView.ViewHolder}: the public
      * {@code itemView} field, or (if minification renamed it) the View field
      * declared on the minified RecyclerView.ViewHolder base class.
      */
-    private static android.view.View itemViewOf(Object viewHolder) {
+    public static android.view.View itemViewOf(Object viewHolder) {
         try {
             Object value = viewHolder.getClass().getField("itemView").get(viewHolder);
             if (value instanceof android.view.View) {
@@ -945,7 +870,7 @@ public final class Blacklist {
         }
     }
 
-    private static String callString(Object target, String method) {
+    public static String callString(Object target, String method) {
         Object value = callObject(target, method);
         return (value instanceof String) ? (String) value : null;
     }
