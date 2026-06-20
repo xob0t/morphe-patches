@@ -775,9 +775,9 @@ public final class Blacklist {
      * corners and an off-palette surface). Each label maps to the action at the
      * same index; an extra "Отмена" row dismisses.
      */
-    private static void showRoundedMenu(android.content.Context ctx, String title,
-                                        java.util.List<String> labels,
-                                        final java.util.List<Runnable> actions) {
+    static void showRoundedMenu(android.content.Context ctx, String title,
+                                java.util.List<String> labels,
+                                final java.util.List<Runnable> actions) {
         try {
             final float d = ctx.getResources().getDisplayMetrics().density;
             int surface = avitoAttrColor(ctx, "white", 0xFF1A1A1A);

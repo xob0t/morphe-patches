@@ -441,7 +441,7 @@ public final class BlacklistActivity extends Activity {
             return;
         }
 
-        final List<CharSequence> labels = new java.util.ArrayList<>();
+        final List<String> labels = new java.util.ArrayList<>();
         final List<Runnable> actions = new java.util.ArrayList<>();
         if (offers > 0) {
             labels.add("Только объявления (" + offers + ")");
@@ -477,21 +477,8 @@ public final class BlacklistActivity extends Activity {
             });
         }
 
-        try {
-            new android.app.AlertDialog.Builder(this)
-                    .setTitle("Очистить чёрный список")
-                    .setItems(labels.toArray(new CharSequence[0]), new android.content.DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(android.content.DialogInterface dialog, int which) {
-                            if (which >= 0 && which < actions.size()) {
-                                actions.get(which).run();
-                            }
-                        }
-                    })
-                    .setNegativeButton("Отмена", null)
-                    .show();
-        } catch (Throwable ignored) {
-        }
+        // Same rounded, Avito-themed sheet as the feed long-press menu.
+        Blacklist.showRoundedMenu(this, "Очистить чёрный список", labels, actions);
     }
 
     // -- Import / export via the Storage Access Framework --------------------
