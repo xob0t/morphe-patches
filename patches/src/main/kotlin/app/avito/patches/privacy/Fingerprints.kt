@@ -10,6 +10,30 @@ private fun isAvitoClickstreamTracker(classType: String) =
 private fun isAvitoAdjustWrapper(classType: String) =
     classType.startsWith("Lcom/avito/android/analytics_adjust/")
 
+// Primary (227.0+): ClickStreamEventTrackerImpl.c(event) — the public track-event
+// method that wraps each event in a runnable and dispatches it to an Executor.
+// Neutering it stops clickstream at the source. (On 227 R8 merged the enqueue
+// runnable itself into a shared lambda dispatcher shared with unrelated lambdas, so
+// the tracker method is the correct, safe target.)
+object ClickstreamTrackEventFingerprint : Fingerprint(
+    returnType = "V",
+    parameters = listOf(
+        "Lcom/avito/android/analytics/o;",
+    ),
+    filters = listOf(
+        methodCall(
+            definingClass = "Ljava/util/concurrent/Executor;",
+            name = "execute",
+        ),
+    ),
+    custom = { _, classDef ->
+        isAvitoClickstreamTracker(classDef.type)
+    },
+)
+
+// Fallback (older builds): the clickstream enqueue runnable itself, identified by
+// its ANR log line and the inhouse-transport add() call, when it still lives in a
+// dedicated clickstream class.
 object ClickstreamEnqueueRunnableFingerprint : Fingerprint(
     returnType = "V",
     filters = listOf(

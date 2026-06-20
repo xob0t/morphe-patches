@@ -13,14 +13,19 @@ val avitoPrivacyPatch = bytecodePatch(
     compatibleWith(COMPATIBILITY_AVITO)
 
     execute {
-        // Each telemetry entry point is patched independently and tolerates
-        // absence. Avito's analytics get repackaged across releases (e.g. on 227.0
-        // R8 merges the clickstream enqueue runnable into a shared lambda dispatcher,
-        // so its fingerprint deliberately no longer matches — neutering that merged
-        // method would break the unrelated lambdas sharing it). A missing fingerprint
+        // Each telemetry entry point is patched independently and tolerates absence;
+        // Avito's analytics get repackaged across releases, so a missing fingerprint
         // skips that entry point instead of aborting the whole patch.
+        //
+        // Clickstream targets 227.0+ first (the ClickStreamEventTracker.c(event)
+        // method) and falls back to the older dedicated enqueue runnable. On 227 R8
+        // merged that runnable into a shared lambda dispatcher, so the tracker method
+        // is the only safe choke point.
+        val clickstream = ClickstreamTrackEventFingerprint.methodOrNull
+            ?: ClickstreamEnqueueRunnableFingerprint.methodOrNull
+
         val targets = listOf(
-            "clickstream enqueue" to ClickstreamEnqueueRunnableFingerprint.methodOrNull,
+            "clickstream" to clickstream,
             "Adjust init" to AdjustInitFingerprint.methodOrNull,
             "Adjust trackEvent" to AdjustTrackEventFingerprint.methodOrNull,
             "Adjust userId" to AdjustUserIdFingerprint.methodOrNull,
