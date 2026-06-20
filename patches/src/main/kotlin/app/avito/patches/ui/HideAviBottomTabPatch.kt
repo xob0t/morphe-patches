@@ -86,7 +86,13 @@ val hideAviBottomTabPatch = bytecodePatch(
         var patchedReferences = 0
 
         classDefForEach { classDef ->
-            if (!classDef.type.startsWith("Lcom/avito/android/bottom_navigation/")) return@classDefForEach
+            // No package filter: the nav builder is repackaged differently per
+            // release (`com/avito/android/bottom_navigation/...` on older builds vs
+            // `qr/y` on 227.0). The structural signature — a method that takes a
+            // BottomNavigationSpace and reads the Avi NavigationTab fields — is
+            // distinctive enough on its own. usesBottomNavigationSpace() (cheap
+            // param check) short-circuits before the instruction scan, so iterating
+            // all classes stays fast.
             if (classDef.methods.none { it.usesBottomNavigationSpace() && it.hasFieldReference(aiTabFields) }) {
                 return@classDefForEach
             }
