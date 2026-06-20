@@ -1217,6 +1217,62 @@ public final class Blacklist {
         return advertToolbarHandler;
     }
 
+    // Seller-profile (extended profile) toolbar block action — same deferral
+    // pattern as the advert toolbar above.
+    private static volatile Object pendingSellerKey;
+    private static volatile Object pendingSellerProfile;
+    private static android.os.Handler sellerToolbarHandler;
+    private static final Runnable SELLER_TOOLBAR_INSTALL = new Runnable() {
+        @Override
+        public void run() {
+            app.avito.morphe.MorpheBlockMenu.installSeller(pendingSellerKey, pendingSellerProfile);
+        }
+    };
+
+    /**
+     * Entry hook for the seller-profile (ExtendedProfile) toolbar. The profile
+     * converter passes the deep-link {@code userKey} and a {@code context} string
+     * (order isn't guaranteed), plus the loaded {@code ExtendedProfile}. We pick
+     * the param that looks like a userKey (the only cheap, non-reflective work
+     * done on this reactive stack) and defer everything else to the main thread.
+     */
+    public static void onSellerToolbar(String a, String b, Object profile) {
+        try {
+            String userKey = looksLikeUserKey(a) ? a : (looksLikeUserKey(b) ? b
+                    : (a != null && !a.isEmpty() ? a : b));
+            if (userKey == null || userKey.isEmpty()) {
+                return;
+            }
+            pendingSellerKey = userKey;
+            pendingSellerProfile = profile;
+            android.os.Handler h = sellerToolbarHandler();
+            h.removeCallbacks(SELLER_TOOLBAR_INSTALL);
+            h.postDelayed(SELLER_TOOLBAR_INSTALL, 450);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** A seller userKey is a long hex hash (e.g. "a58fa0dc…"); a context tag isn't. */
+    private static boolean looksLikeUserKey(String s) {
+        if (s == null || s.length() < 16) {
+            return false;
+        }
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if ((c < '0' || c > '9') && (c < 'a' || c > 'f')) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static synchronized android.os.Handler sellerToolbarHandler() {
+        if (sellerToolbarHandler == null) {
+            sellerToolbarHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+        }
+        return sellerToolbarHandler;
+    }
+
     public static String callString(Object target, String method) {
         Object value = callObject(target, method);
         return (value instanceof String) ? (String) value : null;

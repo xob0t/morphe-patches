@@ -7,6 +7,25 @@ private const val LIST = "Ljava/util/List;"
 private const val STRING = "Ljava/lang/String;"
 private const val ADVERT_DETAILS = "Lcom/avito/android/remote/model/AdvertDetails;"
 private const val ADVERT_DETAILS_STYLE = "Lcom/avito/android/advert_details/AdvertDetailsStyle;"
+private const val EXTENDED_PROFILE = "Lcom/avito/android/remote/model/ExtendedProfile;"
+
+/**
+ * Matches the seller-profile (ExtendedProfile) header converter — the method that
+ * turns the loaded profile into the screen's UI, receiving the deep-link
+ * `userKey`/`context` strings and the full `ExtendedProfile`. We hook its entry to
+ * add a "block seller" action to the profile toolbar.
+ *
+ * Identified by its distinctive shape — two `String`s followed by an
+ * `ExtendedProfile` — within the (stable) `extended_profile/converter` package, so
+ * it survives the per-release minification of the class/method names.
+ */
+object SellerProfileConverterFingerprint : Fingerprint(
+    parameters = listOf(STRING, STRING, EXTENDED_PROFILE),
+    custom = { method, classDef ->
+        method.implementation != null &&
+            classDef.type.startsWith("Lcom/avito/android/extended_profile/converter/")
+    },
+)
 
 /**
  * Matches `AdvertDetailsToolbarPresenter`'s navbar-setup method, which builds the

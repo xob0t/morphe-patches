@@ -116,6 +116,58 @@ public final class MorpheBlockMenu {
     }
 
     /**
+     * Builds the seller-profile toolbar's single "block seller" action. Called on
+     * the MAIN thread from {@code Blacklist.onSellerToolbar}'s deferred runnable.
+     * The name is read here (off the reactive stack) from the profile model:
+     * {@code ExtendedProfile.getData().getName()}.
+     */
+    public static void installSeller(Object userKeyObj, final Object profile) {
+        try {
+            final String userKey = (userKeyObj instanceof String) ? (String) userKeyObj : null;
+            if (userKey == null || userKey.isEmpty()) {
+                return;
+            }
+            String name = null;
+            Object data = callObject(profile, "getData");
+            if (data != null) {
+                name = Blacklist.callString(data, "getName");
+            }
+            final String sellerName = name;
+
+            View decor = currentDecorView();
+            if (decor == null) {
+                return;
+            }
+            Menu menu = toolbarMenu(decor);
+            if (menu == null) {
+                return;
+            }
+            Context ctx = decor.getContext();
+            final String sellerLabel = sellerName == null || sellerName.isEmpty() ? "Продавец" : sellerName;
+            addToggle(menu, ctx, ID_BLOCK_SELLER, "common_ic_block_user_24",
+                    "Скрыть продавца",
+                    sellerLabel + " в чёрном списке — его объявления скрыты",
+                    sellerLabel + " убран из чёрного списка",
+                    new Toggle() {
+                        @Override
+                        public boolean blocked() {
+                            return Blacklist.isSellerBlocked(userKey);
+                        }
+
+                        @Override
+                        public void toggle() {
+                            if (Blacklist.isSellerBlocked(userKey)) {
+                                Blacklist.removeSeller(userKey);
+                            } else {
+                                Blacklist.addSeller(userKey, sellerName);
+                            }
+                        }
+                    });
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /**
      * Locates the advert toolbar's Menu within the window's view tree. Tries the
      * {@code @id/toolbar} first, then falls back to the first {@code Toolbar}-typed
      * view found — both reach the same {@code getMenu()}. Main thread only.

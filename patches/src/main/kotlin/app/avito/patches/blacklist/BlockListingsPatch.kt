@@ -136,6 +136,21 @@ val blockListingsPatch = bytecodePatch(
             println("Block listings: advert toolbar presenter not found on this build; skipped detail buttons")
         }
 
+        // Add a "block seller" action to the seller-profile toolbar. The profile
+        // header converter receives the deep-link strings (one is the userKey) and
+        // the ExtendedProfile model; pass p1..p3 to the extension. Optional.
+        val sellerConverter = SellerProfileConverterFingerprint.methodOrNull
+        if (sellerConverter != null) {
+            sellerConverter.addInstructions(
+                0,
+                "invoke-static/range {p1 .. p3}, " +
+                    "$BLACKLIST_CLASS->onSellerToolbar(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Object;)V",
+            )
+            println("Block listings: added block action to the seller profile toolbar")
+        } else {
+            println("Block listings: seller profile converter not found on this build; skipped seller button")
+        }
+
         // Register the blacklist manager as a sub-screen of Настройки Morphe.
         MorpheSettingsRegistry.addScreen("avito_blacklist", "Чёрный список", BLACKLIST_ACTIVITY)
     }
