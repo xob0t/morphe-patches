@@ -5,7 +5,6 @@ import app.avito.patches.settings.morpheSettingsPatch
 import app.avito.patches.shared.Constants.COMPATIBILITY_AVITO
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
-import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
@@ -36,22 +35,65 @@ private fun Method.hasFieldReference(fields: Set<String>): Boolean =
         reference.definingClass == NAVIGATION_TAB && reference.name in fields
     } == true
 
+/**
+ * A collection of optional interface tweaks, each gated by its own toggle in
+ * Настройки Morphe so it can be turned off without rebuilding:
+ *
+ *  - **Hide the "Подписки" tab** on the Избранное (Favorites) screen.
+ *  - **Hide the Avi assistant tab** in the bottom navigation bar.
+ *
+ * Each tweak is applied independently and degrades gracefully: if the target
+ * isn't present on a given release the tweak (and its toggle) is simply skipped,
+ * and the patch never aborts the build.
+ */
 @Suppress("unused")
-val hideAviBottomTabPatch = bytecodePatch(
-    name = "Hide Avi bottom tab",
-    description = "Removes the Avi assistant button from Avito's bottom navigation bar. " +
-        "Toggleable in Настройки Morphe (needs an app restart to apply).",
+val uiTweaksPatch = bytecodePatch(
+    name = "UI tweaks",
+    description = "Optional interface tweaks, each toggleable in Настройки Morphe: hide the \"Подписки\" tab " +
+        "in Избранное, and hide the Avi assistant tab in the bottom navigation.",
     default = false,
 ) {
     compatibleWith(COMPATIBILITY_AVITO)
     dependsOn(morpheSettingsPatch)
 
     execute {
-        val navigationTabClass = classDefByOrNull(NAVIGATION_TAB)
-            ?: throw PatchException("NavigationTab class was not found")
+        // --- Hide the "Подписки" (subscribed sellers) tab in Избранное ----------
+        // Replace the tab list at the entry of the presenter method that consumes
+        // it and builds the tab strip (the active path; the obvious builder A.a is
+        // bypassed by a feature flag). withoutSubscriptionsTab returns a copy with
+        // the SellersTab dropped when the toggle is on. Re-evaluated each time the
+        // Favorites screen opens, so no restart is required.
+        val tabConsumer = FavoritesTabsConsumerFingerprint.methodOrNull
+        if (tabConsumer == null) {
+            println("UI tweaks: Favorites tab consumer not found; subscriptions tab skipped")
+        } else {
+            // p1 is the List<FavoritesTab>; swap it for the filtered copy.
+            tabConsumer.addInstructions(
+                0,
+                """
+                    invoke-static { p1 }, $MORPHE_SETTINGS_CLASS->withoutSubscriptionsTab(Ljava/util/List;)Ljava/util/List;
+                    move-result-object p1
+                """,
+            )
+            MorpheSettingsRegistry.addSwitch(
+                key = "avito_hide_subscriptions_tab",
+                title = "Скрыть вкладку «Подписки»",
+                summary = "Убрать вкладку подписок на экране Избранное",
+                default = true,
+            )
+            println(
+                "UI tweaks: gated the Favorites subscriptions tab in " +
+                    "${FavoritesTabsConsumerFingerprint.originalClassDef.type}->${tabConsumer.name}",
+            )
+        }
 
-        val aiTabFields = navigationTabClass.methods
-            .firstOrNull { it.name == "<clinit>" }
+        // --- Hide the Avi assistant tab in the bottom navigation ----------------
+        // The Avi tab doesn't exist on every release (e.g. 227.0); when absent the
+        // tweak and its toggle are skipped. Route the tab's field loads through
+        // aviTabOrNull so the toggle controls whether it's dropped (null) or kept.
+        val navigationTabClass = classDefByOrNull(NAVIGATION_TAB)
+        val aiTabFields = navigationTabClass?.methods
+            ?.firstOrNull { it.name == "<clinit>" }
             ?.let { method ->
                 val instructions = method.implementation?.instructions?.toList().orEmpty()
                 buildSet {
@@ -75,11 +117,8 @@ val hideAviBottomTabPatch = bytecodePatch(
             }
             .orEmpty()
 
-        // The Avi tab doesn't exist on every release (e.g. 227.0's bottom nav). If
-        // its fields/references aren't present, skip gracefully and don't register
-        // a toggle that wouldn't do anything — never abort the build.
         if (aiTabFields.isEmpty()) {
-            println("Hide Avi bottom tab: no Avi tab on this version; skipped")
+            println("UI tweaks: no Avi tab on this version; Avi tab skipped")
             return@execute
         }
 
@@ -88,11 +127,9 @@ val hideAviBottomTabPatch = bytecodePatch(
         classDefForEach { classDef ->
             // No package filter: the nav builder is repackaged differently per
             // release (`com/avito/android/bottom_navigation/...` on older builds vs
-            // `qr/y` on 227.0). The structural signature — a method that takes a
-            // BottomNavigationSpace and reads the Avi NavigationTab fields — is
-            // distinctive enough on its own. usesBottomNavigationSpace() (cheap
-            // param check) short-circuits before the instruction scan, so iterating
-            // all classes stays fast.
+            // `qr/y` on 227.0). The structural signature — a method taking a
+            // BottomNavigationSpace and reading the Avi NavigationTab fields — is
+            // distinctive; the cheap param check short-circuits the scan.
             if (classDef.methods.none { it.usesBottomNavigationSpace() && it.hasFieldReference(aiTabFields) }) {
                 return@classDefForEach
             }
@@ -101,9 +138,6 @@ val hideAviBottomTabPatch = bytecodePatch(
                 if (!method.usesBottomNavigationSpace()) return@forEach
 
                 val instructions = method.instructionsOrNull?.toList() ?: return@forEach
-                // Collect the Avi-tab field LOADS (sget-object): keep them, but route
-                // the loaded value through MorpheSettings.aviTabOrNull so the toggle
-                // controls whether the tab is dropped (null) or kept.
                 val targets = buildList {
                     instructions.forEachIndexed { index, instruction ->
                         if (instruction.opcode != Opcode.SGET_OBJECT) return@forEachIndexed
@@ -117,7 +151,6 @@ val hideAviBottomTabPatch = bytecodePatch(
                     }
                 }
 
-                // Inject after each load, highest index first so earlier indices stay valid.
                 targets.sortedByDescending { it.first }.forEach { (index, register) ->
                     val invoke = if (register <= 15) {
                         "invoke-static {v$register}"
@@ -138,11 +171,10 @@ val hideAviBottomTabPatch = bytecodePatch(
         }
 
         if (patchedReferences == 0) {
-            println("Hide Avi bottom tab: no bottom-nav references on this version; skipped")
+            println("UI tweaks: no bottom-nav references on this version; Avi tab skipped")
             return@execute
         }
 
-        // Only offer the toggle when we actually gated the tab.
         // Restart-required: the bottom nav is assembled once at startup.
         MorpheSettingsRegistry.addSwitch(
             key = "avito_hide_avi_tab",
@@ -151,6 +183,6 @@ val hideAviBottomTabPatch = bytecodePatch(
             default = true,
             restartRequired = true,
         )
-        println("Hide Avi bottom tab: gated $patchedReferences Avi tab references behind the toggle.")
+        println("UI tweaks: gated $patchedReferences Avi tab references behind the toggle.")
     }
 }

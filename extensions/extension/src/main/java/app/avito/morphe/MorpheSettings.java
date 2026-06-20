@@ -120,6 +120,33 @@ public final class MorpheSettings {
         return isEnabled("avito_single_row_categories", true);
     }
 
+    /**
+     * Returns the Favorites tab list without the "Подписки" (subscribed sellers)
+     * tab when the toggle is on, otherwise the list unchanged. Injected at the
+     * entry of the presenter method that consumes the tab list and populates the
+     * tab strip, so it works regardless of how/where the list was built. Returns a
+     * fresh list (rather than mutating) so an immutable input is handled too. The
+     * tab is identified by its runtime class ({@code …adapter.sellers.SellersTab})
+     * — no title string hard-coded. Applies when the Favorites screen is opened.
+     */
+    public static java.util.List<?> withoutSubscriptionsTab(java.util.List<?> tabs) {
+        try {
+            if (tabs == null || tabs.isEmpty() || !isEnabled("avito_hide_subscriptions_tab", true)) {
+                return tabs;
+            }
+            java.util.ArrayList<Object> kept = new java.util.ArrayList<>(tabs.size());
+            for (Object tab : tabs) {
+                if (tab != null && tab.getClass().getName().endsWith(".SellersTab")) {
+                    continue;
+                }
+                kept.add(tab);
+            }
+            return kept;
+        } catch (Throwable ignored) {
+            return tabs;
+        }
+    }
+
     // ---------------------------------------------------------------------
     // Settings-screen integration (called from patched bytecode)
     // ---------------------------------------------------------------------
