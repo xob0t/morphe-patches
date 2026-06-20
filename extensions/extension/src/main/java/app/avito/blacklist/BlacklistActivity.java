@@ -3,6 +3,7 @@ package app.avito.blacklist;
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.TypedValue;
@@ -45,7 +46,10 @@ public final class BlacklistActivity extends Activity {
     private int dp;
 
     private LinearLayout listContainer;
-    private TextView header;
+    private TextView tabOffers;
+    private TextView tabSellers;
+    // 0 = offers (Объявления), 1 = sellers (Продавцы).
+    private int selectedTab = 0;
     private String pendingExport;
 
     @Override
@@ -73,6 +77,15 @@ public final class BlacklistActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, dp / 2)));
         outer.addView(topDivider);
 
+        // Tabs (Объявления / Продавцы) stay fixed above the scrolling list so a
+        // long offer list never buries the sellers tab.
+        outer.addView(buildTabBar());
+        View tabDivider = new View(this);
+        tabDivider.setBackgroundColor(divider);
+        tabDivider.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, dp / 2)));
+        outer.addView(tabDivider);
+
         ScrollView scroll = new ScrollView(this);
         scroll.setBackgroundColor(colorBackground);
         scroll.setFillViewport(true);
@@ -82,18 +95,12 @@ public final class BlacklistActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(16 * dp, 8 * dp, 16 * dp, 24 * dp);
+        root.setPadding(16 * dp, 0, 16 * dp, 24 * dp);
         scroll.addView(root);
-
-        header = new TextView(this);
-        header.setTextColor(textSecondary);
-        header.setTextSize(14);
-        header.setPadding(0, 0, 0, 16 * dp);
-        root.addView(header);
 
         listContainer = new LinearLayout(this);
         listContainer.setOrientation(LinearLayout.VERTICAL);
-        listContainer.setPadding(0, 16 * dp, 0, 0);
+        listContainer.setPadding(0, 8 * dp, 0, 0);
         root.addView(listContainer);
 
         setContentView(outer);
@@ -214,34 +221,84 @@ public final class BlacklistActivity extends Activity {
         }
     }
 
+    /** Two-tab selector (Объявления / Продавцы); switching just re-renders the list. */
+    private View buildTabBar() {
+        LinearLayout bar = new LinearLayout(this);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.setBackgroundColor(colorBackground);
+
+        tabOffers = buildTab(0);
+        tabSellers = buildTab(1);
+        bar.addView(tabOffers);
+        bar.addView(tabSellers);
+        return bar;
+    }
+
+    private TextView buildTab(final int index) {
+        TextView tab = new TextView(this);
+        tab.setGravity(Gravity.CENTER);
+        tab.setTextSize(15);
+        tab.setMinHeight(48 * dp);
+        tab.setPadding(8 * dp, 14 * dp, 8 * dp, 14 * dp);
+        tab.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        tab.setBackground(themeDrawable(android.R.attr.selectableItemBackground));
+        tab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (selectedTab != index) {
+                    selectedTab = index;
+                    refresh();
+                }
+            }
+        });
+        return tab;
+    }
+
     // -- UI building --------------------------------------------------------
 
     private void refresh() {
         int offers = Blacklist.offerCount();
         int sellers = Blacklist.sellerCount();
-        header.setText("Объявлений: " + offers + "     Продавцов: " + sellers);
+        styleTab(tabOffers, "Объявления " + offers, selectedTab == 0);
+        styleTab(tabSellers, "Продавцы " + sellers, selectedTab == 1);
 
         listContainer.removeAllViews();
-        addSection("Объявления", Blacklist.getOffers(), true);
-        addSection("Продавцы", Blacklist.getSellers(), false);
+        if (selectedTab == 0) {
+            addSection(Blacklist.getOffers(), true);
+        } else {
+            addSection(Blacklist.getSellers(), false);
+        }
     }
 
-    private void addSection(String title, List<String> items, final boolean offer) {
-        TextView label = new TextView(this);
-        label.setText(title + " (" + items.size() + ")");
-        label.setTextColor(textSecondary);
-        label.setTextSize(13);
-        label.setAllCaps(true);
-        label.setLetterSpacing(0.04f);
-        label.setPadding(0, 16 * dp, 0, 4 * dp);
-        listContainer.addView(label);
+    /** Selected tab: accent text + an accent underline; unselected: muted, no underline. */
+    private void styleTab(TextView tab, String text, boolean selected) {
+        tab.setText(text);
+        tab.setTextColor(selected ? accent : textSecondary);
+        if (selected) {
+            GradientDrawable underline = new GradientDrawable();
+            underline.setColor(accent);
+            // A bottom-gravity layer of fixed height renders as the tab's underline.
+            android.graphics.drawable.LayerDrawable layers =
+                    new android.graphics.drawable.LayerDrawable(
+                            new android.graphics.drawable.Drawable[]{underline});
+            layers.setLayerGravity(0, Gravity.BOTTOM);
+            layers.setLayerHeight(0, 2 * dp);
+            tab.setForeground(layers);
+        } else {
+            tab.setForeground(null);
+        }
+    }
 
+    private void addSection(List<String> items, final boolean offer) {
         if (items.isEmpty()) {
             TextView empty = new TextView(this);
             empty.setText("Список пуст");
             empty.setTextColor(textSecondary);
             empty.setTextSize(14);
-            empty.setPadding(0, 8 * dp, 0, 8 * dp);
+            empty.setPadding(0, 24 * dp, 0, 8 * dp);
+            empty.setGravity(Gravity.CENTER_HORIZONTAL);
+            empty.setLayoutParams(new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             listContainer.addView(empty);
             return;
         }
