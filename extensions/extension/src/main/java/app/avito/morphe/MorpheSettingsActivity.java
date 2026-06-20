@@ -148,7 +148,8 @@ public final class MorpheSettingsActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, 12 * theme.dp, 0, 12 * theme.dp);
+        row.setMinimumHeight(60 * theme.dp);
+        row.setPadding(0, 14 * theme.dp, 0, 14 * theme.dp);
 
         LinearLayout textCol = new LinearLayout(this);
         textCol.setOrientation(LinearLayout.VERTICAL);
@@ -157,14 +158,14 @@ public final class MorpheSettingsActivity extends Activity {
         TextView titleView = new TextView(this);
         titleView.setText(title);
         titleView.setTextColor(theme.textPrimary);
-        titleView.setTextSize(15);
+        titleView.setTextSize(18);
         textCol.addView(titleView);
 
         if (summary != null && !summary.isEmpty()) {
             TextView sub = new TextView(this);
             sub.setText(summary);
             sub.setTextColor(theme.textSecondary);
-            sub.setTextSize(12);
+            sub.setTextSize(14);
             sub.setPadding(0, 2 * theme.dp, 0, 0);
             textCol.addView(sub);
         }
@@ -192,6 +193,7 @@ public final class MorpheSettingsActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setMinimumHeight(60 * theme.dp);
         row.setPadding(0, 14 * theme.dp, 0, 14 * theme.dp);
         row.setBackground(theme.themeDrawable(android.R.attr.selectableItemBackground));
         row.setOnClickListener(new View.OnClickListener() {
@@ -209,18 +211,13 @@ public final class MorpheSettingsActivity extends Activity {
             }
         });
 
+        // Like Avito's own navigation rows: just the title, no trailing chevron.
         TextView titleView = new TextView(this);
         titleView.setText(title);
         titleView.setTextColor(theme.textPrimary);
-        titleView.setTextSize(15);
+        titleView.setTextSize(18);
         titleView.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(titleView);
-
-        TextView chevron = new TextView(this);
-        chevron.setText("›");
-        chevron.setTextColor(theme.textSecondary);
-        chevron.setTextSize(20);
-        row.addView(chevron);
         return row;
     }
 }
