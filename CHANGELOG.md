@@ -1,3 +1,9 @@
+## [1.4.0-dev.3](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.2...v1.4.0-dev.3) (2026-06-20)
+
+### 🐛 Bug Fixes
+
+* **wildberries:** avoid OOM from catch-all mutable class materialisation ([#8](https://github.com/xob0t/morphe-patches/issues/8)) ([3338bee](https://github.com/xob0t/morphe-patches/commit/3338bee195b72d218d374f5e0d9861b2e8253a67)), closes [#6](https://github.com/xob0t/morphe-patches/issues/6)
+
 ## [1.4.0-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.1...v1.4.0-dev.2) (2026-06-20)
 
 ### 🐛 Bug Fixes
