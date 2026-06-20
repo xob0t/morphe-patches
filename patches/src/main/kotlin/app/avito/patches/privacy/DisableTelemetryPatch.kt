@@ -5,8 +5,8 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.bytecodePatch
 
 @Suppress("unused")
-val avitoPrivacyPatch = bytecodePatch(
-    name = "Avito privacy",
+val disableTelemetryPatch = bytecodePatch(
+    name = "Disable telemetry",
     description = "Disables Avito first-party clickstream analytics and Avito's direct Adjust telemetry wrapper.",
     default = true,
 ) {
