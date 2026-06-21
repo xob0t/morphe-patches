@@ -22,6 +22,8 @@ import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.util.List;
 
+import app.avito.morphe.MorpheTheme;
+
 /**
  * Self-contained management screen for the Avito blacklist.
  *
@@ -71,12 +73,6 @@ public final class BlacklistActivity extends Activity {
         outer.setBackgroundColor(colorBackground);
         outer.addView(buildTopBar());
 
-        View topDivider = new View(this);
-        topDivider.setBackgroundColor(divider);
-        topDivider.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, dp / 2)));
-        outer.addView(topDivider);
-
         // Tabs (Объявления / Продавцы) stay fixed above the scrolling list so a
         // long offer list never buries the sellers tab.
         outer.addView(buildTabBar());
@@ -115,6 +111,7 @@ public final class BlacklistActivity extends Activity {
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setMinimumHeight(56 * dp);
         bar.setBackgroundColor(colorBackground);
+        MorpheTheme.applyStatusBarInset(bar);
 
         View.OnClickListener backAction = new View.OnClickListener() {
             @Override
@@ -148,9 +145,14 @@ public final class BlacklistActivity extends Activity {
 
         TextView title = new TextView(this);
         title.setText("Чёрный список");
-        title.setTextSize(22);
+        title.setIncludeFontPadding(false);
+        title.setTextSize(MorpheTheme.TITLE_SP);
         title.setTextColor(textPrimary);
-        title.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        // Land the title at Avito's ~72dp toolbar inset next to the nav icon.
+        LinearLayout.LayoutParams titleLp =
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        titleLp.leftMargin = 16 * dp;
+        title.setLayoutParams(titleLp);
         bar.addView(title);
 
         // Overflow (⋮) menu: import / export / clear live here instead of as
@@ -238,6 +240,7 @@ public final class BlacklistActivity extends Activity {
     private TextView buildTab(final int index) {
         TextView tab = new TextView(this);
         tab.setGravity(Gravity.CENTER);
+        tab.setIncludeFontPadding(false);
         tab.setTextSize(15);
         tab.setMinHeight(48 * dp);
         tab.setPadding(8 * dp, 14 * dp, 8 * dp, 14 * dp);
@@ -351,7 +354,8 @@ public final class BlacklistActivity extends Activity {
 
             TextView primary = new TextView(this);
             primary.setTextColor(textPrimary);
-            primary.setTextSize(16);
+            primary.setIncludeFontPadding(false);
+            primary.setTextSize(MorpheTheme.ROW_TITLE_SP);
             primary.setText(itemLabel != null ? itemLabel : id);
             primary.setMaxLines(2);
             primary.setEllipsize(android.text.TextUtils.TruncateAt.END);

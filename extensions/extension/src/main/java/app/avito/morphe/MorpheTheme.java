@@ -18,6 +18,15 @@ import android.widget.TextView;
  */
 public final class MorpheTheme {
 
+    // Native Avito settings text sizes (sp), measured from the stock screen so the
+    // code-built screens match it. All paired with setIncludeFontPadding(false) —
+    // the stock screen renders tight, so font padding would make our text look
+    // larger and crammed.
+    public static final float TITLE_SP = 20f;     // top-bar title
+    public static final float ROW_TITLE_SP = 16f; // list row title
+    public static final float SUBTITLE_SP = 14f;  // row subtitle / summary
+    public static final float META_SP = 13f;      // small meta / hint line
+
     private final Activity host;
     public final int dp;
     public final int colorBackground;
@@ -45,24 +54,7 @@ public final class MorpheTheme {
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setMinimumHeight(56 * dp);
         bar.setBackgroundColor(colorBackground);
-        // The window draws edge-to-edge, so the bar would otherwise sit under the
-        // status bar (clock/battery overlap the title). Pad the top down by the
-        // status-bar height, preferring live insets (correct under cutouts/gesture
-        // nav) and falling back to the framework dimen for the first layout pass.
-        final int baseTop = bar.getPaddingTop();
-        bar.setPadding(bar.getPaddingLeft(), baseTop + statusBarHeight(),
-                bar.getPaddingRight(), bar.getPaddingBottom());
-        bar.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
-            @Override
-            public android.view.WindowInsets onApplyWindowInsets(View v, android.view.WindowInsets insets) {
-                int top = insets.getSystemWindowInsetTop();
-                if (top > 0) {
-                    v.setPadding(v.getPaddingLeft(), baseTop + top,
-                            v.getPaddingRight(), v.getPaddingBottom());
-                }
-                return insets;
-            }
-        });
+        applyStatusBarInset(bar);
 
         View.OnClickListener backAction = new View.OnClickListener() {
             @Override
@@ -97,26 +89,51 @@ public final class MorpheTheme {
 
         TextView titleView = new TextView(host);
         titleView.setText(title);
-        titleView.setTextSize(22);
+        titleView.setIncludeFontPadding(false);
+        titleView.setTextSize(TITLE_SP);
         titleView.setTextColor(textPrimary);
+        // weight 1 so the title fills the bar (pushes any trailing action to the
+        // right); leftMargin lands the text at the ~72dp toolbar title inset Avito
+        // uses next to a navigation icon.
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        titleLp.leftMargin = 8 * dp;
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        titleLp.leftMargin = 16 * dp;
         titleView.setLayoutParams(titleLp);
         bar.addView(titleView);
         return bar;
     }
 
-    /** Status-bar height from the framework dimen, or a 24dp guess if unavailable. */
-    private int statusBarHeight() {
-        try {
-            int id = host.getResources().getIdentifier("status_bar_height", "dimen", "android");
-            if (id > 0) {
-                return host.getResources().getDimensionPixelSize(id);
+    /**
+     * Pads a top bar down by the status-bar height so it never sits under the
+     * status bar. Uses the live {@link android.view.WindowInsets} top inset only:
+     * on edge-to-edge devices that reports the status-bar height (so we pad); on
+     * legacy devices the system already insets the content and reports 0 (so we add
+     * nothing and avoid a double gap). Correct under cutouts and gesture nav.
+     */
+    public static void applyStatusBarInset(final View bar) {
+        final int base = bar.getPaddingTop();
+        bar.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+            @Override
+            public android.view.WindowInsets onApplyWindowInsets(View v, android.view.WindowInsets insets) {
+                v.setPadding(v.getPaddingLeft(), base + insets.getSystemWindowInsetTop(),
+                        v.getPaddingRight(), v.getPaddingBottom());
+                return insets;
             }
-        } catch (Throwable ignored) {
+        });
+        if (bar.isAttachedToWindow()) {
+            bar.requestApplyInsets();
+        } else {
+            bar.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+                @Override
+                public void onViewAttachedToWindow(View v) {
+                    v.requestApplyInsets();
+                }
+
+                @Override
+                public void onViewDetachedFromWindow(View v) {
+                }
+            });
         }
-        return 24 * dp;
     }
 
     public View makeDivider() {
