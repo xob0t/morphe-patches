@@ -1,3 +1,59 @@
+## [1.4.0](https://github.com/xob0t/morphe-patches/compare/v1.3.8...v1.4.0) (2026-06-21)
+
+### 🐛 Bug Fixes
+
+* **avito:** add a divider after the injected Morphe settings row ([9671db9](https://github.com/xob0t/morphe-patches/commit/9671db9802b6a00d542105f5f0a24ba6b0044e40))
+* **avito:** chain tile touch listeners so gallery photos stay tappable ([a53ecd8](https://github.com/xob0t/morphe-patches/commit/a53ecd8ccf90d29113b6be3c0278a936fe468eca))
+* **avito:** detect the Avi tab on 227 (nav builder repackaged) ([a20bfcb](https://github.com/xob0t/morphe-patches/commit/a20bfcbc125c5e771c10e9749440662fe237ddc0))
+* **avito:** harden fragile fingerprints against R8 renames ([#11](https://github.com/xob0t/morphe-patches/issues/11)) ([1345f8e](https://github.com/xob0t/morphe-patches/commit/1345f8e3b465b0af12aefe260b66b280b68bcb70))
+* **avito:** long-press no longer swallows tile taps ([c97d97a](https://github.com/xob0t/morphe-patches/commit/c97d97a5d036fa042e6575a46fb84e917a70425c))
+* **avito:** make Avito privacy degrade gracefully (227 support) ([998da9e](https://github.com/xob0t/morphe-patches/commit/998da9e1593b34a390cd3290769b6a58ad76f016))
+* **avito:** make Remove ads degrade gracefully on older builds ([7debba3](https://github.com/xob0t/morphe-patches/commit/7debba340b4c20c97006295bc5abf1c335b84c07))
+* **avito:** make Settings-row click robust across versions ([536a41b](https://github.com/xob0t/morphe-patches/commit/536a41b08f16fd5a885149e93e8cd270064f47dd))
+* **avito:** make the Settings blacklist row actually open the manager ([89c6a6d](https://github.com/xob0t/morphe-patches/commit/89c6a6d28c674b2306a643e94e23c2767238d868))
+* **avito:** never store internal getId() as offer id ([7af97a0](https://github.com/xob0t/morphe-patches/commit/7af97a027e5ac70b54d3b1413f06a1edd0717533))
+* **avito:** pad Morphe screens below the status bar ([2287294](https://github.com/xob0t/morphe-patches/commit/22872949df3f6e0d3b6d1e885ac9f61ceb53920a))
+* **avito:** range-encode the Favorites tab param hook (codex review) ([29fa0d5](https://github.com/xob0t/morphe-patches/commit/29fa0d56da2983df17b92d886ed210c0b900b369))
+* **wildberries:** avoid OOM from catch-all mutable class materialisation ([#8](https://github.com/xob0t/morphe-patches/issues/8)) ([3338bee](https://github.com/xob0t/morphe-patches/commit/3338bee195b72d218d374f5e0d9861b2e8253a67)), closes [#6](https://github.com/xob0t/morphe-patches/issues/6)
+
+### ✨ New Features
+
+* **avito:** 227.0 support (structural bind hook) + close grid gap on block ([58e978f](https://github.com/xob0t/morphe-patches/commit/58e978f3822f29ede98f586d3747d7aec3effa6f))
+* **avito:** add blacklist patch to block offers and sellers ([acd7785](https://github.com/xob0t/morphe-patches/commit/acd778506cf8a05cad1547770303197d3d3ad377))
+* **avito:** add block offer/seller actions to the advert toolbar ([45a03a7](https://github.com/xob0t/morphe-patches/commit/45a03a77665b49602ed0beb81525459a685b7185))
+* **avito:** add block-seller button to the seller profile toolbar ([5304689](https://github.com/xob0t/morphe-patches/commit/530468931fde7013608ec8c5647707d0d36718d0))
+* **avito:** collapse leftover 'Реклама скрыта' empty-ad stub at runtime ([bbddc1d](https://github.com/xob0t/morphe-patches/commit/bbddc1d27cdb5916d614256d74c757312d8254a1))
+* **avito:** disable clickstream via tracker method (227 primary) ([39b5906](https://github.com/xob0t/morphe-patches/commit/39b59061c0b2f3165ed5c715c0eecf50d188b7e9))
+* **avito:** dismiss tile block menu by tapping outside, drop Cancel row ([3f9fbb1](https://github.com/xob0t/morphe-patches/commit/3f9fbb12b5056b3f2240423d3a620050655e5b32))
+* **avito:** filter blocked items from the grid data, not just collapse ([85e6540](https://github.com/xob0t/morphe-patches/commit/85e6540265492a038e47ea62281ca55d0835c155))
+* **avito:** handle settings that need an app restart ([9eb9e7c](https://github.com/xob0t/morphe-patches/commit/9eb9e7c3a9024cfcf8e5bf03be2c47a8a1eae4e4))
+* **avito:** hide all of a blocked seller's tiles; polish blacklist UI ([7f58566](https://github.com/xob0t/morphe-patches/commit/7f585668eeb2382d779ed2131ad61b717bb983a7))
+* **avito:** informative block toasts + rounded Avito-themed block menu ([6f64ec1](https://github.com/xob0t/morphe-patches/commit/6f64ec14abe2ba4efb72d747e73d8ed51a69d415))
+* **avito:** make single-row categories toggleable in Настройки Morphe ([51a1e31](https://github.com/xob0t/morphe-patches/commit/51a1e31cea4da9b2345714e0aa5daaa477378785))
+* **avito:** Morphe settings framework patch (others depend on it) ([8c49ba4](https://github.com/xob0t/morphe-patches/commit/8c49ba432606a38d2e9977dceb7f18c2aa7ae45f))
+* **avito:** open blocked offer/seller from the list; fix offer id ([10547ad](https://github.com/xob0t/morphe-patches/commit/10547ad5f5eece9507651b326ab4286ce244af3e))
+* **avito:** open blocked offers via the internal deep link ([2ca9052](https://github.com/xob0t/morphe-patches/commit/2ca90522a806505cc097d30e46af370dfb42ae22))
+* **avito:** per-offer seller name, Morphe settings entry first, native back ([bcb6161](https://github.com/xob0t/morphe-patches/commit/bcb6161c7dd8d9a4a700ab3bb24a9f6a1b545f6e))
+* **avito:** scoped blacklist clear (offers / sellers / both) ([7d394c4](https://github.com/xob0t/morphe-patches/commit/7d394c4c01da73270b546b8eeed233b0d6646127))
+* **avito:** show an Avito icon in the block/unblock toasts ([99b2090](https://github.com/xob0t/morphe-patches/commit/99b2090a8b00fc5646aa5000918696bb410fefad))
+* **avito:** simplify blacklist UI (overflow menu, drop manual-ID inputs) ([583b8f7](https://github.com/xob0t/morphe-patches/commit/583b8f70badd1c87820d3e4d14fb6a11059aed26))
+* **avito:** single-row home categories patch ([8ac879c](https://github.com/xob0t/morphe-patches/commit/8ac879ca9711f8fa0d84df65c5a0b2975a1a1707))
+* **avito:** store and show readable offer/seller labels ([3a10a68](https://github.com/xob0t/morphe-patches/commit/3a10a680ed6c2ad4dbf51615a700d5d9f1e3cc44))
+* **avito:** style blacklist manager with the app theme ([2d773da](https://github.com/xob0t/morphe-patches/commit/2d773da24ac4b514438a8e644eadbd358ff0f24b))
+* **avito:** subtle haptic feedback when the block long-press procs ([7113577](https://github.com/xob0t/morphe-patches/commit/7113577ccd0727b4e5d8dee5a8287dbf79b0a4ef))
+* **avito:** tabbed blacklist (Объявления / Продавцы) ([ff5d2ea](https://github.com/xob0t/morphe-patches/commit/ff5d2eaae1b112891e0aa2d3d9db2a26cb53f36b))
+* **avito:** timestamp blacklist items, sort manager by recency ([8fbd685](https://github.com/xob0t/morphe-patches/commit/8fbd685baac1d3df49319dee830be3ac83e0c070))
+* **avito:** UI tweak — hide "Спросите у продавца" (icebreakers) block ([28ececa](https://github.com/xob0t/morphe-patches/commit/28ececaf3f74d684c7171a799c43b19d74949ad2))
+* **avito:** UI tweak — hide installments (Рассрочка) everywhere ([80e8a95](https://github.com/xob0t/morphe-patches/commit/80e8a95dfe4e300ded4af126e9b9bcb7cffbda05))
+* **avito:** UI tweaks patch — hide "Подписки" favorites tab + Avi tab ([9c471f2](https://github.com/xob0t/morphe-patches/commit/9c471f277e1071f56c07aee038b0e1f8624745e2))
+* **avito:** use the rounded Avito-themed sheet for the clear-blacklist dialog ([a053bdc](https://github.com/xob0t/morphe-patches/commit/a053bdc3f45c4d7bee85444e4001b794696abaae))
+* **wildberries:** 7.6.8001 support + matchAll refactor for big-sale gate ([#9](https://github.com/xob0t/morphe-patches/issues/9)) ([87af3da](https://github.com/xob0t/morphe-patches/commit/87af3da65d2f6d39c277764749cd56dc44a10d5a)), closes [#6](https://github.com/xob0t/morphe-patches/issues/6)
+
+### 🚀 Updated App Support
+
+* **avito:** add 227.0 to supported versions ([3102350](https://github.com/xob0t/morphe-patches/commit/310235000c3147df8c0617fb39cd5a7b10aa8d8c))
+* **ozon:** add 19.22.0 to supported versions ([#10](https://github.com/xob0t/morphe-patches/issues/10)) ([7d785d6](https://github.com/xob0t/morphe-patches/commit/7d785d69663e25f97a4f0a3107b386dc067d6839))
+
 ## [1.4.0-dev.11](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.10...v1.4.0-dev.11) (2026-06-21)
 
 ### 🐛 Bug Fixes

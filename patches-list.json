@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0-dev.11",
+  "version": "1.4.0",
   "patches": [
     {
       "name": "Block listings",
