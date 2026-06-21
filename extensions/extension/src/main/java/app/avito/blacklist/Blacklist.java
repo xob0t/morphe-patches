@@ -810,7 +810,13 @@ public final class Blacklist {
                     putOfferLabel(offerId, offerTitle);
                     putOfferSellerLabel(offerId, sellerNameFinal);
                     collapseMatching(true, offerId);
-                    toast(root, "Объявление в чёрном списке — скрыто из ленты", "common_ic_block_24");
+                    undoBar(root, "Объявление скрыто", "common_ic_block_24", new Runnable() {
+                        @Override
+                        public void run() {
+                            removeOffer(offerId);
+                            restoreMatching(true, offerId);
+                        }
+                    });
                 }
             });
         }
@@ -823,7 +829,13 @@ public final class Blacklist {
                     putSellerLabel(userKey, sellerNameFinal);
                     collapseMatching(false, userKey);
                     String who = isBlank(sellerNameFinal) ? "Продавец" : sellerNameFinal;
-                    toast(root, who + " в чёрном списке — его объявления скрыты", "common_ic_block_user_24");
+                    undoBar(root, who + " скрыт", "common_ic_block_user_24", new Runnable() {
+                        @Override
+                        public void run() {
+                            removeSeller(userKey);
+                            restoreMatching(false, userKey);
+                        }
+                    });
                 }
             });
         }
@@ -1121,6 +1133,24 @@ public final class Blacklist {
         }
     }
 
+    /** Undo a {@link #collapseMatching}: restore every bound tile matching the id. */
+    private static void restoreMatching(boolean isOffer, String id) {
+        if (id == null) {
+            return;
+        }
+        java.util.List<java.util.Map.Entry<android.view.View, Object>> entries;
+        synchronized (boundAdvertViews) {
+            entries = new ArrayList<>(boundAdvertViews.entrySet());
+        }
+        for (java.util.Map.Entry<android.view.View, Object> entry : entries) {
+            Object item = entry.getValue();
+            String value = isOffer ? offerIdOf(item) : sellerUserKey(item);
+            if (id.equals(value)) {
+                restore(entry.getKey());
+            }
+        }
+    }
+
     private static void collapse(android.view.View view) {
         try {
             android.view.ViewGroup.LayoutParams lp = view.getLayoutParams();
@@ -1175,6 +1205,14 @@ public final class Blacklist {
             // Reuse the icon toast from the block-menu helper (these run on the main
             // thread after a user tap, so touching that class here is safe).
             app.avito.morphe.MorpheBlockMenu.toast(anchor.getContext(), message, iconName, true);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** Block toast with a one-tap "Отменить" action (Snackbar-style; see MorpheBlockMenu). */
+    private static void undoBar(android.view.View anchor, String message, String iconName, Runnable onUndo) {
+        try {
+            app.avito.morphe.MorpheBlockMenu.undoBar(anchor.getContext(), message, iconName, true, onUndo);
         } catch (Throwable ignored) {
         }
     }
