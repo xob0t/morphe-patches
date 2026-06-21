@@ -1,3 +1,9 @@
+## [1.4.0-dev.10](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.9...v1.4.0-dev.10) (2026-06-21)
+
+### 🐛 Bug Fixes
+
+* **avito:** add a divider after the injected Morphe settings row ([9671db9](https://github.com/xob0t/morphe-patches/commit/9671db9802b6a00d542105f5f0a24ba6b0044e40))
+
 ## [1.4.0-dev.9](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.8...v1.4.0-dev.9) (2026-06-21)
 
 ### 🐛 Bug Fixes
