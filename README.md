@@ -17,22 +17,24 @@ https://github.com/xob0t/morphe-patches
 ## Patches
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.3.8](https://github.com/xob0t/morphe-patches/releases/tag/v1.3.8)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;21 patches total
+> **[v1.4.0-dev.11](https://github.com/xob0t/morphe-patches/releases/tag/v1.4.0-dev.11)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;23 patches total
 <details open>
-<summary>📦 Avito&nbsp;&nbsp;•&nbsp;&nbsp;4 patches</summary>
+<summary>📦 Avito&nbsp;&nbsp;•&nbsp;&nbsp;6 patches</summary>
 <br>
 
 **🎯 Supported versions:**
 
-| 226.5 | 225.5 | 224.6 |
-| :---: | :---: | :---: |
+| 227.0 | 226.5 | 225.5 | 224.6 |
+| :---: | :---: | :---: | :---: |
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
-| [Avito privacy](#avito-privacy) | Disables Avito first-party clickstream analytics and Avito's direct Adjust telemetry wrapper. |  |
-| [Disable update prompts](#disable-update-prompts) | Prevents Avito's force-update screen opener from launching update screens. |  |
-| [Hide Avi bottom tab](#hide-avi-bottom-tab) | Removes the Avi assistant button from Avito's bottom navigation bar. |  |
+| [Block listings](#block-listings) | Hides Avito offers from blacklisted adverts or sellers and adds a blacklist manager (import/export compatible with the Ave Blacklist extension). |  |
+| [Disable telemetry](#disable-telemetry) | Disables Avito first-party clickstream analytics and Avito's direct Adjust telemetry wrapper. |  |
+| [Disable update prompts](#disable-update-prompts) | Prevents Avito's force-update screen opener from launching update screens. Toggleable in Настройки Morphe. |  |
+| [Morphe settings](#morphe-settings) | Adds a "Настройки Morphe" entry to Avito's settings that hosts the configuration for the other Morphe patches. |  |
 | [Remove ads](#remove-ads) | Disables Avito ads by removing ad SDK entry points and short-circuiting commercial banner loading. |  |
+| [UI tweaks](#ui-tweaks) | Optional interface tweaks, each toggleable in Настройки Morphe: single-row home categories, hide the "Подписки" tab in Избранное, hide installments (Рассрочка) and the "Спросите у продавца" block on offers, and hide the Avi assistant tab in the bottom navigation. |  |
 
 </details>
 
@@ -58,8 +60,8 @@ https://github.com/xob0t/morphe-patches
 
 **🎯 Supported versions:**
 
-| 19.16.0 | 18.37.0 |
-| :---: | :---: |
+| 19.22.0 | 19.16.0 | 18.37.0 |
+| :---: | :---: | :---: |
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
@@ -73,8 +75,8 @@ https://github.com/xob0t/morphe-patches
 
 **🎯 Supported versions:**
 
-| 7.6.1000-rustore | 7.0.6000 |
-| :---: | :---: |
+| 7.6.8001 | 7.6.1000-rustore | 7.0.6000 |
+| :---: | :---: | :---: |
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|

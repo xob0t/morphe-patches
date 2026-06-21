@@ -57,3 +57,28 @@ jobs:
         with:
           subject-name: 'Morphe Patches ${{ steps.release.outputs.new_release_git_tag }}'
           subject-path: patches/build/libs/patches-*.mpp
+
+      # Keep only the newest dev prerelease. After a new one is published, delete
+      # every older `*-dev.*` prerelease (its assets and git tag included) so they
+      # don't accumulate. Stable (main) releases are never touched: this runs only
+      # on dev, and the filter requires both isPrerelease and a `-dev.` tag.
+      - name: Prune old dev prereleases
+        if: github.ref == 'refs/heads/dev' && steps.release.outputs.new_release_published == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEEP_TAG: ${{ steps.release.outputs.new_release_git_tag }}
+        run: |
+          if [ -z "$KEEP_TAG" ]; then
+            echo "No new release tag to keep; skipping prune."
+            exit 0
+          fi
+          echo "Keeping $KEEP_TAG; pruning older dev prereleases."
+          gh release list --limit 200 --json tagName,isPrerelease \
+            --jq '.[] | select(.isPrerelease and (.tagName | contains("-dev."))) | .tagName' \
+          | while read -r tag; do
+              [ -z "$tag" ] && continue
+              if [ "$tag" != "$KEEP_TAG" ]; then
+                echo "Deleting old dev prerelease $tag"
+                gh release delete "$tag" --yes --cleanup-tag
+              fi
+            done

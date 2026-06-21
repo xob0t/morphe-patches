@@ -1,11 +1,14 @@
 {
-  "version": "1.3.8",
+  "version": "1.4.0-dev.11",
   "patches": [
     {
-      "name": "Avito privacy",
-      "description": "Disables Avito first-party clickstream analytics and Avito's direct Adjust telemetry wrapper.",
-      "default": true,
-      "dependencies": [],
+      "name": "Block listings",
+      "description": "Hides Avito offers from blacklisted adverts or sellers and adds a blacklist manager (import/export compatible with the Ave Blacklist extension).",
+      "default": false,
+      "dependencies": [
+        "BytecodePatch",
+        "ResourcePatch"
+      ],
       "compatiblePackages": [
         {
           "packageName": "com.avito.android",
@@ -15,6 +18,12 @@
           "appIconColor": "#00AAFF",
           "signatures": null,
           "targets": [
+            {
+              "version": "227.0",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
             {
               "version": "226.5",
               "isExperimental": false,
@@ -150,8 +159,8 @@
       "options": []
     },
     {
-      "name": "Disable update prompts",
-      "description": "Prevents Avito's force-update screen opener from launching update screens.",
+      "name": "Disable telemetry",
+      "description": "Disables Avito first-party clickstream analytics and Avito's direct Adjust telemetry wrapper.",
       "default": true,
       "dependencies": [],
       "compatiblePackages": [
@@ -163,6 +172,12 @@
           "appIconColor": "#00AAFF",
           "signatures": null,
           "targets": [
+            {
+              "version": "227.0",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
             {
               "version": "226.5",
               "isExperimental": false,
@@ -193,10 +208,12 @@
       "options": []
     },
     {
-      "name": "Hide Avi bottom tab",
-      "description": "Removes the Avi assistant button from Avito's bottom navigation bar.",
-      "default": false,
-      "dependencies": [],
+      "name": "Disable update prompts",
+      "description": "Prevents Avito's force-update screen opener from launching update screens. Toggleable in Настройки Morphe.",
+      "default": true,
+      "dependencies": [
+        "BytecodePatch"
+      ],
       "compatiblePackages": [
         {
           "packageName": "com.avito.android",
@@ -206,6 +223,63 @@
           "appIconColor": "#00AAFF",
           "signatures": null,
           "targets": [
+            {
+              "version": "227.0",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
+              "version": "226.5",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
+              "version": "225.5",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
+              "version": "224.6",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
+              "version": null,
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Morphe settings",
+      "description": "Adds a \"Настройки Morphe\" entry to Avito's settings that hosts the configuration for the other Morphe patches.",
+      "default": false,
+      "dependencies": [
+        "ResourcePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "com.avito.android",
+          "name": "Avito",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#00AAFF",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "227.0",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
             {
               "version": "226.5",
               "isExperimental": false,
@@ -251,6 +325,12 @@
           "appIconColor": "#005BFF",
           "signatures": null,
           "targets": [
+            {
+              "version": "19.22.0",
+              "isExperimental": false,
+              "minSdk": 26,
+              "description": null
+            },
             {
               "version": "19.16.0",
               "isExperimental": false,
@@ -332,6 +412,12 @@
           "signatures": null,
           "targets": [
             {
+              "version": "7.6.8001",
+              "isExperimental": false,
+              "minSdk": 26,
+              "description": null
+            },
+            {
               "version": "7.6.1000-rustore",
               "isExperimental": false,
               "minSdk": 26,
@@ -380,6 +466,12 @@
           "appIconColor": "#00AAFF",
           "signatures": null,
           "targets": [
+            {
+              "version": "227.0",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
             {
               "version": "226.5",
               "isExperimental": false,
@@ -439,6 +531,57 @@
       "default": false,
       "dependencies": [],
       "compatiblePackages": null,
+      "options": []
+    },
+    {
+      "name": "UI tweaks",
+      "description": "Optional interface tweaks, each toggleable in Настройки Morphe: single-row home categories, hide the \"Подписки\" tab in Избранное, hide installments (Рассрочка) and the \"Спросите у продавца\" block on offers, and hide the Avi assistant tab in the bottom navigation.",
+      "default": false,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "com.avito.android",
+          "name": "Avito",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#00AAFF",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "227.0",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
+              "version": "226.5",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
+              "version": "225.5",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
+              "version": "224.6",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
+              "version": null,
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            }
+          ]
+        }
+      ],
       "options": []
     }
   ]

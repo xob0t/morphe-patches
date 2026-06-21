@@ -10,12 +10,39 @@ private fun isAvitoClickstreamTracker(classType: String) =
 private fun isAvitoAdjustWrapper(classType: String) =
     classType.startsWith("Lcom/avito/android/analytics_adjust/")
 
+// Primary (227.0+): ClickStreamEventTrackerImpl.c(event) — the public track-event
+// method that wraps each event in a runnable and dispatches it to an Executor.
+// Neutering it stops clickstream at the source. (On 227 R8 merged the enqueue
+// runnable itself into a shared lambda dispatcher shared with unrelated lambdas, so
+// the tracker method is the correct, safe target.)
+object ClickstreamTrackEventFingerprint : Fingerprint(
+    returnType = "V",
+    filters = listOf(
+        methodCall(
+            definingClass = "Ljava/util/concurrent/Executor;",
+            name = "execute",
+        ),
+    ),
+    // The single parameter is the clickstream event, which lives in the
+    // `com.avito.android.analytics` package — anchor on that package rather than the
+    // event class's obfuscated name (it was `analytics/o` but R8 re-letters it).
+    custom = { method, classDef ->
+        isAvitoClickstreamTracker(classDef.type) &&
+            method.parameterTypes.size == 1 &&
+            method.parameterTypes.single().toString().startsWith("Lcom/avito/android/analytics/")
+    },
+)
+
+// Fallback (older builds): the clickstream enqueue runnable itself, identified by
+// its (unique) ANR log line and an add() call into the inhouse-transport package,
+// when it still lives in a dedicated clickstream class. The transport class name is
+// matched by package prefix, not its obfuscated leaf (`inhouse_transport/u` rolls).
 object ClickstreamEnqueueRunnableFingerprint : Fingerprint(
     returnType = "V",
     filters = listOf(
         string("Sending event on main thread. May cause ANR"),
         methodCall(
-            definingClass = "Lcom/avito/android/analytics/inhouse_transport/u;",
+            definingClass = "Lcom/avito/android/analytics/inhouse_transport/",
             name = "add",
         ),
     ),

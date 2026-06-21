@@ -1,5 +1,6 @@
 package app.wildberries.patches.ads
 
+import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
@@ -20,7 +21,13 @@ private val listBannerWrapperGetters = setOf(
 )
 
 private val mainBannerListGetters = setOf(
+    // `getMainBannersCarousel` is the pre-7.6.8001 name for the main hero slider;
+    // 7.6.8001 renamed/split it into the `getTopSlider*` family. Both are kept so
+    // the top banners are emptied across old and new builds.
     "getMainBannersCarousel",
+    "getTopSlider",
+    "getTopSliderNF",
+    "getTopSliderVF",
     "getMarketingCarousel",
     "getSecondaryBannersCarousel",
     "getTvBanners",
@@ -75,8 +82,23 @@ private fun Method.isSuspendObjectMethod(name: String) =
         parameterTypes.lastOrNull()?.toString() == "Lkotlin/coroutines/Continuation;" &&
         hasImplementation()
 
-private fun String.isWildberriesClass() =
-    startsWith("Lru/wildberries/")
+/**
+ * Matches every `ru.wildberries.*` method named `isBigSaleSearchBarEnabled`
+ * returning a boolean. Resolved via `matchAllOrNull` so the patcher locates the
+ * handful of declaring classes directly, instead of us iterating (and materialising
+ * a mutable proxy for) every Wildberries class — the latter exhausted the patcher
+ * heap (see #6). `OrNull` keeps the patch resilient if a future build drops the
+ * method (like it dropped `isVideoBannerInMainCarousel` on 7.6.8001).
+ */
+private object BigSaleSearchBarFingerprint : Fingerprint(
+    returnType = "Z",
+    parameters = emptyList(),
+    custom = { method, classDef ->
+        method.name == "isBigSaleSearchBarEnabled" &&
+            method.implementation != null &&
+            classDef.type.startsWith("Lru/wildberries/")
+    },
+)
 
 private fun String.isBannersUiWrapperClass() =
     startsWith("Lru/wildberries/mainpage/") &&
@@ -499,22 +521,22 @@ val removeWildberriesAdsPatch = bytecodePatch(
                         }
                     }
                 }
-
-                classType.isWildberriesClass() -> {
-                    mutableClassDefBy(classDef).methods.forEach { method ->
-                        if (method.isBooleanMethod("isBigSaleSearchBarEnabled")) {
-                            method.addInstructions(
-                                0,
-                                """
-                                    const/4 v0, 0x0
-                                    return v0
-                                """,
-                            )
-                            patchedBigSaleHeaderMethods++
-                        }
-                    }
-                }
             }
+        }
+
+        // Promo "big sale" header gate: force `isBigSaleSearchBarEnabled` to false on
+        // every declaring class. Resolved by fingerprint instead of a catch-all over
+        // all `ru.wildberries.*` classes so no mutable proxy is allocated for classes
+        // that don't declare it (the catch-all was the #6 OOM source).
+        BigSaleSearchBarFingerprint.matchAllOrNull().orEmpty().forEach { match ->
+            match.method.addInstructions(
+                0,
+                """
+                    const/4 v0, 0x0
+                    return v0
+                """,
+            )
+            patchedBigSaleHeaderMethods++
         }
 
         if (
