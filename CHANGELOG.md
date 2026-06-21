@@ -1,3 +1,9 @@
+## [1.4.0-dev.11](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.10...v1.4.0-dev.11) (2026-06-21)
+
+### 🐛 Bug Fixes
+
+* **avito:** compute dp from real density, not rounded ([334ca74](https://github.com/xob0t/morphe-patches/commit/334ca74f0ac8e021a4702f0969fc3674933d93bb))
+
 ## [1.4.0-dev.10](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.9...v1.4.0-dev.10) (2026-06-21)
 
 ### 🐛 Bug Fixes
