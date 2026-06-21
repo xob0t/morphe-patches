@@ -281,11 +281,23 @@ public final class MorpheBlockMenu {
             }
             item.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
                 @Override
-                public boolean onMenuItemClick(MenuItem mi) {
+                public boolean onMenuItemClick(final MenuItem mi) {
                     toggle.toggle();
                     boolean nowBlocked = toggle.blocked();
                     applyTint(mi.getIcon(), nowBlocked);
-                    toast(ctx, nowBlocked ? blockedMsg : unblockedMsg, iconName, nowBlocked);
+                    if (nowBlocked) {
+                        // Offer one-tap undo of the block (no grid tiles on the
+                        // detail page, so just re-toggle and recolour the icon).
+                        undoBar(ctx, blockedMsg, iconName, true, new Runnable() {
+                            @Override
+                            public void run() {
+                                toggle.toggle();
+                                applyTint(mi.getIcon(), toggle.blocked());
+                            }
+                        });
+                    } else {
+                        toast(ctx, unblockedMsg, iconName, false);
+                    }
                     return true;
                 }
             });
@@ -454,5 +466,151 @@ public final class MorpheBlockMenu {
             } catch (Throwable t2) {
             }
         }
+    }
+
+    // ---------------------------------------------------------------------
+    // Undo bar — a Snackbar-style transient bar (a real, touchable View added
+    // to the Activity, unlike a Toast which can't carry a tappable button).
+    // Shown after a block so the action can be reversed with one tap, instead
+    // of putting an undo control on every hidden tile.
+    // ---------------------------------------------------------------------
+
+    private static final long UNDO_BAR_MS = 5000L;
+    private static final android.os.Handler undoHandler =
+            new android.os.Handler(android.os.Looper.getMainLooper());
+    private static android.view.View activeUndoBar;
+    private static final Runnable autoDismiss = new Runnable() {
+        @Override
+        public void run() {
+            dismissUndoBar();
+        }
+    };
+
+    /**
+     * Shows the same dark pill as {@link #toast} but as a real bottom-anchored
+     * View with a trailing "Отменить" action. Auto-dismisses after a few seconds.
+     * Falls back to a plain toast (no undo) if no hosting Activity is reachable.
+     */
+    public static void undoBar(Context ctx, String message, String iconName,
+                               boolean blocked, final Runnable onUndo) {
+        try {
+            android.app.Activity activity = activityOf(ctx);
+            android.view.ViewGroup content = activity == null
+                    ? null : (android.view.ViewGroup) activity.findViewById(android.R.id.content);
+            if (content == null) {
+                toast(ctx, message, iconName, blocked);
+                return;
+            }
+            dismissUndoBar();
+
+            float d = ctx.getResources().getDisplayMetrics().density;
+            android.widget.LinearLayout row = new android.widget.LinearLayout(ctx);
+            row.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+            row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+            bg.setColor(0xFF2B2B2B);
+            bg.setCornerRadius(24f * d);
+            row.setBackground(bg);
+            row.setElevation(8f * d);
+            row.setPadding((int) (20 * d), (int) (13 * d), (int) (12 * d), (int) (13 * d));
+
+            Drawable icon = drawableByName(ctx, iconName);
+            if (icon != null) {
+                android.widget.ImageView iv = new android.widget.ImageView(ctx);
+                iv.setImageDrawable(applyTint(icon, blocked));
+                int size = (int) (20 * d);
+                android.widget.LinearLayout.LayoutParams ip =
+                        new android.widget.LinearLayout.LayoutParams(size, size);
+                ip.rightMargin = (int) (12 * d);
+                row.addView(iv, ip);
+            }
+
+            android.widget.TextView tv = new android.widget.TextView(ctx);
+            tv.setText(message);
+            tv.setTextColor(0xFFFFFFFF);
+            tv.setTextSize(14f);
+            android.widget.LinearLayout.LayoutParams tp = new android.widget.LinearLayout.LayoutParams(
+                    0, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            tp.rightMargin = (int) (8 * d);
+            row.addView(tv, tp);
+
+            if (onUndo != null) {
+                android.widget.TextView undo = new android.widget.TextView(ctx);
+                undo.setText("Отменить");
+                undo.setAllCaps(true);
+                undo.setTextSize(14f);
+                undo.setTextColor(accentColor(ctx));
+                undo.setPadding((int) (12 * d), (int) (8 * d), (int) (8 * d), (int) (8 * d));
+                undo.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        try {
+                            onUndo.run();
+                        } catch (Throwable ignored) {
+                        }
+                        dismissUndoBar();
+                    }
+                });
+                row.addView(undo);
+            }
+
+            android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                    android.view.Gravity.BOTTOM | android.view.Gravity.CENTER_HORIZONTAL);
+            int m = (int) (16 * d);
+            // Sit above Avito's bottom navigation bar.
+            lp.setMargins(m, m, m, (int) (72 * d));
+            content.addView(row, lp);
+            activeUndoBar = row;
+
+            undoHandler.removeCallbacks(autoDismiss);
+            undoHandler.postDelayed(autoDismiss, UNDO_BAR_MS);
+        } catch (Throwable ignored) {
+            try {
+                toast(ctx, message, iconName, blocked);
+            } catch (Throwable t2) {
+            }
+        }
+    }
+
+    private static void dismissUndoBar() {
+        undoHandler.removeCallbacks(autoDismiss);
+        android.view.View bar = activeUndoBar;
+        activeUndoBar = null;
+        try {
+            if (bar != null && bar.getParent() instanceof android.view.ViewGroup) {
+                ((android.view.ViewGroup) bar.getParent()).removeView(bar);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static android.app.Activity activityOf(Context ctx) {
+        while (ctx instanceof android.content.ContextWrapper) {
+            if (ctx instanceof android.app.Activity) {
+                return (android.app.Activity) ctx;
+            }
+            ctx = ((android.content.ContextWrapper) ctx).getBaseContext();
+        }
+        return null;
+    }
+
+    /** Avito's accent ("blue") for the undo action, with a light-blue fallback. */
+    private static int accentColor(Context ctx) {
+        try {
+            int id = ctx.getResources().getIdentifier("blue", "attr", ctx.getPackageName());
+            if (id != 0) {
+                android.util.TypedValue tv = new android.util.TypedValue();
+                if (ctx.getTheme().resolveAttribute(id, tv, true)) {
+                    if (tv.resourceId != 0) {
+                        return ctx.getResources().getColor(tv.resourceId, ctx.getTheme());
+                    }
+                    return tv.data;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return 0xFF6CB4FF;
     }
 }
