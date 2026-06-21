@@ -5,22 +5,13 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
+import app.shared.childrenNamed
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import org.w3c.dom.Element
 
 private const val MORPHE_SETTINGS_CLASS = "Lapp/avito/morphe/MorpheSettings;"
 private const val MORPHE_SETTINGS_ACTIVITY = "app.avito.morphe.MorpheSettingsActivity"
-
-private fun Element.childrenNamed(name: String): List<Element> {
-    val nodes = childNodes
-    return buildList {
-        for (i in 0 until nodes.length) {
-            val node = nodes.item(i)
-            if (node is Element && node.nodeName == name) add(node)
-        }
-    }
-}
 
 /**
  * Registers the generic Morphe settings screen ([MORPHE_SETTINGS_ACTIVITY],
