@@ -1,3 +1,9 @@
+## [1.4.0-dev.9](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.8...v1.4.0-dev.9) (2026-06-21)
+
+### 🐛 Bug Fixes
+
+* **avito:** pad Morphe screens below the status bar ([2287294](https://github.com/xob0t/morphe-patches/commit/22872949df3f6e0d3b6d1e885ac9f61ceb53920a))
+
 ## [1.4.0-dev.8](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.7...v1.4.0-dev.8) (2026-06-21)
 
 ### 🐛 Bug Fixes
