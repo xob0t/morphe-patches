@@ -24,3 +24,19 @@ object FavoritesTabsConsumerFingerprint : Fingerprint(
         fieldAccess(type = "Lcom/avito/android/user_favorites/UserFavoritesTabsRenderMode;"),
     ),
 )
+
+/**
+ * Matches `ExpandablePanelLayout.setCollapsedLineCount(Integer)` — the single setter
+ * every "Читать далее" description block funnels its collapsed-line threshold through
+ * (the offer description, plus hotel/gig/own-advert/branding variants). Forcing that
+ * threshold high makes the text render in full and keeps the read-more handle hidden.
+ *
+ * The class name is kept (the widget is inflated from layout XML, so R8 can't rename
+ * it), and the `(Integer)V` signature is unique within the class — so we match
+ * structurally and don't rely on the method name surviving minification.
+ */
+object ExpandablePanelCollapsedLinesFingerprint : Fingerprint(
+    definingClass = "Lcom/avito/android/util/ExpandablePanelLayout;",
+    returnType = "V",
+    parameters = listOf("Ljava/lang/Integer;"),
+)

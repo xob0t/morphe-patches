@@ -44,6 +44,8 @@ private fun Method.hasFieldReference(fields: Set<String>): Boolean =
  *  - **Hide the "Подписки" tab** on the Избранное (Favorites) screen.
  *  - **Hide the installments (Рассрочка)** surfaces and the **"Спросите у
  *    продавца"** block on offer pages.
+ *  - **Expand descriptions by default** so the full text shows without tapping
+ *    "Читать далее".
  *  - **Hide the Avi assistant tab** in the bottom navigation bar.
  *
  * Each tweak is applied independently and degrades gracefully: if the target
@@ -55,7 +57,8 @@ val uiTweaksPatch = bytecodePatch(
     name = "UI tweaks",
     description = "Optional interface tweaks, each toggleable in Настройки Morphe: single-row home " +
         "categories, hide the \"Подписки\" tab in Избранное, hide installments (Рассрочка) and the " +
-        "\"Спросите у продавца\" block on offers, and hide the Avi assistant tab in the bottom navigation.",
+        "\"Спросите у продавца\" block on offers, expand descriptions by default (no \"Читать далее\"), " +
+        "and hide the Avi assistant tab in the bottom navigation.",
     default = false,
 ) {
     compatibleWith(COMPATIBILITY_AVITO)
@@ -199,6 +202,32 @@ val uiTweaksPatch = bytecodePatch(
             title = "Скрыть «Спросите у продавца»",
             summary = "Убрать блок с вопросами продавцу",
         )
+
+        // --- Expand offer descriptions by default -------------------------------
+        // Every "Читать далее" description block hands its collapse threshold to
+        // ExpandablePanelLayout.setCollapsedLineCount(Integer). Route that count
+        // through expandedLineCount(): when the toggle is on it returns an
+        // effectively-unlimited value, so the panel never truncates and the
+        // read-more handle stays hidden. Re-evaluated on each (re)bind — no restart.
+        val collapsedLinesSetter = ExpandablePanelCollapsedLinesFingerprint.methodOrNull
+        if (collapsedLinesSetter == null) {
+            println("UI tweaks: ExpandablePanelLayout.setCollapsedLineCount not found; expand description skipped")
+        } else {
+            collapsedLinesSetter.addInstructions(
+                0,
+                """
+                    invoke-static {p1}, $MORPHE_SETTINGS_CLASS->expandedLineCount($INTEGER)$INTEGER
+                    move-result-object p1
+                """,
+            )
+            MorpheSettingsRegistry.addSwitch(
+                key = "avito_expand_description",
+                title = "Разворачивать описание",
+                summary = "Показывать полное описание объявления без кнопки «Читать далее»",
+                default = true,
+            )
+            println("UI tweaks: gated ExpandablePanelLayout collapsed-line count behind avito_expand_description.")
+        }
 
         // --- Hide the Avi assistant tab in the bottom navigation ----------------
         // The Avi tab doesn't exist on every release (e.g. 227.0); when absent the
