@@ -637,17 +637,28 @@ public final class Blacklist {
                 restore(root);
             }
 
-            // Detect the long-press with a GestureDetector fed by a NON-consuming
-            // touch listener (always returns false). Unlike setOnLongClickListener
-            // — which makes every view longClickable, so a leaf that used to let
-            // the tap bubble up to Avito's clickable tile now swallows it and the
-            // advert never opens — returning false lets taps, clicks and gallery
-            // swipes still reach Avito's own handlers.
+            // Detect the long-press with a GestureDetector fed by a touch listener
+            // that stays NON-consuming for normal taps/clicks/swipes (returns false,
+            // so the tile's own handlers run) but SWALLOWS the gesture once the
+            // long-press fires — otherwise a tile that opens on tap (notably the big
+            // cars/estate gallery tiles) treats the same press as a tap and navigates
+            // to the advert on release. setOnLongClickListener is avoided on purpose:
+            // it makes every view longClickable, so a leaf that used to let the tap
+            // bubble up to the clickable tile swallows it and the advert never opens.
+            final boolean[] longPressFired = {false};
             final android.view.GestureDetector detector = new android.view.GestureDetector(
                     root.getContext(),
                     new android.view.GestureDetector.SimpleOnGestureListener() {
                         @Override
+                        public boolean onDown(android.view.MotionEvent e) {
+                            // Track the gesture so the long-press timer runs on every
+                            // variant, including children that don't consume the down.
+                            return true;
+                        }
+
+                        @Override
                         public void onLongPress(android.view.MotionEvent e) {
+                            longPressFired[0] = true;
                             // Subtle haptic tick on proc (respects the system haptic
                             // setting; no VIBRATE permission needed).
                             try {
@@ -662,8 +673,13 @@ public final class Blacklist {
                     new android.view.View.OnTouchListener() {
                         @Override
                         public boolean onTouch(android.view.View v, android.view.MotionEvent ev) {
+                            if (ev.getActionMasked() == android.view.MotionEvent.ACTION_DOWN) {
+                                longPressFired[0] = false;
+                            }
                             detector.onTouchEvent(ev);
-                            return false;
+                            // Only consume once the long-press has fired, so taps,
+                            // clicks and gallery swipes still reach Avito's handlers.
+                            return longPressFired[0];
                         }
                     };
             // Some snippets (e.g. extended-gallery tiles) have a scrollable image
@@ -704,9 +720,11 @@ public final class Blacklist {
     }
 
     /**
-     * Feeds touches to our long-press observer (which always returns false), then
-     * delegates to the view's pre-existing OnTouchListener so its native behaviour
-     * — e.g. the photo gallery's tap-to-open — is preserved.
+     * Feeds touches to our long-press observer first. While the observer stays
+     * passive (normal taps/swipes) the event is delegated to the view's pre-existing
+     * OnTouchListener so its native behaviour — e.g. the photo gallery's tap-to-open
+     * — is preserved. Once the observer claims the gesture (a long-press fired), the
+     * event is swallowed and NOT passed on, so the tile can't also navigate.
      */
     private static final class ChainTouch implements android.view.View.OnTouchListener {
         private final android.view.View.OnTouchListener observer;
@@ -719,9 +737,13 @@ public final class Blacklist {
 
         @Override
         public boolean onTouch(android.view.View v, android.view.MotionEvent ev) {
+            boolean consumed = false;
             try {
-                observer.onTouch(v, ev);
+                consumed = observer.onTouch(v, ev);
             } catch (Throwable ignored) {
+            }
+            if (consumed) {
+                return true;
             }
             try {
                 if (original != null) {
