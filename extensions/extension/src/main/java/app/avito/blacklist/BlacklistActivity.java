@@ -130,7 +130,7 @@ public final class BlacklistActivity extends Activity {
             back.setImageDrawable(backIcon);
             back.setColorFilter(accent);
             back.setBackground(themeDrawable(android.R.attr.selectableItemBackgroundBorderless));
-            back.setPadding(16 * dp, 12 * dp, 16 * dp, 12 * dp);
+            back.setPadding(12 * dp, 12 * dp, 12 * dp, 12 * dp);
             back.setOnClickListener(backAction);
             bar.addView(back);
         } else {
@@ -151,7 +151,7 @@ public final class BlacklistActivity extends Activity {
         // Land the title at Avito's ~72dp toolbar inset next to the nav icon.
         LinearLayout.LayoutParams titleLp =
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        titleLp.leftMargin = 16 * dp;
+        titleLp.leftMargin = 20 * dp;
         title.setLayoutParams(titleLp);
         bar.addView(title);
 

@@ -74,7 +74,7 @@ public final class MorpheTheme {
             // Avito tints the settings back arrow with the accent colour.
             back.setColorFilter(accent);
             back.setBackground(themeDrawable(android.R.attr.selectableItemBackgroundBorderless));
-            back.setPadding(16 * dp, 12 * dp, 16 * dp, 12 * dp);
+            back.setPadding(12 * dp, 12 * dp, 12 * dp, 12 * dp);
             back.setOnClickListener(backAction);
             bar.addView(back);
         } else {
@@ -97,7 +97,7 @@ public final class MorpheTheme {
         // uses next to a navigation icon.
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        titleLp.leftMargin = 16 * dp;
+        titleLp.leftMargin = 20 * dp;
         titleView.setLayoutParams(titleLp);
         bar.addView(titleView);
         return bar;
