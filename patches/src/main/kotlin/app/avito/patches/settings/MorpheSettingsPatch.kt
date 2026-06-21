@@ -101,11 +101,12 @@ val morpheSettingsPatch = bytecodePatch(
 
         // Konveyor adapter-presenter bind hook → MorpheSettings.onBind, which wires
         // the Settings row click and delegates advert binds to the blacklist.
-        // Matched STRUCTURALLY (R8 repackages konveyor per release): the
-        // SimpleAdapterPresenter is the class that has both getItem(int)->ref (the
-        // bound item; `getItem` keeps its name) and a bind method e(viewHolder,
-        // int, List)V. getItem is called on the concrete class so no interface
-        // name is needed.
+        // Matched STRUCTURALLY (R8 repackages konveyor and re-letters its methods per
+        // release): the SimpleAdapterPresenter is the class that has both
+        // getItem(int)->ref (the bound item; `getItem` keeps its name) and a payload
+        // bind method (viewHolder, int, List)V. getItem is called on the concrete
+        // class so no interface name is needed, and the bind method's obfuscated name
+        // is read off the match rather than pinned (it was `e` on 226/227 but rolls).
         var bindHooks = 0
         classDefForEach { classDef ->
             val getItem = classDef.methods.firstOrNull { method ->
@@ -114,20 +115,26 @@ val morpheSettingsPatch = bytecodePatch(
                     method.returnType.startsWith("L")
             } ?: return@classDefForEach
 
+            // The konveyor presenter's bind takes konveyor's own ViewHolder. Exclude
+            // the RecyclerView.Adapter.onBindViewHolder(VH, int, List) override, which
+            // shares the (L, I, List)V shape but is a different method — its name is a
+            // framework override (kept by R8) and its first param is androidx's
+            // RecyclerView$C, so both are stable, non-obfuscated discriminators.
             val bind = classDef.methods.firstOrNull { method ->
-                method.name == "e" &&
-                    method.implementation != null &&
+                method.implementation != null &&
                     method.returnType == "V" &&
+                    method.name != "onBindViewHolder" &&
                     method.parameterTypes.map { it.toString() }.let { params ->
                         params.size == 3 &&
                             params[0].startsWith("L") &&
+                            params[0] != "Landroidx/recyclerview/widget/RecyclerView\$C;" &&
                             params[1] == "I" &&
                             params[2] == "Ljava/util/List;"
                     }
             } ?: return@classDefForEach
 
             mutableClassDefBy(classDef).methods
-                .first { it.name == "e" && it.parameterTypes == bind.parameterTypes }
+                .first { it.name == bind.name && it.parameterTypes == bind.parameterTypes }
                 .addInstructions(
                     0,
                     // Pass the params (p0/p1/p2) straight to the invokes and use only

@@ -17,29 +17,32 @@ private fun isAvitoAdjustWrapper(classType: String) =
 // the tracker method is the correct, safe target.)
 object ClickstreamTrackEventFingerprint : Fingerprint(
     returnType = "V",
-    parameters = listOf(
-        "Lcom/avito/android/analytics/o;",
-    ),
     filters = listOf(
         methodCall(
             definingClass = "Ljava/util/concurrent/Executor;",
             name = "execute",
         ),
     ),
-    custom = { _, classDef ->
-        isAvitoClickstreamTracker(classDef.type)
+    // The single parameter is the clickstream event, which lives in the
+    // `com.avito.android.analytics` package — anchor on that package rather than the
+    // event class's obfuscated name (it was `analytics/o` but R8 re-letters it).
+    custom = { method, classDef ->
+        isAvitoClickstreamTracker(classDef.type) &&
+            method.parameterTypes.size == 1 &&
+            method.parameterTypes.single().toString().startsWith("Lcom/avito/android/analytics/")
     },
 )
 
 // Fallback (older builds): the clickstream enqueue runnable itself, identified by
-// its ANR log line and the inhouse-transport add() call, when it still lives in a
-// dedicated clickstream class.
+// its (unique) ANR log line and an add() call into the inhouse-transport package,
+// when it still lives in a dedicated clickstream class. The transport class name is
+// matched by package prefix, not its obfuscated leaf (`inhouse_transport/u` rolls).
 object ClickstreamEnqueueRunnableFingerprint : Fingerprint(
     returnType = "V",
     filters = listOf(
         string("Sending event on main thread. May cause ANR"),
         methodCall(
-            definingClass = "Lcom/avito/android/analytics/inhouse_transport/u;",
+            definingClass = "Lcom/avito/android/analytics/inhouse_transport/",
             name = "add",
         ),
     ),
