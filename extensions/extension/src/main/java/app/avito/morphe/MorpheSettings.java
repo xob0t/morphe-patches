@@ -177,23 +177,45 @@ public final class MorpheSettings {
      * Appends the single "Настройки Morphe" row to Avito's settings list. Clones
      * the runtime class of an existing navigation row (found by its stable
      * "notifications" id) so no obfuscated class name is hard-coded, and inserts it
-     * first.
+     * first — followed by a divider so it doesn't sit flush against the next row.
+     *
+     * Dividers in this list are their own items (a "Divider" model with a
+     * {@code divider_<n>} id), one after each row, rather than a flag on the row
+     * itself. We clone that model the same way (found by its {@code divider_} id) and
+     * insert it right after our row.
      */
     public static void addSettingsEntry(java.util.List<?> items) {
         try {
             if (items == null || items.isEmpty()) {
                 return;
             }
+            Object navTemplate = null;
+            Object dividerTemplate = null;
             for (Object existing : items) {
-                if ("notifications".equals(Blacklist.callString(existing, "getStringId"))) {
-                    Object row = existing.getClass()
-                            .getConstructor(String.class, String.class)
-                            .newInstance(SETTINGS_ENTRY_ID, SETTINGS_ENTRY_TITLE);
-                    @SuppressWarnings("unchecked")
-                    java.util.List<Object> mutable = (java.util.List<Object>) items;
-                    mutable.add(0, row);
-                    return;
+                String id = Blacklist.callString(existing, "getStringId");
+                if (id == null) {
+                    continue;
                 }
+                if (navTemplate == null && "notifications".equals(id)) {
+                    navTemplate = existing;
+                } else if (dividerTemplate == null && id.startsWith("divider_")) {
+                    dividerTemplate = existing;
+                }
+            }
+            if (navTemplate == null) {
+                return;
+            }
+            @SuppressWarnings("unchecked")
+            java.util.List<Object> mutable = (java.util.List<Object>) items;
+            Object row = navTemplate.getClass()
+                    .getConstructor(String.class, String.class)
+                    .newInstance(SETTINGS_ENTRY_ID, SETTINGS_ENTRY_TITLE);
+            mutable.add(0, row);
+            if (dividerTemplate != null) {
+                Object divider = dividerTemplate.getClass()
+                        .getConstructor(String.class)
+                        .newInstance("divider_morphe");
+                mutable.add(1, divider);
             }
         } catch (Throwable ignored) {
         }
