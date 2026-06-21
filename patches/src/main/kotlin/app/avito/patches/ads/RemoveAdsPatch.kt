@@ -5,14 +5,16 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
+import app.shared.childrenNamed
+import app.shared.getOrCreateApplicationMetaData
+import app.shared.methodReferenceOrNull
+import app.shared.removeChildren
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
-import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import org.w3c.dom.Element
-import org.w3c.dom.Node
 import java.io.FileNotFoundException
 
 private val adPermissions = setOf(
@@ -107,38 +109,10 @@ private fun nullParametersInstructions(parameterIndexes: List<Int>) =
         }
     }
 
-private fun Instruction.methodReferenceOrNull(): MethodReference? =
-    (this as? ReferenceInstruction)?.reference as? MethodReference
-
 private fun MethodReference.isRxThrowableObservableFactory() =
     definingClass == "Lio/reactivex/rxjava3/core/z;" &&
         parameterTypes.map { it.toString() } == listOf("Ljava/lang/Throwable;") &&
         returnType.startsWith("Lio/reactivex/rxjava3/")
-
-private fun Element.childrenNamed(name: String): List<Element> {
-    val nodes = childNodes
-    return buildList {
-        for (i in 0 until nodes.length) {
-            val node = nodes.item(i)
-            if (node is Element && node.nodeName == name) add(node)
-        }
-    }
-}
-
-private fun Element.childrenNamed(vararg names: String): List<Element> {
-    val acceptedNames = names.toSet()
-    val nodes = childNodes
-    return buildList {
-        for (i in 0 until nodes.length) {
-            val node = nodes.item(i)
-            if (node is Element && node.nodeName in acceptedNames) add(node)
-        }
-    }
-}
-
-private fun Element.removeChildren(nodes: List<Node>) {
-    nodes.forEach(::removeChild)
-}
 
 private fun Element.hideView() {
     setAttribute("android:visibility", "gone")
@@ -152,17 +126,6 @@ private fun Element.hideView() {
     setAttribute("android:clickable", "false")
     setAttribute("android:focusable", "false")
     setAttribute("android:importantForAccessibility", "no")
-}
-
-private fun Element.getOrCreateApplicationMetaData(name: String): Element {
-    childrenNamed("meta-data")
-        .firstOrNull { it.getAttribute("android:name") == name }
-        ?.let { return it }
-
-    val metaData = ownerDocument.createElement("meta-data")
-    metaData.setAttribute("android:name", name)
-    appendChild(metaData)
-    return metaData
 }
 
 private val removeAdResourcesPatch = resourcePatch {

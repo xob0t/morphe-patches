@@ -2,6 +2,7 @@ package app.privacy.patches.analytics
 
 import app.morphe.patcher.patch.resourcePatch
 import org.w3c.dom.Element
+import app.shared.*
 
 @Suppress("unused")
 val disableAdjustPatch = resourcePatch(

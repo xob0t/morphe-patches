@@ -7,12 +7,11 @@ import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
+import app.shared.*
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
-import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.RegisterRangeInstruction
 import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
-import com.android.tools.smali.dexlib2.iface.reference.StringReference
 
 private val EMULATOR_INDICATOR_STRINGS = setOf(
     "/dev/qemu_pipe",
@@ -97,15 +96,6 @@ private val EMULATOR_PACKAGE_NAMES = setOf(
     "com.nox.mopen.app",
     "com.vphone.launcher",
 )
-
-private fun Instruction.methodReferenceOrNull(): MethodReference? =
-    (this as? ReferenceInstruction)?.reference as? MethodReference
-
-private fun Instruction.fieldReferenceOrNull(): FieldReference? =
-    (this as? ReferenceInstruction)?.reference as? FieldReference
-
-private fun Instruction.stringReferenceOrNull(): String? =
-    ((this as? ReferenceInstruction)?.reference as? StringReference)?.string
 
 private fun Instruction.registers(): List<Int> =
     when (this) {
