@@ -45,6 +45,24 @@ public final class MorpheTheme {
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setMinimumHeight(56 * dp);
         bar.setBackgroundColor(colorBackground);
+        // The window draws edge-to-edge, so the bar would otherwise sit under the
+        // status bar (clock/battery overlap the title). Pad the top down by the
+        // status-bar height, preferring live insets (correct under cutouts/gesture
+        // nav) and falling back to the framework dimen for the first layout pass.
+        final int baseTop = bar.getPaddingTop();
+        bar.setPadding(bar.getPaddingLeft(), baseTop + statusBarHeight(),
+                bar.getPaddingRight(), bar.getPaddingBottom());
+        bar.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+            @Override
+            public android.view.WindowInsets onApplyWindowInsets(View v, android.view.WindowInsets insets) {
+                int top = insets.getSystemWindowInsetTop();
+                if (top > 0) {
+                    v.setPadding(v.getPaddingLeft(), baseTop + top,
+                            v.getPaddingRight(), v.getPaddingBottom());
+                }
+                return insets;
+            }
+        });
 
         View.OnClickListener backAction = new View.OnClickListener() {
             @Override
@@ -87,6 +105,18 @@ public final class MorpheTheme {
         titleView.setLayoutParams(titleLp);
         bar.addView(titleView);
         return bar;
+    }
+
+    /** Status-bar height from the framework dimen, or a 24dp guess if unavailable. */
+    private int statusBarHeight() {
+        try {
+            int id = host.getResources().getIdentifier("status_bar_height", "dimen", "android");
+            if (id > 0) {
+                return host.getResources().getDimensionPixelSize(id);
+            }
+        } catch (Throwable ignored) {
+        }
+        return 24 * dp;
     }
 
     public View makeDivider() {
