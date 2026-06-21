@@ -1,3 +1,13 @@
+## [1.5.0-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.5.0-dev.1...v1.5.0-dev.2) (2026-06-21)
+
+### 🐛 Bug Fixes
+
+* **avito:** long-press block no longer navigates on gallery tiles ([#18](https://github.com/xob0t/morphe-patches/issues/18)) ([31d5d7f](https://github.com/xob0t/morphe-patches/commit/31d5d7ff59f4b7ea51748391a0fc68eae4b21eb2))
+
+### ✨ New Features
+
+* **avito:** one-tap undo bar for blocking offers/sellers ([#17](https://github.com/xob0t/morphe-patches/issues/17)) ([f4fe6a6](https://github.com/xob0t/morphe-patches/commit/f4fe6a67ce1220784279b3303899f6306f27a55d))
+
 ## [1.5.0-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.4.0...v1.5.0-dev.1) (2026-06-21)
 
 ### ✨ New Features
