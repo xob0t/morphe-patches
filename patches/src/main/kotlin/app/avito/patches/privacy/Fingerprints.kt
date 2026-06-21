@@ -17,19 +17,21 @@ private fun isAvitoAdjustWrapper(classType: String) =
 // the tracker method is the correct, safe target.)
 object ClickstreamTrackEventFingerprint : Fingerprint(
     returnType = "V",
+    // The single parameter is the clickstream event, which lives in the
+    // `com.avito.android.analytics` package — anchor on that package prefix rather
+    // than the event class's obfuscated name (it was `analytics/o` but R8 re-letters
+    // it). A type without a trailing `;` is matched with startsWith.
+    parameters = listOf(
+        "Lcom/avito/android/analytics/",
+    ),
     filters = listOf(
         methodCall(
             definingClass = "Ljava/util/concurrent/Executor;",
             name = "execute",
         ),
     ),
-    // The single parameter is the clickstream event, which lives in the
-    // `com.avito.android.analytics` package — anchor on that package rather than the
-    // event class's obfuscated name (it was `analytics/o` but R8 re-letters it).
-    custom = { method, classDef ->
-        isAvitoClickstreamTracker(classDef.type) &&
-            method.parameterTypes.size == 1 &&
-            method.parameterTypes.single().toString().startsWith("Lcom/avito/android/analytics/")
+    custom = { _, classDef ->
+        isAvitoClickstreamTracker(classDef.type)
     },
 )
 
