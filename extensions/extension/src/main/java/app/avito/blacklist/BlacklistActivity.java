@@ -45,7 +45,7 @@ public final class BlacklistActivity extends Activity {
     private int textSecondary;
     private int accent;
     private int divider;
-    private int dp;
+    private float density;
 
     private LinearLayout listContainer;
     private TextView tabOffers;
@@ -59,7 +59,7 @@ public final class BlacklistActivity extends Activity {
         super.onCreate(savedInstanceState);
         setTitle("Чёрный список");
 
-        dp = Math.round(getResources().getDisplayMetrics().density);
+        density = getResources().getDisplayMetrics().density;
         // Avito design-system colours (DayNight: resolve to light/dark automatically).
         colorBackground = avitoColor("white", themeColor(android.R.attr.colorBackground, Color.WHITE));
         textPrimary = avitoColor("black", themeColor(android.R.attr.textColorPrimary, Color.BLACK));
@@ -79,7 +79,7 @@ public final class BlacklistActivity extends Activity {
         View tabDivider = new View(this);
         tabDivider.setBackgroundColor(divider);
         tabDivider.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, dp / 2)));
+                ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, Math.round(density / 2f))));
         outer.addView(tabDivider);
 
         ScrollView scroll = new ScrollView(this);
@@ -91,12 +91,12 @@ public final class BlacklistActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(16 * dp, 0, 16 * dp, 24 * dp);
+        root.setPadding(dp(16), 0, dp(16), dp(24));
         scroll.addView(root);
 
         listContainer = new LinearLayout(this);
         listContainer.setOrientation(LinearLayout.VERTICAL);
-        listContainer.setPadding(0, 8 * dp, 0, 0);
+        listContainer.setPadding(0, dp(8), 0, 0);
         root.addView(listContainer);
 
         setContentView(outer);
@@ -109,7 +109,7 @@ public final class BlacklistActivity extends Activity {
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setMinimumHeight(56 * dp);
+        bar.setMinimumHeight(dp(56));
         bar.setBackgroundColor(colorBackground);
         MorpheTheme.applyStatusBarInset(bar);
 
@@ -130,7 +130,7 @@ public final class BlacklistActivity extends Activity {
             back.setImageDrawable(backIcon);
             back.setColorFilter(accent);
             back.setBackground(themeDrawable(android.R.attr.selectableItemBackgroundBorderless));
-            back.setPadding(12 * dp, 12 * dp, 12 * dp, 12 * dp);
+            back.setPadding(dp(12), dp(12), dp(12), dp(12));
             back.setOnClickListener(backAction);
             bar.addView(back);
         } else {
@@ -138,7 +138,7 @@ public final class BlacklistActivity extends Activity {
             back.setText("←");
             back.setTextSize(24);
             back.setTextColor(accent);
-            back.setPadding(16 * dp, 12 * dp, 16 * dp, 12 * dp);
+            back.setPadding(dp(16), dp(12), dp(16), dp(12));
             back.setOnClickListener(backAction);
             bar.addView(back);
         }
@@ -151,7 +151,7 @@ public final class BlacklistActivity extends Activity {
         // Land the title at Avito's ~72dp toolbar inset next to the nav icon.
         LinearLayout.LayoutParams titleLp =
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        titleLp.leftMargin = 20 * dp;
+        titleLp.leftMargin = dp(20);
         title.setLayoutParams(titleLp);
         bar.addView(title);
 
@@ -162,8 +162,8 @@ public final class BlacklistActivity extends Activity {
         overflow.setTextSize(22);
         overflow.setTextColor(textPrimary);
         overflow.setGravity(Gravity.CENTER);
-        overflow.setMinWidth(48 * dp);
-        overflow.setPadding(12 * dp, 12 * dp, 16 * dp, 12 * dp);
+        overflow.setMinWidth(dp(48));
+        overflow.setPadding(dp(12), dp(12), dp(16), dp(12));
         overflow.setBackground(themeDrawable(android.R.attr.selectableItemBackgroundBorderless));
         overflow.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -242,8 +242,8 @@ public final class BlacklistActivity extends Activity {
         tab.setGravity(Gravity.CENTER);
         tab.setIncludeFontPadding(false);
         tab.setTextSize(15);
-        tab.setMinHeight(48 * dp);
-        tab.setPadding(8 * dp, 14 * dp, 8 * dp, 14 * dp);
+        tab.setMinHeight(dp(48));
+        tab.setPadding(dp(8), dp(14), dp(8), dp(14));
         tab.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         tab.setBackground(themeDrawable(android.R.attr.selectableItemBackground));
         tab.setOnClickListener(new View.OnClickListener() {
@@ -286,7 +286,7 @@ public final class BlacklistActivity extends Activity {
                     new android.graphics.drawable.LayerDrawable(
                             new android.graphics.drawable.Drawable[]{underline});
             layers.setLayerGravity(0, Gravity.BOTTOM);
-            layers.setLayerHeight(0, 2 * dp);
+            layers.setLayerHeight(0, dp(2));
             tab.setForeground(layers);
         } else {
             tab.setForeground(null);
@@ -298,7 +298,7 @@ public final class BlacklistActivity extends Activity {
             LinearLayout emptyBox = new LinearLayout(this);
             emptyBox.setOrientation(LinearLayout.VERTICAL);
             emptyBox.setGravity(Gravity.CENTER_HORIZONTAL);
-            emptyBox.setPadding(24 * dp, 56 * dp, 24 * dp, 8 * dp);
+            emptyBox.setPadding(dp(24), dp(56), dp(24), dp(8));
             emptyBox.setLayoutParams(new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -316,7 +316,7 @@ public final class BlacklistActivity extends Activity {
             hint.setTextColor(textSecondary);
             hint.setTextSize(13);
             hint.setGravity(Gravity.CENTER);
-            hint.setPadding(0, 6 * dp, 0, 0);
+            hint.setPadding(0, dp(6), 0, 0);
             emptyBox.addView(hint);
 
             listContainer.addView(emptyBox);
@@ -327,8 +327,8 @@ public final class BlacklistActivity extends Activity {
             LinearLayout rowItem = new LinearLayout(this);
             rowItem.setOrientation(LinearLayout.HORIZONTAL);
             rowItem.setGravity(Gravity.CENTER_VERTICAL);
-            rowItem.setMinimumHeight(56 * dp);
-            rowItem.setPadding(0, 10 * dp, 0, 10 * dp);
+            rowItem.setMinimumHeight(dp(56));
+            rowItem.setPadding(0, dp(10), 0, dp(10));
             // Tap a row to open the advert / seller page in the app.
             rowItem.setBackground(themeDrawable(android.R.attr.selectableItemBackground));
             rowItem.setOnClickListener(new View.OnClickListener() {
@@ -349,7 +349,7 @@ public final class BlacklistActivity extends Activity {
             textCol.setOrientation(LinearLayout.VERTICAL);
             LinearLayout.LayoutParams colLp = new LinearLayout.LayoutParams(
                     0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            colLp.rightMargin = 8 * dp;
+            colLp.rightMargin = dp(8);
             textCol.setLayoutParams(colLp);
 
             TextView primary = new TextView(this);
@@ -368,7 +368,7 @@ public final class BlacklistActivity extends Activity {
                 sellerView.setText(offerSeller);
                 sellerView.setMaxLines(1);
                 sellerView.setEllipsize(android.text.TextUtils.TruncateAt.END);
-                sellerView.setPadding(0, 3 * dp, 0, 0);
+                sellerView.setPadding(0, dp(3), 0, 0);
                 textCol.addView(sellerView);
             }
 
@@ -395,7 +395,7 @@ public final class BlacklistActivity extends Activity {
                 metaView.setText(meta.toString());
                 metaView.setMaxLines(1);
                 metaView.setEllipsize(android.text.TextUtils.TruncateAt.END);
-                metaView.setPadding(0, 3 * dp, 0, 0);
+                metaView.setPadding(0, dp(3), 0, 0);
                 textCol.addView(metaView);
             }
             rowItem.addView(textCol);
@@ -406,8 +406,8 @@ public final class BlacklistActivity extends Activity {
             remove.setTextColor(textSecondary);
             remove.setTextSize(17);
             remove.setGravity(Gravity.CENTER);
-            remove.setMinWidth(44 * dp);
-            remove.setMinHeight(44 * dp);
+            remove.setMinWidth(dp(44));
+            remove.setMinHeight(dp(44));
             remove.setBackground(themeDrawable(android.R.attr.selectableItemBackgroundBorderless));
             remove.setContentDescription("Удалить");
             remove.setOnClickListener(new View.OnClickListener() {
@@ -433,7 +433,7 @@ public final class BlacklistActivity extends Activity {
         View line = new View(this);
         line.setBackgroundColor(divider);
         line.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, dp / 2)));
+                ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, Math.round(density / 2f))));
         return line;
     }
 
@@ -777,6 +777,12 @@ public final class BlacklistActivity extends Activity {
     }
 
     // -- Theme helpers ------------------------------------------------------
+
+    /** dp → px using the real (fractional) density, so spacing is correct on every
+     *  screen density rather than only the one it was tuned on. */
+    private int dp(float value) {
+        return Math.round(value * density);
+    }
 
     private int themeColor(int attr, int fallback) {
         try {

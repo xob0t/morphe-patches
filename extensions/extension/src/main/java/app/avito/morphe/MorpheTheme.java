@@ -28,7 +28,7 @@ public final class MorpheTheme {
     public static final float META_SP = 13f;      // small meta / hint line
 
     private final Activity host;
-    public final int dp;
+    public final float density;
     public final int colorBackground;
     public final int colorSurface;
     public final int textPrimary;
@@ -38,7 +38,7 @@ public final class MorpheTheme {
 
     public MorpheTheme(Activity host) {
         this.host = host;
-        this.dp = Math.round(host.getResources().getDisplayMetrics().density);
+        this.density = host.getResources().getDisplayMetrics().density;
         this.colorBackground = avitoColor("white", themeColor(android.R.attr.colorBackground, Color.WHITE));
         this.textPrimary = avitoColor("black", themeColor(android.R.attr.textColorPrimary, Color.BLACK));
         this.textSecondary = avitoColor("gray54", themeColor(android.R.attr.textColorSecondary, Color.GRAY));
@@ -47,12 +47,23 @@ public final class MorpheTheme {
         this.divider = avitoColor("gray8", blend(colorBackground, textPrimary, 0.12f));
     }
 
+    /**
+     * Converts a dp value to pixels using the real (fractional) display density.
+     * Using {@code Math.round(density) * value} instead would quantise the density
+     * to an integer and skew every dimension on non-integer-density screens (e.g.
+     * 1.5×, 2.75×), which is what made the screens look right only on the device
+     * they were tuned on.
+     */
+    public int dp(float value) {
+        return Math.round(value * density);
+    }
+
     /** A simple Avito-style top bar: native back arrow + title. */
     public View buildTopBar(String title, final Runnable onBack) {
         LinearLayout bar = new LinearLayout(host);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setMinimumHeight(56 * dp);
+        bar.setMinimumHeight(dp(56));
         bar.setBackgroundColor(colorBackground);
         applyStatusBarInset(bar);
 
@@ -74,7 +85,7 @@ public final class MorpheTheme {
             // Avito tints the settings back arrow with the accent colour.
             back.setColorFilter(accent);
             back.setBackground(themeDrawable(android.R.attr.selectableItemBackgroundBorderless));
-            back.setPadding(12 * dp, 12 * dp, 12 * dp, 12 * dp);
+            back.setPadding(dp(12), dp(12), dp(12), dp(12));
             back.setOnClickListener(backAction);
             bar.addView(back);
         } else {
@@ -82,7 +93,7 @@ public final class MorpheTheme {
             back.setText("←");
             back.setTextSize(24);
             back.setTextColor(accent);
-            back.setPadding(16 * dp, 12 * dp, 16 * dp, 12 * dp);
+            back.setPadding(dp(16), dp(12), dp(16), dp(12));
             back.setOnClickListener(backAction);
             bar.addView(back);
         }
@@ -97,7 +108,7 @@ public final class MorpheTheme {
         // uses next to a navigation icon.
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        titleLp.leftMargin = 20 * dp;
+        titleLp.leftMargin = dp(20);
         titleView.setLayoutParams(titleLp);
         bar.addView(titleView);
         return bar;
@@ -140,7 +151,7 @@ public final class MorpheTheme {
         View line = new View(host);
         line.setBackgroundColor(divider);
         line.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, dp / 2)));
+                ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, Math.round(density / 2f))));
         return line;
     }
 
