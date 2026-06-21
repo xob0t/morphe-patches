@@ -1,3 +1,9 @@
+## [1.5.0-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.4.0...v1.5.0-dev.1) (2026-06-21)
+
+### ✨ New Features
+
+* **avito:** expand offer descriptions by default ([#16](https://github.com/xob0t/morphe-patches/issues/16)) ([248d855](https://github.com/xob0t/morphe-patches/commit/248d85531e3dc1a29bb263a2cbdfcf091bea5509))
+
 ## [1.4.0](https://github.com/xob0t/morphe-patches/compare/v1.3.8...v1.4.0) (2026-06-21)
 
 ### 🐛 Bug Fixes

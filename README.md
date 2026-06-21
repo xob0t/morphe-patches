@@ -10,7 +10,7 @@ Personal Morphe patches for Android apps.
 ## Patches
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.4.0](https://github.com/xob0t/morphe-patches/releases/tag/v1.4.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;23 patches total
+> **[v1.5.0-dev.1](https://github.com/xob0t/morphe-patches/releases/tag/v1.5.0-dev.1)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;23 patches total
 <details open>
 <summary>📦 Avito&nbsp;&nbsp;•&nbsp;&nbsp;6 patches</summary>
 <br>
@@ -27,7 +27,7 @@ Personal Morphe patches for Android apps.
 | [Disable update prompts](#disable-update-prompts) | Prevents Avito's force-update screen opener from launching update screens. Toggleable in Настройки Morphe. |  |
 | [Morphe settings](#morphe-settings) | Adds a "Настройки Morphe" entry to Avito's settings that hosts the configuration for the other Morphe patches. |  |
 | [Remove ads](#remove-ads) | Disables Avito ads by removing ad SDK entry points and short-circuiting commercial banner loading. |  |
-| [UI tweaks](#ui-tweaks) | Optional interface tweaks, each toggleable in Настройки Morphe: single-row home categories, hide the "Подписки" tab in Избранное, hide installments (Рассрочка) and the "Спросите у продавца" block on offers, and hide the Avi assistant tab in the bottom navigation. |  |
+| [UI tweaks](#ui-tweaks) | Optional interface tweaks, each toggleable in Настройки Morphe: single-row home categories, hide the "Подписки" tab in Избранное, hide installments (Рассрочка) and the "Спросите у продавца" block on offers, expand descriptions by default (no "Читать далее"), and hide the Avi assistant tab in the bottom navigation. |  |
 
 </details>
 

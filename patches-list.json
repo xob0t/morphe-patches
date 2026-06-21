@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0",
+  "version": "1.5.0-dev.1",
   "patches": [
     {
       "name": "Block listings",
@@ -535,7 +535,7 @@
     },
     {
       "name": "UI tweaks",
-      "description": "Optional interface tweaks, each toggleable in Настройки Morphe: single-row home categories, hide the \"Подписки\" tab in Избранное, hide installments (Рассрочка) and the \"Спросите у продавца\" block on offers, and hide the Avi assistant tab in the bottom navigation.",
+      "description": "Optional interface tweaks, each toggleable in Настройки Morphe: single-row home categories, hide the \"Подписки\" tab in Избранное, hide installments (Рассрочка) and the \"Спросите у продавца\" block on offers, expand descriptions by default (no \"Читать далее\"), and hide the Avi assistant tab in the bottom navigation.",
       "default": false,
       "dependencies": [
         "BytecodePatch"
