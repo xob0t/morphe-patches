@@ -134,6 +134,18 @@ public final class MorpheSettings {
     }
 
     /**
+     * Gate for the "expand description by default" tweak, injected at the entry of
+     * {@code ExpandablePanelLayout.setCollapsedLineCount(Integer)} — the single
+     * threshold every "Читать далее" description panel funnels through. While the
+     * toggle is on it returns an effectively-unlimited line count, so the text shows
+     * in full and the read-more handle stays hidden; off → the value unchanged (stock
+     * collapse). Re-evaluated on each (re)bind, so no restart is required.
+     */
+    public static Integer expandedLineCount(Integer count) {
+        return isEnabled("avito_expand_description", true) ? Integer.valueOf(Integer.MAX_VALUE) : count;
+    }
+
+    /**
      * Gate for the "single-row home categories" feature, injected into the
      * rubricator tile's getRowLine(): when on, every tile reports row 1 so the
      * category rubricator collapses to one row. Off → stock (two rows).
