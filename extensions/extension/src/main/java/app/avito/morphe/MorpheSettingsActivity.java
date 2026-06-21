@@ -45,7 +45,6 @@ public final class MorpheSettingsActivity extends Activity {
                 finish();
             }
         }));
-        outer.addView(theme.makeDivider());
 
         ScrollView scroll = new ScrollView(this);
         scroll.setBackgroundColor(theme.colorBackground);
@@ -56,7 +55,7 @@ public final class MorpheSettingsActivity extends Activity {
 
         LinearLayout list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
-        list.setPadding(16 * theme.dp, 8 * theme.dp, 16 * theme.dp, 24 * theme.dp);
+        list.setPadding(theme.dp(16), 0, theme.dp(16), theme.dp(24));
         scroll.addView(list);
 
         renderEntries(list);
@@ -74,7 +73,7 @@ public final class MorpheSettingsActivity extends Activity {
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setBackgroundColor(theme.colorSurface);
-        bar.setPadding(16 * theme.dp, 12 * theme.dp, 16 * theme.dp, 12 * theme.dp);
+        bar.setPadding(theme.dp(16), theme.dp(12), theme.dp(16), theme.dp(12));
         bar.setVisibility(View.GONE);
 
         TextView msg = new TextView(this);
@@ -89,7 +88,7 @@ public final class MorpheSettingsActivity extends Activity {
         btn.setTextColor(theme.accent);
         btn.setTextSize(14);
         btn.setAllCaps(true);
-        btn.setPadding(12 * theme.dp, 8 * theme.dp, 0, 8 * theme.dp);
+        btn.setPadding(theme.dp(12), theme.dp(8), 0, theme.dp(8));
         btn.setBackground(theme.themeDrawable(android.R.attr.selectableItemBackground));
         btn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -119,7 +118,7 @@ public final class MorpheSettingsActivity extends Activity {
             empty.setText("Нет доступных настроек");
             empty.setTextColor(theme.textSecondary);
             empty.setTextSize(14);
-            empty.setPadding(0, 16 * theme.dp, 0, 0);
+            empty.setPadding(0, theme.dp(16), 0, 0);
             list.addView(empty);
             return;
         }
@@ -148,25 +147,30 @@ public final class MorpheSettingsActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setMinimumHeight(60 * theme.dp);
-        row.setPadding(0, 14 * theme.dp, 0, 14 * theme.dp);
+        row.setMinimumHeight(theme.dp(56));
+        row.setPadding(0, theme.dp(10), 0, theme.dp(10));
 
         LinearLayout textCol = new LinearLayout(this);
         textCol.setOrientation(LinearLayout.VERTICAL);
-        textCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        LinearLayout.LayoutParams colLp =
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        colLp.rightMargin = theme.dp(16);
+        textCol.setLayoutParams(colLp);
 
         TextView titleView = new TextView(this);
         titleView.setText(title);
         titleView.setTextColor(theme.textPrimary);
-        titleView.setTextSize(18);
+        titleView.setIncludeFontPadding(false);
+        titleView.setTextSize(MorpheTheme.ROW_TITLE_SP);
         textCol.addView(titleView);
 
         if (summary != null && !summary.isEmpty()) {
             TextView sub = new TextView(this);
             sub.setText(summary);
             sub.setTextColor(theme.textSecondary);
-            sub.setTextSize(14);
-            sub.setPadding(0, 2 * theme.dp, 0, 0);
+            sub.setIncludeFontPadding(false);
+            sub.setTextSize(MorpheTheme.SUBTITLE_SP);
+            sub.setPadding(0, theme.dp(2), 0, 0);
             textCol.addView(sub);
         }
         row.addView(textCol);
@@ -193,8 +197,8 @@ public final class MorpheSettingsActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setMinimumHeight(60 * theme.dp);
-        row.setPadding(0, 14 * theme.dp, 0, 14 * theme.dp);
+        row.setMinimumHeight(theme.dp(56));
+        row.setPadding(0, theme.dp(10), 0, theme.dp(10));
         row.setBackground(theme.themeDrawable(android.R.attr.selectableItemBackground));
         row.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -215,7 +219,8 @@ public final class MorpheSettingsActivity extends Activity {
         TextView titleView = new TextView(this);
         titleView.setText(title);
         titleView.setTextColor(theme.textPrimary);
-        titleView.setTextSize(18);
+        titleView.setIncludeFontPadding(false);
+        titleView.setTextSize(MorpheTheme.ROW_TITLE_SP);
         titleView.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(titleView);
         return row;
