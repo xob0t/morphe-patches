@@ -3,17 +3,12 @@ package app.avito.patches.ads
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.string
 
-private fun isCommercialBannerLoader(classType: String) =
-    classType.startsWith("Lcom/avito/android/advertising/loaders/")
-
 object CommercialBannerLoaderErrorFingerprint : Fingerprint(
+    definingClass = "Lcom/avito/android/advertising/loaders/",
     returnType = "Lio/reactivex/rxjava3/core/z;",
     filters = listOf(
         string("Not supported SerpBanner type: "),
     ),
-    custom = { _, classDef ->
-        isCommercialBannerLoader(classDef.type)
-    },
 )
 
 /**
@@ -39,7 +34,7 @@ object HeroBannerWidgetConverterFingerprint : Fingerprint(
 
 object HeroBannerToolbarConfigFingerprint : Fingerprint(
     definingClass = "Lcom/avito/android/remote/model/serp/HeroBannerWidget;",
+    name = "getToolbarConfig",
     returnType = "Lcom/avito/android/remote/model/ToolbarConfig;",
     parameters = emptyList(),
-    custom = { method, _ -> method.name == "getToolbarConfig" },
 )

@@ -15,11 +15,11 @@ import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
  * this method.
  */
 object FavoritesTabsConsumerFingerprint : Fingerprint(
+    definingClass = "Lcom/avito/android/user_favorites/",
     returnType = "V",
     parameters = listOf("Ljava/util/List;"),
-    custom = { method, classDef ->
+    custom = { method, _ ->
         method.implementation != null &&
-            classDef.type.startsWith("Lcom/avito/android/user_favorites/") &&
             method.implementation!!.instructions.any { instruction ->
                 val reference = (instruction as? ReferenceInstruction)?.reference ?: return@any false
                 reference.toString().contains("UserFavoritesTabsRenderMode")
