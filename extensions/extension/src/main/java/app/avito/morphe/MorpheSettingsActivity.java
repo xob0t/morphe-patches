@@ -170,7 +170,7 @@ public final class MorpheSettingsActivity extends Activity {
             sub.setTextColor(theme.textSecondary);
             sub.setIncludeFontPadding(false);
             sub.setTextSize(MorpheTheme.SUBTITLE_SP);
-            sub.setPadding(0, 4 * theme.dp, 0, 0);
+            sub.setPadding(0, 2 * theme.dp, 0, 0);
             textCol.addView(sub);
         }
         row.addView(textCol);

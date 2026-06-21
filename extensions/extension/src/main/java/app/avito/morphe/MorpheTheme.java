@@ -22,10 +22,10 @@ public final class MorpheTheme {
     // code-built screens match it. All paired with setIncludeFontPadding(false) —
     // the stock screen renders tight, so font padding would make our text look
     // larger and crammed.
-    public static final float TITLE_SP = 20f;     // top-bar title
-    public static final float ROW_TITLE_SP = 16f; // list row title
-    public static final float SUBTITLE_SP = 14f;  // row subtitle / summary
-    public static final float META_SP = 13f;      // small meta / hint line
+    public static final float TITLE_SP = 18f;     // top-bar title
+    public static final float ROW_TITLE_SP = 15f; // list row title
+    public static final float SUBTITLE_SP = 13f;  // row subtitle / summary
+    public static final float META_SP = 12f;      // small meta / hint line
 
     private final Activity host;
     public final int dp;
