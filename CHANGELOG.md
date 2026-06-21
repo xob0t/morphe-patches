@@ -1,3 +1,9 @@
+## [1.4.0-dev.8](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.7...v1.4.0-dev.8) (2026-06-21)
+
+### 🐛 Bug Fixes
+
+* **avito:** harden fragile fingerprints against R8 renames ([#11](https://github.com/xob0t/morphe-patches/issues/11)) ([1345f8e](https://github.com/xob0t/morphe-patches/commit/1345f8e3b465b0af12aefe260b66b280b68bcb70))
+
 ## [1.4.0-dev.7](https://github.com/xob0t/morphe-patches/compare/v1.4.0-dev.6...v1.4.0-dev.7) (2026-06-20)
 
 ### 🚀 Updated App Support
