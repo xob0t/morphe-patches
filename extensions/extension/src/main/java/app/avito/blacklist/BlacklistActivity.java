@@ -327,8 +327,8 @@ public final class BlacklistActivity extends Activity {
             LinearLayout rowItem = new LinearLayout(this);
             rowItem.setOrientation(LinearLayout.HORIZONTAL);
             rowItem.setGravity(Gravity.CENTER_VERTICAL);
-            rowItem.setMinimumHeight(64 * dp);
-            rowItem.setPadding(0, 14 * dp, 0, 14 * dp);
+            rowItem.setMinimumHeight(56 * dp);
+            rowItem.setPadding(0, 10 * dp, 0, 10 * dp);
             // Tap a row to open the advert / seller page in the app.
             rowItem.setBackground(themeDrawable(android.R.attr.selectableItemBackground));
             rowItem.setOnClickListener(new View.OnClickListener() {

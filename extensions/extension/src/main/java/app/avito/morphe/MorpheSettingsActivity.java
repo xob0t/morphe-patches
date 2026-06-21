@@ -55,7 +55,7 @@ public final class MorpheSettingsActivity extends Activity {
 
         LinearLayout list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
-        list.setPadding(16 * theme.dp, 8 * theme.dp, 16 * theme.dp, 24 * theme.dp);
+        list.setPadding(16 * theme.dp, 0, 16 * theme.dp, 24 * theme.dp);
         scroll.addView(list);
 
         renderEntries(list);
@@ -147,8 +147,8 @@ public final class MorpheSettingsActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setMinimumHeight(64 * theme.dp);
-        row.setPadding(0, 16 * theme.dp, 0, 16 * theme.dp);
+        row.setMinimumHeight(56 * theme.dp);
+        row.setPadding(0, 10 * theme.dp, 0, 10 * theme.dp);
 
         LinearLayout textCol = new LinearLayout(this);
         textCol.setOrientation(LinearLayout.VERTICAL);
@@ -197,8 +197,8 @@ public final class MorpheSettingsActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setMinimumHeight(64 * theme.dp);
-        row.setPadding(0, 16 * theme.dp, 0, 16 * theme.dp);
+        row.setMinimumHeight(56 * theme.dp);
+        row.setPadding(0, 10 * theme.dp, 0, 10 * theme.dp);
         row.setBackground(theme.themeDrawable(android.R.attr.selectableItemBackground));
         row.setOnClickListener(new View.OnClickListener() {
             @Override
