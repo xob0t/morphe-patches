@@ -11,12 +11,10 @@ import app.morphe.patcher.string
  * returned list.
  */
 object SettingsListBuilderFingerprint : Fingerprint(
+    definingClass = "Lcom/avito/android/settings/",
     returnType = "Ljava/util/ArrayList;",
     filters = listOf(
         string("notifications"),
         string("helpCenter"),
     ),
-    custom = { _, classDef ->
-        classDef.type.startsWith("Lcom/avito/android/settings/")
-    },
 )

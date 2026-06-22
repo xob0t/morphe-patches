@@ -1,7 +1,15 @@
-package app.privacy.patches.analytics
+package app.shared
 
 import org.w3c.dom.Element
 import org.w3c.dom.Node
+
+/**
+ * Shared DOM ([org.w3c.dom.Element]) helpers for editing AndroidManifest.xml from
+ * resource patches. The patcher's own `AndroidManifestHelper` operates on binary
+ * `ResXmlElement`, not the `org.w3c.dom` tree returned by `document(...)`, so these
+ * convenience helpers are the project's own — kept here once instead of copied into
+ * each patch.
+ */
 
 internal fun Element.childrenNamed(name: String): List<Element> {
     val nodes = childNodes

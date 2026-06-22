@@ -7,11 +7,10 @@ import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
+import app.shared.*
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
-import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.RegisterRangeInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
-import com.android.tools.smali.dexlib2.iface.reference.StringReference
 
 private val USB_DEBUG_INTEGER_SETTINGS = setOf(
     "adb_enabled",
@@ -33,12 +32,6 @@ private fun zeroConstant(register: Int) =
     } else {
         "const/16 v$register, 0x0"
     }
-
-private fun Instruction.methodReferenceOrNull(): MethodReference? =
-    (this as? ReferenceInstruction)?.reference as? MethodReference
-
-private fun Instruction.stringReferenceOrNull(): String? =
-    ((this as? ReferenceInstruction)?.reference as? StringReference)?.string
 
 private fun Instruction.registers(): List<Int> =
     when (this) {

@@ -6,18 +6,11 @@ import app.morphe.patcher.patch.bytecodePatch
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
-import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
+import app.shared.*
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
-import com.android.tools.smali.dexlib2.iface.reference.StringReference
 
 private const val CONTEXT = "Landroid/content/Context;"
 private const val STRING = "Ljava/lang/String;"
-
-private fun Instruction.methodReferenceOrNull(): MethodReference? =
-    (this as? ReferenceInstruction)?.reference as? MethodReference
-
-private fun Instruction.stringReferenceOrNull(): String? =
-    ((this as? ReferenceInstruction)?.reference as? StringReference)?.string
 
 private fun Method.hasFreeRaspStartContext(): Boolean {
     val instructions = instructionsOrNull?.toList() ?: return false

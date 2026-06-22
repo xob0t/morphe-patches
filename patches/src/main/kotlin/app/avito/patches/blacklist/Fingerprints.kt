@@ -20,11 +20,11 @@ private const val EXTENDED_PROFILE = "Lcom/avito/android/remote/model/ExtendedPr
  * it survives the per-release minification of the class/method names.
  */
 object SellerProfileConverterFingerprint : Fingerprint(
+    definingClass = "Lcom/avito/android/extended_profile/converter/",
     parameters = listOf(STRING, STRING, EXTENDED_PROFILE),
-    custom = { method, classDef ->
-        method.implementation != null &&
-            classDef.type.startsWith("Lcom/avito/android/extended_profile/converter/")
-    },
+    // Only the concrete converter implementation — not an abstract declaration with
+    // the same signature (which has no body to patch).
+    custom = { method, _ -> method.implementation != null },
 )
 
 /**
@@ -69,10 +69,12 @@ object AdvertDetailsToolbarMenuFingerprint : Fingerprint(
  * only `serp/adapter` method with this shape.
  */
 object SerpElementsConverterFingerprint : Fingerprint(
+    definingClass = "Lcom/avito/android/serp/adapter/",
     returnType = "Ljava/util/ArrayList;",
-    custom = { method, classDef ->
+    // Variable-arity shape (param count differs across releases), so the parameter
+    // constraints stay here rather than in the fixed-arity `parameters` field.
+    custom = { method, _ ->
         method.implementation != null &&
-            classDef.type.startsWith("Lcom/avito/android/serp/adapter/") &&
             method.parameterTypes.map { it.toString() }.let { params ->
                 params.size >= 5 &&
                     params[0] == LIST &&

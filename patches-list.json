@@ -1,6 +1,55 @@
 {
-  "version": "1.4.0",
+  "version": "1.5.0-dev.4",
   "patches": [
+    {
+      "name": "AMOLED dark theme",
+      "description": "Makes the dark theme fully pure-black (AMOLED): backgrounds and surfaces/cards/bars become #000000. Dark mode only; borders, dividers and branded fills are kept for readability.",
+      "default": false,
+      "dependencies": [],
+      "compatiblePackages": [
+        {
+          "packageName": "com.avito.android",
+          "name": "Avito",
+          "description": null,
+          "apkFileType": "APK",
+          "appIconColor": "#00AAFF",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "227.0",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
+              "version": "226.5",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
+              "version": "225.5",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
+              "version": "224.6",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
+              "version": null,
+              "isExperimental": true,
+              "minSdk": 28,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
     {
       "name": "Block listings",
       "description": "Hides Avito offers from blacklisted adverts or sellers and adds a blacklist manager (import/export compatible with the Ave Blacklist extension).",
@@ -44,7 +93,7 @@
             },
             {
               "version": null,
-              "isExperimental": false,
+              "isExperimental": true,
               "minSdk": 28,
               "description": null
             }
@@ -198,7 +247,7 @@
             },
             {
               "version": null,
-              "isExperimental": false,
+              "isExperimental": true,
               "minSdk": 28,
               "description": null
             }
@@ -249,7 +298,7 @@
             },
             {
               "version": null,
-              "isExperimental": false,
+              "isExperimental": true,
               "minSdk": 28,
               "description": null
             }
@@ -300,7 +349,7 @@
             },
             {
               "version": null,
-              "isExperimental": false,
+              "isExperimental": true,
               "minSdk": 28,
               "description": null
             }
@@ -492,7 +541,7 @@
             },
             {
               "version": null,
-              "isExperimental": false,
+              "isExperimental": true,
               "minSdk": 28,
               "description": null
             }
@@ -535,7 +584,7 @@
     },
     {
       "name": "UI tweaks",
-      "description": "Optional interface tweaks, each toggleable in Настройки Morphe: single-row home categories, hide the \"Подписки\" tab in Избранное, hide installments (Рассрочка) and the \"Спросите у продавца\" block on offers, and hide the Avi assistant tab in the bottom navigation.",
+      "description": "Optional interface tweaks, each toggleable in Настройки Morphe: single-row home categories, hide the \"Подписки\" tab in Избранное, hide installments (Рассрочка) and the \"Спросите у продавца\" block on offers, expand descriptions by default (no \"Читать далее\"), and hide the Avi assistant tab in the bottom navigation.",
       "default": false,
       "dependencies": [
         "BytecodePatch"
@@ -575,7 +624,7 @@
             },
             {
               "version": null,
-              "isExperimental": false,
+              "isExperimental": true,
               "minSdk": 28,
               "description": null
             }

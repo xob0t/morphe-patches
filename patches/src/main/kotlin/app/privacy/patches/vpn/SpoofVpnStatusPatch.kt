@@ -7,12 +7,11 @@ import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
+import app.shared.*
 import com.android.tools.smali.dexlib2.iface.instruction.NarrowLiteralInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
-import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.RegisterRangeInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
-import com.android.tools.smali.dexlib2.iface.reference.StringReference
 
 private const val TRANSPORT_VPN = 4
 private const val NET_CAPABILITY_NOT_VPN = 15
@@ -24,12 +23,6 @@ private const val NETWORK_REQUEST = "Landroid/net/NetworkRequest;"
 private const val NETWORK_CALLBACK = "Landroid/net/ConnectivityManager\$NetworkCallback;"
 private const val LINK_PROPERTIES = "Landroid/net/LinkProperties;"
 private const val NETWORK_INTERFACE = "Ljava/net/NetworkInterface;"
-
-private fun Instruction.methodReferenceOrNull(): MethodReference? =
-    (this as? ReferenceInstruction)?.reference as? MethodReference
-
-private fun Instruction.stringReferenceOrNull(): String? =
-    ((this as? ReferenceInstruction)?.reference as? StringReference)?.string
 
 private fun MethodReference.isNetworkCapabilitiesHasTransport() =
     definingClass == NETWORK_CAPABILITIES &&

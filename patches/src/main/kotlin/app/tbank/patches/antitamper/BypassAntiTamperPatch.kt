@@ -6,10 +6,9 @@ import app.morphe.patcher.patch.bytecodePatch
 import app.tbank.patches.shared.Constants.COMPATIBILITY_TBANK
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
+import app.shared.*
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
-import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
-import com.android.tools.smali.dexlib2.iface.reference.StringReference
 
 private const val RASP_EXECUTOR = "Lcom/t/core/miaf/ndk/Executor;"
 private const val SYSTEM = "Ljava/lang/System;"
@@ -30,12 +29,6 @@ private val TAMPER_FLAG_NAMES = setOf(
 )
 
 // Helpers.
-
-private fun Instruction.methodReferenceOrNull(): MethodReference? =
-    (this as? ReferenceInstruction)?.reference as? MethodReference
-
-private fun Instruction.stringReferenceOrNull(): String? =
-    ((this as? ReferenceInstruction)?.reference as? StringReference)?.string
 
 private fun MethodReference.isRaspExec() =
     definingClass == RASP_EXECUTOR &&
