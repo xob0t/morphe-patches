@@ -3,6 +3,7 @@ package app.tbank.patches.ads
 import app.morphe.patcher.patch.resourcePatch
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
+import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.tbank.patches.shared.Constants.COMPATIBILITY_TBANK
 import org.w3c.dom.Element
@@ -158,7 +159,9 @@ private val removeTBankAdResourcesPatch = resourcePatch {
         var collapsedStoryAppBars = 0
         var hiddenOfferViews = 0
         var hiddenProductViews = 0
-        var missingLayouts = 0
+        // Every ad layout is mandatory: a missing one means the app changed and the
+        // patch is stale. Older builds lacking a surface are out of scope.
+        val missing = mutableListOf<String>()
 
         storyLayoutFiles.forEach { path ->
             try {
@@ -181,7 +184,7 @@ private val removeTBankAdResourcesPatch = resourcePatch {
                         }
                 }
             } catch (_: FileNotFoundException) {
-                missingLayouts++
+                missing += path
             }
         }
 
@@ -196,7 +199,7 @@ private val removeTBankAdResourcesPatch = resourcePatch {
                         }
                 }
             } catch (_: FileNotFoundException) {
-                missingLayouts++
+                missing += path
             }
         }
 
@@ -207,16 +210,22 @@ private val removeTBankAdResourcesPatch = resourcePatch {
                     hiddenProductViews++
                 }
             } catch (_: FileNotFoundException) {
-                missingLayouts++
+                missing += path
             }
+        }
+
+        if (missing.isNotEmpty()) {
+            throw PatchException(
+                "Remove TBank ads: ${missing.size} expected ad layout(s) not found — " +
+                    "the app layout changed, update RemoveTBankAdsPatch: ${missing.joinToString(", ")}",
+            )
         }
 
         println(
             "Remove TBank ads: hid $hiddenStoryViews story views, " +
                 "collapsed $collapsedStoryAppBars story app bars, " +
                 "hid $hiddenOfferViews offer views, " +
-                "hid $hiddenProductViews product stream views, " +
-                "skipped $missingLayouts missing layouts.",
+                "hid $hiddenProductViews product stream views (all required surfaces present).",
         )
     }
 }

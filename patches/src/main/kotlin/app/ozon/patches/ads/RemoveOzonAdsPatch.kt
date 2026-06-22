@@ -197,22 +197,20 @@ private val removeOzonAdResourcesPatch = resourcePatch {
     compatibleWith(COMPATIBILITY_OZON)
 
     execute {
-        var hiddenObjectGridOneLayouts = 0
-        var missingLayouts = 0
-
+        // The ad layout is mandatory: if it's gone the app changed and the patch is
+        // stale. Older builds lacking it are out of scope (we only patch current).
         try {
             document(OZON_OBJECT_GRID_ONE_LAYOUT).use { document ->
                 document.documentElement.hideWidgetRoot()
-                hiddenObjectGridOneLayouts++
             }
         } catch (_: FileNotFoundException) {
-            missingLayouts++
+            throw PatchException(
+                "Remove Ozon ads: expected ad layout not found ($OZON_OBJECT_GRID_ONE_LAYOUT) — " +
+                    "the app layout changed, update RemoveOzonAdsPatch.",
+            )
         }
 
-        println(
-            "Remove Ozon ads resources: hid $hiddenObjectGridOneLayouts object grid1 layouts, " +
-                "skipped $missingLayouts missing layouts.",
-        )
+        println("Remove Ozon ads resources: hid object grid1 layout (required surface present).")
     }
 }
 
