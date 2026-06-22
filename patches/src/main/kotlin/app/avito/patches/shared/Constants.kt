@@ -29,8 +29,12 @@ internal object Constants {
                 version = "224.6",
                 minSdk = 28,
             ),
+            // Unlisted versions are best-effort: the ad patches require ad surfaces
+            // that older builds (≤ ~213) lack, so they hard-fail there. Floor verified
+            // at 221; explicit targets above are all known-good.
             AppTarget(
                 version = null,
+                isExperimental = true,
                 minSdk = 28,
             ),
         ),
