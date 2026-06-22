@@ -1,3 +1,9 @@
+## [1.5.0-dev.4](https://github.com/xob0t/morphe-patches/compare/v1.5.0-dev.3...v1.5.0-dev.4) (2026-06-22)
+
+### ✨ New Features
+
+* **ads:** make ad surfaces mandatory so version drift fails the patch ([#20](https://github.com/xob0t/morphe-patches/issues/20)) ([c13b2a8](https://github.com/xob0t/morphe-patches/commit/c13b2a831cf23b53d768f6953943b9d39cc22908))
+
 ## [1.5.0-dev.3](https://github.com/xob0t/morphe-patches/compare/v1.5.0-dev.2...v1.5.0-dev.3) (2026-06-22)
 
 ### ✨ New Features
