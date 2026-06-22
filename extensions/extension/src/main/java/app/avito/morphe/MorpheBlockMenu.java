@@ -277,14 +277,14 @@ public final class MorpheBlockMenu {
             item.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
             Drawable icon = drawableByName(ctx, iconName);
             if (icon != null) {
-                item.setIcon(applyTint(icon, toggle.blocked()));
+                item.setIcon(applyTint(icon, toggle.blocked(), iconColor(ctx)));
             }
             item.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
                 @Override
                 public boolean onMenuItemClick(final MenuItem mi) {
                     toggle.toggle();
                     boolean nowBlocked = toggle.blocked();
-                    applyTint(mi.getIcon(), nowBlocked);
+                    mi.setIcon(applyTint(mi.getIcon(), nowBlocked, iconColor(ctx)));
                     if (nowBlocked) {
                         // Offer one-tap undo of the block (no grid tiles on the
                         // detail page, so just re-toggle and recolour the icon).
@@ -292,7 +292,7 @@ public final class MorpheBlockMenu {
                             @Override
                             public void run() {
                                 toggle.toggle();
-                                applyTint(mi.getIcon(), toggle.blocked());
+                                mi.setIcon(applyTint(mi.getIcon(), toggle.blocked(), iconColor(ctx)));
                             }
                         });
                     } else {
@@ -305,22 +305,54 @@ public final class MorpheBlockMenu {
         }
     }
 
-    /** Blocked → red, not blocked → white (matching Avito's other toolbar icons). */
-    private static Drawable applyTint(Drawable icon, boolean blocked) {
+    /**
+     * Blocked → red, not blocked → {@code unblockedColor}. The toolbar icon sits on the
+     * themed app bar (white on the light theme), so it passes an adaptive colour
+     * ({@link #iconColor}); the dark toast/undo popups pass white.
+     */
+    private static Drawable applyTint(Drawable icon, boolean blocked, int unblockedColor) {
         if (icon == null) {
             return null;
         }
         try {
-            int color = blocked ? 0xFFFF4053 : 0xFFFFFFFF;
+            int color = blocked ? 0xFFFF4053 : unblockedColor;
             Drawable d = icon.mutate();
             // SRC_IN forces a solid recolour even on multi-colour assets, so both the
-            // synthesized glyph and Avito's own icons render as a flat white/red shape.
+            // synthesized glyph and Avito's own icons render as a flat single-colour shape.
             d.setColorFilter(new android.graphics.PorterDuffColorFilter(
                     color, android.graphics.PorterDuff.Mode.SRC_IN));
             return d;
         } catch (Throwable ignored) {
             return icon;
         }
+    }
+
+    /**
+     * Adaptive colour for the un-blocked toolbar icon: Avito's primary content colour
+     * ("black" attr — dark on the light theme, light on the dark theme), so the icon
+     * stays visible on both. (A hardcoded white vanished on the white theme.) Falls
+     * back to the platform primary text colour, then white as a last resort.
+     */
+    private static int iconColor(Context ctx) {
+        try {
+            int id = ctx.getResources().getIdentifier("black", "attr", ctx.getPackageName());
+            if (id != 0) {
+                android.util.TypedValue tv = new android.util.TypedValue();
+                if (ctx.getTheme().resolveAttribute(id, tv, true)) {
+                    return tv.resourceId != 0
+                            ? ctx.getResources().getColor(tv.resourceId, ctx.getTheme())
+                            : tv.data;
+                }
+            }
+            android.util.TypedValue tv = new android.util.TypedValue();
+            if (ctx.getTheme().resolveAttribute(android.R.attr.textColorPrimary, tv, true)) {
+                return tv.resourceId != 0
+                        ? ctx.getResources().getColor(tv.resourceId, ctx.getTheme())
+                        : tv.data;
+            }
+        } catch (Throwable ignored) {
+        }
+        return 0xFFFFFFFF;
     }
 
     private static Drawable drawableByName(Context ctx, String name) {
@@ -442,7 +474,7 @@ public final class MorpheBlockMenu {
             Drawable icon = drawableByName(ctx, iconName);
             if (icon != null) {
                 android.widget.ImageView iv = new android.widget.ImageView(ctx);
-                iv.setImageDrawable(applyTint(icon, blocked));
+                iv.setImageDrawable(applyTint(icon, blocked, 0xFFFFFFFF));
                 int size = (int) (20 * d);
                 android.widget.LinearLayout.LayoutParams ip =
                         new android.widget.LinearLayout.LayoutParams(size, size);
@@ -517,7 +549,7 @@ public final class MorpheBlockMenu {
             Drawable icon = drawableByName(ctx, iconName);
             if (icon != null) {
                 android.widget.ImageView iv = new android.widget.ImageView(ctx);
-                iv.setImageDrawable(applyTint(icon, blocked));
+                iv.setImageDrawable(applyTint(icon, blocked, 0xFFFFFFFF));
                 int size = (int) (20 * d);
                 android.widget.LinearLayout.LayoutParams ip =
                         new android.widget.LinearLayout.LayoutParams(size, size);
