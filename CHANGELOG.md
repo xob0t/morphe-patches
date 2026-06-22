@@ -1,3 +1,9 @@
+## [1.5.0-dev.3](https://github.com/xob0t/morphe-patches/compare/v1.5.0-dev.2...v1.5.0-dev.3) (2026-06-22)
+
+### ✨ New Features
+
+* **avito:** AMOLED pure-black dark theme patch ([#19](https://github.com/xob0t/morphe-patches/issues/19)) ([d9e375c](https://github.com/xob0t/morphe-patches/commit/d9e375cc8ba87d8f010d2d2e5a5e5ef880af5184)), closes [#000000](https://github.com/xob0t/morphe-patches/issues/000000) [#0a0a0](https://github.com/xob0t/morphe-patches/issues/0a0a0) [#191919](https://github.com/xob0t/morphe-patches/issues/191919) [#1f1e1](https://github.com/xob0t/morphe-patches/issues/1f1e1) [d/#262624](https://github.com/d/morphe-patches/issues/262624) [#252525](https://github.com/xob0t/morphe-patches/issues/252525)
+
 ## [1.5.0-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.5.0-dev.1...v1.5.0-dev.2) (2026-06-21)
 
 ### 🐛 Bug Fixes
