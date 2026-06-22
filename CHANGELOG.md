@@ -1,3 +1,9 @@
+## [1.5.1-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.5.0...v1.5.1-dev.1) (2026-06-22)
+
+### 🐛 Bug Fixes
+
+* **avito:** hide-subscriptions-tab toggle works on 226.5 + needs restart ([10afb9f](https://github.com/xob0t/morphe-patches/commit/10afb9fbd8d713304920a79e6af5ce69a7e064f2))
+
 ## [1.5.0](https://github.com/xob0t/morphe-patches/compare/v1.4.0...v1.5.0) (2026-06-22)
 
 ### 🐛 Bug Fixes
