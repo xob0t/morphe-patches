@@ -1,3 +1,9 @@
+## [1.5.1-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.5.1-dev.1...v1.5.1-dev.2) (2026-06-22)
+
+### 🐛 Bug Fixes
+
+* **avito:** block toolbar icons readable on the light theme ([#23](https://github.com/xob0t/morphe-patches/issues/23)) ([ad2c8c7](https://github.com/xob0t/morphe-patches/commit/ad2c8c7eacdb291384270a1aa411e3b2301e5934))
+
 ## [1.5.1-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.5.0...v1.5.1-dev.1) (2026-06-22)
 
 ### 🐛 Bug Fixes
