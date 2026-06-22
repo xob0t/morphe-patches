@@ -2,6 +2,7 @@ package app.avito.patches.ui
 
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.fieldAccess
+import app.morphe.patcher.string
 
 /**
  * Matches the Favorites presenter method that consumes the assembled tab list and
@@ -22,6 +23,23 @@ object FavoritesTabsConsumerFingerprint : Fingerprint(
     // of that (non-obfuscated) type rather than scanning every instruction's reference.
     filters = listOf(
         fieldAccess(type = "Lcom/avito/android/user_favorites/UserFavoritesTabsRenderMode;"),
+    ),
+)
+
+/**
+ * Cross-version fallback for builds without the 227 `UserFavoritesTabsRenderMode`
+ * consumer (e.g. 226.5). Matches the `UserFavoritesChanges(tabs, hasP2PAccess)` data
+ * class by its non-obfuscated Kotlin `toString` marker — the one place every favorites
+ * builder funnels the assembled `List<FavoritesTab>` through. The patch then hooks that
+ * class's `(List, boolean)` constructor to drop the subscriptions tab, so it works
+ * regardless of which builder path is active.
+ */
+object FavoritesChangesFingerprint : Fingerprint(
+    definingClass = "Lcom/avito/android/user_favorites/",
+    returnType = "Ljava/lang/String;",
+    parameters = emptyList(),
+    filters = listOf(
+        string("UserFavoritesChanges(tabs="),
     ),
 )
 
