@@ -3,6 +3,7 @@ package app.avito.patches.ads
 import app.avito.patches.shared.Constants.COMPATIBILITY_AVITO
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
+import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
 import app.shared.childrenNamed
@@ -161,8 +162,13 @@ private val removeAdResourcesPatch = resourcePatch {
             }
         }
 
+        // Every ad/banner surface is mandatory: if an expected layout (or the ad
+        // element inside it) is gone, the app changed and the patch is stale, so we
+        // fail loudly instead of silently shipping ads. Missing surfaces are collected
+        // and reported together. (Older builds that lack some surfaces are out of
+        // scope — we only patch current releases.)
+        val missing = mutableListOf<String>()
         var hiddenLayouts = 0
-        var missingLayouts = 0
 
         (hiddenRewardLayouts + hiddenAdLayouts).forEach { path ->
             try {
@@ -171,7 +177,7 @@ private val removeAdResourcesPatch = resourcePatch {
                 }
                 hiddenLayouts++
             } catch (_: FileNotFoundException) {
-                missingLayouts++
+                missing += path
             }
         }
 
@@ -180,35 +186,49 @@ private val removeAdResourcesPatch = resourcePatch {
             try {
                 document(path).use { document ->
                     val root = document.documentElement
-                    if (root.nodeName == "merge") {
-                        root.childrenNamed(
+                    val hidden = if (root.nodeName == "merge") {
+                        val banners = root.childrenNamed(
                             "androidx.constraintlayout.widget.ConstraintLayout",
                             "com.google.android.material.appbar.CollapsingToolbarLayout",
-                        ).forEach(Element::hideView)
+                        )
+                        banners.forEach(Element::hideView)
+                        banners.isNotEmpty()
                     } else {
                         root.hideView()
+                        true
                     }
+                    if (hidden) hiddenHomeBannerLayoutsCount++ else missing += "$path (no banner view)"
                 }
-                hiddenHomeBannerLayoutsCount++
             } catch (_: FileNotFoundException) {
-                missingLayouts++
+                missing += path
             }
         }
 
         try {
             document("res/layout/bx_content_fragment.xml").use { document ->
-                document.documentElement.childrenNamed("FrameLayout")
+                val shadows = document.documentElement.childrenNamed("FrameLayout")
                     .filter { it.getAttribute("android:id") == "@id/hero_banner_shadow" }
-                    .forEach(Element::hideView)
+                shadows.forEach(Element::hideView)
+                if (shadows.isNotEmpty()) {
+                    hiddenHomeBannerLayoutsCount++
+                } else {
+                    missing += "res/layout/bx_content_fragment.xml (@id/hero_banner_shadow)"
+                }
             }
-            hiddenHomeBannerLayoutsCount++
         } catch (_: FileNotFoundException) {
-            missingLayouts++
+            missing += "res/layout/bx_content_fragment.xml"
+        }
+
+        if (missing.isNotEmpty()) {
+            throw PatchException(
+                "Remove ads: ${missing.size} expected ad/banner surface(s) not found — " +
+                    "the app layout changed, update RemoveAdsPatch: ${missing.joinToString(", ")}",
+            )
         }
 
         println(
             "Remove ads: hid $hiddenLayouts ad/reward layouts and " +
-                "$hiddenHomeBannerLayoutsCount home banner layouts, skipped $missingLayouts missing layouts.",
+                "$hiddenHomeBannerLayoutsCount home banner layouts (all required surfaces present).",
         )
     }
 }
@@ -223,35 +243,28 @@ val removeAdsPatch = bytecodePatch(
     dependsOn(removeAdResourcesPatch)
 
     execute {
-        // Each ad surface is patched independently and tolerates absence: ad
-        // entry points come and go across releases (e.g. the hero banner widget
-        // doesn't exist on older builds), so a missing fingerprint skips that
-        // surface instead of aborting the whole patch.
-        var bannerSurfaces = 0
+        // Every ad surface is mandatory: ad entry points are core to the app, so a
+        // fingerprint that no longer resolves means the app changed and the patch is
+        // stale — fail loudly instead of silently shipping ads. (Older builds missing
+        // a surface are out of scope; we only patch current releases.)
 
         // Home hero banner widget: null the converter so the widget never builds.
-        HeroBannerWidgetConverterFingerprint.methodOrNull?.let { method ->
-            method.addInstructions(
-                0,
-                """
-                    const/4 v0, 0x0
-                    return-object v0
-                """,
-            )
-            bannerSurfaces++
-        }
+        HeroBannerWidgetConverterFingerprint.method.addInstructions(
+            0,
+            """
+                const/4 v0, 0x0
+                return-object v0
+            """,
+        )
 
         // Hero banner toolbar config: return null so no banner toolbar is shown.
-        HeroBannerToolbarConfigFingerprint.methodOrNull?.let { method ->
-            method.addInstructions(
-                0,
-                """
-                    const/4 p0, 0x0
-                    return-object p0
-                """,
-            )
-            bannerSurfaces++
-        }
+        HeroBannerToolbarConfigFingerprint.method.addInstructions(
+            0,
+            """
+                const/4 p0, 0x0
+                return-object p0
+            """,
+        )
 
         var galleryTeaserConvertersPatched = 0
         classDefForEach { classDef ->
@@ -269,11 +282,16 @@ val removeAdsPatch = bytecodePatch(
                 )
             galleryTeaserConvertersPatched++
         }
+        if (galleryTeaserConvertersPatched == 0) {
+            throw PatchException(
+                "Remove ads: no gallery Beduin teaser converter found — the converter " +
+                    "signature changed, update isCarouselGalleryConverter() for this version.",
+            )
+        }
 
         // Commercial banner loader: emit an Rx error instead of loading a banner.
-        // Skip the surface if the loader (or its Rx error factory) isn't present.
-        val commercialBannerLoaderMethod = CommercialBannerLoaderErrorFingerprint.methodOrNull
-        val rxErrorFactory = commercialBannerLoaderMethod?.instructionsOrNull
+        val commercialBannerLoaderMethod = CommercialBannerLoaderErrorFingerprint.method
+        val rxErrorFactory = commercialBannerLoaderMethod.instructionsOrNull
             ?.firstNotNullOfOrNull { instruction ->
                 if (instruction.opcode !in setOf(Opcode.INVOKE_STATIC, Opcode.INVOKE_STATIC_RANGE)) {
                     return@firstNotNullOfOrNull null
@@ -282,23 +300,22 @@ val removeAdsPatch = bytecodePatch(
                 instruction.methodReferenceOrNull()
                     ?.takeIf { it.isRxThrowableObservableFactory() }
             }
-        if (commercialBannerLoaderMethod != null && rxErrorFactory != null) {
-            commercialBannerLoaderMethod.addInstructions(
-                0,
-                """
-                    new-instance v0, Ljava/lang/RuntimeException;
-                    const-string v1, "Avito ads disabled"
-                    invoke-direct {v0, v1}, Ljava/lang/RuntimeException;-><init>(Ljava/lang/String;)V
-                    invoke-static {v0}, ${rxErrorFactory.definingClass}->${rxErrorFactory.name}(Ljava/lang/Throwable;)${rxErrorFactory.returnType}
-                    move-result-object v0
-                    return-object v0
-                """,
+            ?: throw PatchException(
+                "Remove ads: commercial banner loader matched but its Rx error factory " +
+                    "was not found — update CommercialBannerLoaderErrorFingerprint for this version.",
             )
-            bannerSurfaces++
-        } else {
-            println("Remove ads: commercial banner loader not present on this build; skipped")
-        }
+        commercialBannerLoaderMethod.addInstructions(
+            0,
+            """
+                new-instance v0, Ljava/lang/RuntimeException;
+                const-string v1, "Avito ads disabled"
+                invoke-direct {v0, v1}, Ljava/lang/RuntimeException;-><init>(Ljava/lang/String;)V
+                invoke-static {v0}, ${rxErrorFactory.definingClass}->${rxErrorFactory.name}(Ljava/lang/Throwable;)${rxErrorFactory.returnType}
+                move-result-object v0
+                return-object v0
+            """,
+        )
 
-        println("Remove ads: patched $bannerSurfaces banner surface(s) and $galleryTeaserConvertersPatched gallery Beduin teaser converter(s).")
+        println("Remove ads: patched 3 banner surface(s) and $galleryTeaserConvertersPatched gallery Beduin teaser converter(s) (all required).")
     }
 }
