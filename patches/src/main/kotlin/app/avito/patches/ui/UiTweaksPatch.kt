@@ -105,33 +105,59 @@ val uiTweaksPatch = bytecodePatch(
         }
 
         // --- Hide the "Подписки" (subscribed sellers) tab in Избранное ----------
-        // Replace the tab list at the entry of the presenter method that consumes
-        // it and builds the tab strip (the active path; the obvious builder A.a is
-        // bypassed by a feature flag). withoutSubscriptionsTab returns a copy with
-        // the SellersTab dropped when the toggle is on. Re-evaluated each time the
-        // Favorites screen opens, so no restart is required.
+        // Drop the SellersTab from the favorites tab list. Two entry points, tried in
+        // order so the patch spans app versions:
+        //   * 227+: the presenter consumer that reads UserFavoritesTabsRenderMode (the
+        //     active path; the obvious builder A.a is bypassed by a feature flag).
+        //   * older builds with no render-mode enum (e.g. 226.5): the
+        //     UserFavoritesChanges(List, boolean) data-class constructor that every
+        //     favorites builder funnels the assembled tab list through.
+        // withoutSubscriptionsTab returns a filtered copy when the toggle is on. The
+        // injected filter is the same in both cases — p1 is the List<FavoritesTab>.
+        // Restart-required: the assembled tab list is consumed once and the tab strip
+        // is diffed, so it won't rebind on a live settings round-trip.
+        val filterTabListInstructions = """
+            invoke-static/range { p1 .. p1 }, $MORPHE_SETTINGS_CLASS->withoutSubscriptionsTab(Ljava/util/List;)Ljava/util/List;
+            move-result-object p1
+        """
+        fun registerSubscriptionsTabToggle() = MorpheSettingsRegistry.addSwitch(
+            key = "avito_hide_subscriptions_tab",
+            title = "Скрыть вкладку «Подписки»",
+            summary = "Убрать вкладку подписок на экране Избранное",
+            default = true,
+            restartRequired = true,
+        )
+
         val tabConsumer = FavoritesTabsConsumerFingerprint.methodOrNull
-        if (tabConsumer == null) {
-            println("UI tweaks: Favorites tab consumer not found; subscriptions tab skipped")
+        val changesCtor = if (tabConsumer == null && FavoritesChangesFingerprint.methodOrNull != null) {
+            mutableClassDefBy(FavoritesChangesFingerprint.originalClassDef).methods.singleOrNull {
+                it.name == "<init>" &&
+                    it.parameterTypes.map { p -> p.toString() } == listOf("Ljava/util/List;", "Z")
+            }
         } else {
-            // p1 is the List<FavoritesTab>; swap it for the filtered copy.
-            tabConsumer.addInstructions(
-                0,
-                """
-                    invoke-static/range { p1 .. p1 }, $MORPHE_SETTINGS_CLASS->withoutSubscriptionsTab(Ljava/util/List;)Ljava/util/List;
-                    move-result-object p1
-                """,
-            )
-            MorpheSettingsRegistry.addSwitch(
-                key = "avito_hide_subscriptions_tab",
-                title = "Скрыть вкладку «Подписки»",
-                summary = "Убрать вкладку подписок на экране Избранное",
-                default = true,
-            )
-            println(
-                "UI tweaks: gated the Favorites subscriptions tab in " +
-                    "${FavoritesTabsConsumerFingerprint.originalClassDef.type}->${tabConsumer.name}",
-            )
+            null
+        }
+
+        when {
+            tabConsumer != null -> {
+                tabConsumer.addInstructions(0, filterTabListInstructions)
+                registerSubscriptionsTabToggle()
+                println(
+                    "UI tweaks: gated the Favorites subscriptions tab in " +
+                        "${FavoritesTabsConsumerFingerprint.originalClassDef.type}->${tabConsumer.name}",
+                )
+            }
+
+            changesCtor != null -> {
+                changesCtor.addInstructions(0, filterTabListInstructions)
+                registerSubscriptionsTabToggle()
+                println(
+                    "UI tweaks: gated the Favorites subscriptions tab via UserFavoritesChanges in " +
+                        "${FavoritesChangesFingerprint.originalClassDef.type}",
+                )
+            }
+
+            else -> println("UI tweaks: Favorites tab consumer not found; subscriptions tab skipped")
         }
 
         // --- Hide offer-page blocks by nulling their AdvertDetails source -------
