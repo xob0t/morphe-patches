@@ -1,5 +1,5 @@
 {
-  "version": "1.5.1",
+  "version": "1.6.0",
   "patches": [
     {
       "name": "AMOLED dark theme",
@@ -53,7 +53,7 @@
     {
       "name": "Block listings",
       "description": "Hides Avito offers from blacklisted adverts or sellers and adds a blacklist manager (import/export compatible with the Ave Blacklist extension).",
-      "default": false,
+      "default": true,
       "dependencies": [
         "BytecodePatch",
         "ResourcePatch"
@@ -585,7 +585,7 @@
     {
       "name": "UI tweaks",
       "description": "Optional interface tweaks, each toggleable in Настройки Morphe: single-row home categories, hide the \"Подписки\" tab in Избранное, hide installments (Рассрочка) and the \"Спросите у продавца\" block on offers, expand descriptions by default (no \"Читать далее\"), and hide the Avi assistant tab in the bottom navigation.",
-      "default": false,
+      "default": true,
       "dependencies": [
         "BytecodePatch"
       ],
