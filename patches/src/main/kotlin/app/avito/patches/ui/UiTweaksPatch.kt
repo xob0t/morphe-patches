@@ -59,7 +59,7 @@ val uiTweaksPatch = bytecodePatch(
         "categories, hide the \"Подписки\" tab in Избранное, hide installments (Рассрочка) and the " +
         "\"Спросите у продавца\" block on offers, expand descriptions by default (no \"Читать далее\"), " +
         "and hide the Avi assistant tab in the bottom navigation.",
-    default = false,
+    default = true,
 ) {
     compatibleWith(COMPATIBILITY_AVITO)
     dependsOn(morpheSettingsPatch)
