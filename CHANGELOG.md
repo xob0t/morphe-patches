@@ -1,3 +1,9 @@
+## [1.6.0-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.5.1...v1.6.0-dev.1) (2026-06-23)
+
+### ✨ New Features
+
+* **avito:** enable Block listings and UI tweaks by default ([#25](https://github.com/xob0t/morphe-patches/issues/25)) ([6ca33dd](https://github.com/xob0t/morphe-patches/commit/6ca33dd5fb624f9a10a9a0ce2e93be90695a0b97))
+
 ## [1.5.1](https://github.com/xob0t/morphe-patches/compare/v1.5.0...v1.5.1) (2026-06-22)
 
 ### 🐛 Bug Fixes
