@@ -62,7 +62,7 @@ val blockListingsPatch = bytecodePatch(
     name = "Block listings",
     description = "Hides Avito offers from blacklisted adverts or sellers and adds a blacklist manager " +
         "(import/export compatible with the Ave Blacklist extension).",
-    default = false,
+    default = true,
 ) {
     compatibleWith(COMPATIBILITY_AVITO)
     // morpheSettingsPatch provides the shared extension + the Settings host this
