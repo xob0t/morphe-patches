@@ -10,10 +10,11 @@ import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.smali.ExternalLabel
 import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.Method
-import com.android.tools.smali.dexlib2.iface.instruction.Instruction
-import app.shared.*
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.reference.FieldReference
+import app.shared.*
 
 private const val NAVIGATION_TAB = "Lcom/avito/android/bottom_navigation/NavigationTab;"
 private const val BOTTOM_NAVIGATION_SPACE = "Lcom/avito/android/bottom_navigation/space/BottomNavigationSpace;"
@@ -21,9 +22,12 @@ private const val MORPHE_SETTINGS_CLASS = "Lapp/avito/morphe/MorpheSettings;"
 private const val ADVERT_DETAILS = "Lcom/avito/android/remote/model/AdvertDetails;"
 private const val CREDIT_BROKER_PRODUCT = "Lcom/avito/android/remote/model/credit_broker/CreditBrokerProduct;"
 private const val ICE_BREAKERS = "Lcom/avito/android/remote/model/IceBreakers;"
-private const val VISUAL_RUBRICATOR_ELEMENT =
-    "Lcom/avito/android/visual_rubricator/element/VisualRubricatorWidgetElementItemImpl;"
 private const val INTEGER = "Ljava/lang/Integer;"
+private const val FAVORITES_TABS_CONTROL_MAPPER = "Lcom/avito/android/user_favorites/tabs_control/b;"
+private const val FAVORITES_TABS_CONTROL_STATE = "Lcom/avito/android/user_favorites/tabs_control/c;"
+private const val FAVORITES_TAB_MODEL = "Lcom/avito/android/user_favorites/adapter/a;"
+private const val VISUAL_RUBRICATOR_ITEM_MARKER = "VisualRubricatorWidgetElementItemImpl(stringId="
+private const val ROW_LINE_MARKER = ", rowLine="
 
 private val AVI_TAB_NAMES = setOf("AI_ASSISTANT", "AI_ASSISTANT_SELLER")
 
@@ -35,6 +39,60 @@ private fun Method.hasFieldReference(fields: Set<String>): Boolean =
         val reference = instruction.fieldReferenceOrNull() ?: return@any false
         reference.definingClass == NAVIGATION_TAB && reference.name in fields
     } == true
+
+private fun FieldReference.sameFieldAs(other: FieldReference) =
+    definingClass == other.definingClass && name == other.name && type == other.type
+
+private fun Method.hasString(value: String) =
+    instructionsOrNull?.any { instruction -> instruction.stringReferenceOrNull() == value } == true
+
+private fun Method.fieldAfterString(value: String, definingClass: String, type: String): FieldReference? {
+    val instructions = instructionsOrNull?.toList() ?: return null
+    val markerIndex = instructions.indexOfFirst { it.stringReferenceOrNull() == value }
+    if (markerIndex < 0) return null
+
+    return instructions
+        .drop(markerIndex + 1)
+        .firstNotNullOfOrNull { instruction ->
+            instruction.fieldReferenceOrNull()
+                ?.takeIf { field -> field.definingClass == definingClass && field.type == type }
+        }
+}
+
+private fun Method.getterForField(field: FieldReference) =
+    parameterTypes.isEmpty() &&
+        returnType == field.type &&
+        implementation != null &&
+        instructionsOrNull?.any { instruction ->
+            instruction.fieldReferenceOrNull()?.sameFieldAs(field) == true
+        } == true
+
+private fun Method.favoritesTabsControlFilterTarget(): Pair<Int, Int>? {
+    val instructions = instructionsOrNull?.toList() ?: return null
+    val mapperIndex = instructions.indexOfFirst { instruction ->
+        val reference = instruction.methodReferenceOrNull() ?: return@indexOfFirst false
+        instruction.opcode in setOf(Opcode.INVOKE_STATIC, Opcode.INVOKE_STATIC_RANGE) &&
+            reference.definingClass == FAVORITES_TABS_CONTROL_MAPPER &&
+            reference.returnType == FAVORITES_TABS_CONTROL_STATE &&
+            reference.parameterTypes.map { it.toString() } == listOf("I", "Ljava/util/List;")
+    }
+    if (mapperIndex < 0) return null
+
+    val moveResult = instructions.getOrNull(mapperIndex + 1) as? OneRegisterInstruction ?: return null
+    if (moveResult.opcode != Opcode.MOVE_RESULT_OBJECT) return null
+
+    return mapperIndex + 2 to moveResult.registerA
+}
+
+private fun Method.isFavoritesTabViewBind() =
+    returnType == "V" &&
+        parameterTypes.map { it.toString() } == listOf(FAVORITES_TAB_MODEL) &&
+        implementation != null
+
+private fun Method.isFavoritesTabTitleBind() =
+    returnType == "V" &&
+        parameterTypes.map { it.toString() } == listOf("Ljava/lang/String;", "Ljava/lang/String;") &&
+        implementation != null
 
 /**
  * A collection of optional interface tweaks, each gated by its own toggle in
@@ -70,9 +128,29 @@ val uiTweaksPatch = bytecodePatch(
         // by its getRowLine(); when the toggle is on, make every tile report row 1
         // so the second row collapses and all categories land in one scrollable row.
         // The class/method keep their real names across 213–227.
-        val rubricatorElement = classDefByOrNull(VISUAL_RUBRICATOR_ELEMENT)
-        val getRowLine = rubricatorElement?.methods?.firstOrNull {
-            it.name == "getRowLine" && it.parameterTypes.isEmpty() && it.returnType == INTEGER
+        var rubricatorElement: ClassDef? = null
+        classDefForEach { classDef ->
+            if (rubricatorElement != null) return@classDefForEach
+            if (
+                classDef.methods.any { method ->
+                    method.name == "toString" &&
+                        method.returnType == "Ljava/lang/String;" &&
+                        method.hasString(VISUAL_RUBRICATOR_ITEM_MARKER)
+                }
+            ) {
+                rubricatorElement = classDef
+            }
+        }
+        val rowLineField = rubricatorElement
+            ?.methods
+            ?.firstOrNull { method ->
+                method.name == "toString" &&
+                    method.returnType == "Ljava/lang/String;" &&
+                    method.hasString(ROW_LINE_MARKER)
+            }
+            ?.fieldAfterString(ROW_LINE_MARKER, rubricatorElement.type, INTEGER)
+        val getRowLine = rowLineField?.let { field ->
+            rubricatorElement.methods.firstOrNull { method -> method.getterForField(field) }
         }
         if (rubricatorElement == null || getRowLine == null) {
             println("UI tweaks: rubricator getRowLine() not found; single-row categories skipped")
@@ -117,16 +195,23 @@ val uiTweaksPatch = bytecodePatch(
         // Restart-required: the assembled tab list is consumed once and the tab strip
         // is diffed, so it won't rebind on a live settings round-trip.
         val filterTabListInstructions = """
-            invoke-static/range { p1 .. p1 }, $MORPHE_SETTINGS_CLASS->withoutSubscriptionsTab(Ljava/util/List;)Ljava/util/List;
+            invoke-static/range { p1 .. p1 }, $MORPHE_SETTINGS_CLASS->withoutHiddenFavoritesTabs(Ljava/util/List;)Ljava/util/List;
             move-result-object p1
         """
-        fun registerSubscriptionsTabToggle() = MorpheSettingsRegistry.addSwitch(
-            key = "avito_hide_subscriptions_tab",
-            title = "Скрыть вкладку «Подписки»",
-            summary = "Убрать вкладку подписок на экране Избранное",
-            default = true,
-            restartRequired = true,
-        )
+        fun registerFavoritesTabToggles() {
+            MorpheSettingsRegistry.addSwitch(
+                key = "avito_hide_subscriptions_tab",
+                title = "Скрыть вкладку «Подписки/Лента»",
+                summary = "Убрать вкладку подписок на экране Избранное",
+                default = true,
+            )
+            MorpheSettingsRegistry.addSwitch(
+                key = "avito_hide_collections_tab",
+                title = "Скрыть вкладку «Подборки»",
+                summary = "Убрать вкладку подборок на экране Избранное",
+                default = true,
+            )
+        }
 
         val tabConsumer = FavoritesTabsConsumerFingerprint.methodOrNull
         val changesCtor = if (tabConsumer == null && FavoritesChangesFingerprint.methodOrNull != null) {
@@ -138,26 +223,68 @@ val uiTweaksPatch = bytecodePatch(
             null
         }
 
+        var favoritesTabViewHooks = 0
+        classDefForEach { classDef ->
+            if (!classDef.type.startsWith("Lcom/avito/android/user_favorites/adapter/")) return@classDefForEach
+            val bind = classDef.methods.firstOrNull { method -> method.isFavoritesTabViewBind() }
+                ?: return@classDefForEach
+            val mutableBind = mutableClassDefBy(classDef).methods.first {
+                it.name == bind.name && it.parameterTypes == bind.parameterTypes
+            }
+            mutableBind.addInstructions(
+                0,
+                "invoke-static/range {p0 .. p1}, $MORPHE_SETTINGS_CLASS->updateFavoritesTabView(Ljava/lang/Object;Ljava/lang/Object;)V",
+            )
+            favoritesTabViewHooks++
+
+            val titleBind = classDef.methods.firstOrNull { method -> method.isFavoritesTabTitleBind() }
+                ?: return@classDefForEach
+            val mutableTitleBind = mutableClassDefBy(classDef).methods.first {
+                it.name == titleBind.name && it.parameterTypes == titleBind.parameterTypes
+            }
+            mutableTitleBind.addInstructions(
+                0,
+                "invoke-static/range {p0 .. p1}, $MORPHE_SETTINGS_CLASS->updateFavoritesTabViewByTitle(Ljava/lang/Object;Ljava/lang/String;)V",
+            )
+            favoritesTabViewHooks++
+        }
+
         when {
             tabConsumer != null -> {
-                tabConsumer.addInstructions(0, filterTabListInstructions)
-                registerSubscriptionsTabToggle()
-                println(
-                    "UI tweaks: gated the Favorites subscriptions tab in " +
-                        "${FavoritesTabsConsumerFingerprint.originalClassDef.type}->${tabConsumer.name}",
-                )
+                var favoritesTabHooks = 0
+                tabConsumer.favoritesTabsControlFilterTarget()?.let { (index, register) ->
+                    tabConsumer.addInstructions(
+                        index,
+                        """
+                            invoke-static/range {v$register .. v$register}, $MORPHE_SETTINGS_CLASS->withoutHiddenFavoritesTabsControlState(Ljava/lang/Object;)Ljava/lang/Object;
+                            move-result-object v$register
+                            check-cast v$register, $FAVORITES_TABS_CONTROL_STATE
+                        """,
+                    )
+                    favoritesTabHooks++
+                }
+
+                if (favoritesTabHooks + favoritesTabViewHooks > 0) {
+                    registerFavoritesTabToggles()
+                    println(
+                        "UI tweaks: gated ${favoritesTabHooks + favoritesTabViewHooks} Favorites tab renderer(s) in " +
+                            "${FavoritesTabsConsumerFingerprint.originalClassDef.type}->${tabConsumer.name}",
+                    )
+                } else {
+                    println("UI tweaks: Favorites tab renderers not found; Favorites tabs skipped")
+                }
             }
 
             changesCtor != null -> {
                 changesCtor.addInstructions(0, filterTabListInstructions)
-                registerSubscriptionsTabToggle()
+                registerFavoritesTabToggles()
                 println(
-                    "UI tweaks: gated the Favorites subscriptions tab via UserFavoritesChanges in " +
+                    "UI tweaks: gated Favorites tabs via UserFavoritesChanges in " +
                         "${FavoritesChangesFingerprint.originalClassDef.type}",
                 )
             }
 
-            else -> println("UI tweaks: Favorites tab consumer not found; subscriptions tab skipped")
+            else -> println("UI tweaks: Favorites tab consumer not found; Favorites tabs skipped")
         }
 
         // --- Hide offer-page blocks by nulling their AdvertDetails source -------

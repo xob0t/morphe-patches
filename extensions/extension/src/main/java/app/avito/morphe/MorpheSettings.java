@@ -33,6 +33,8 @@ public final class MorpheSettings {
     public static final String SETTINGS_ENTRY_ID = "morphe_settings";
     public static final String SETTINGS_ENTRY_TITLE = "Настройки Morphe";
     public static final String SETTINGS_ACTIVITY = "app.avito.morphe.MorpheSettingsActivity";
+    private static final int FAVORITES_SUBSCRIPTIONS_TAB_ID = 3;
+    private static final int FAVORITES_COLLECTIONS_TAB_ID = 5;
 
     private static Context appContext;
 
@@ -163,22 +165,264 @@ public final class MorpheSettings {
      * tab is identified by its runtime class ({@code …adapter.sellers.SellersTab})
      * — no title string hard-coded. Applies when the Favorites screen is opened.
      */
-    public static java.util.List<?> withoutSubscriptionsTab(java.util.List<?> tabs) {
+    public static java.util.List<?> withoutHiddenFavoritesTabs(java.util.List<?> tabs) {
         try {
-            if (tabs == null || tabs.isEmpty() || !isEnabled("avito_hide_subscriptions_tab", true)) {
+            if (tabs == null || tabs.isEmpty()) {
                 return tabs;
             }
-            java.util.ArrayList<Object> kept = new java.util.ArrayList<>(tabs.size());
-            for (Object tab : tabs) {
-                if (tab != null && tab.getClass().getName().endsWith(".SellersTab")) {
-                    continue;
-                }
-                kept.add(tab);
+            boolean hideSubscriptions = isEnabled("avito_hide_subscriptions_tab", true);
+            boolean hideCollections = isEnabled("avito_hide_collections_tab", true);
+            if (!hideSubscriptions && !hideCollections) {
+                return tabs;
             }
+            java.util.ArrayList<Object> kept = filterFavoritesTabItems(tabs, hideSubscriptions, hideCollections);
             return kept;
         } catch (Throwable ignored) {
             return tabs;
         }
+    }
+
+    public static java.util.List<?> withoutSubscriptionsTab(java.util.List<?> tabs) {
+        return withoutHiddenFavoritesTabs(tabs);
+    }
+
+    public static Object withoutHiddenFavoritesTabsControlState(Object state) {
+        try {
+            if (state == null) {
+                return null;
+            }
+            boolean hideSubscriptions = isEnabled("avito_hide_subscriptions_tab", true);
+            boolean hideCollections = isEnabled("avito_hide_collections_tab", true);
+            if (!hideSubscriptions && !hideCollections) {
+                return state;
+            }
+
+            java.util.ArrayList<java.lang.reflect.Field> listFields = new java.util.ArrayList<>(2);
+            java.lang.reflect.Field selectedField = null;
+            for (java.lang.reflect.Field field : state.getClass().getDeclaredFields()) {
+                Class<?> type = field.getType();
+                if (java.util.ArrayList.class.isAssignableFrom(type)) {
+                    listFields.add(field);
+                } else if (type == Integer.class) {
+                    selectedField = field;
+                }
+            }
+            if (listFields.size() < 2 || selectedField == null) {
+                return state;
+            }
+
+            java.util.ArrayList<?> visible = getArrayList(state, listFields.get(0));
+            java.util.ArrayList<?> hidden = getArrayList(state, listFields.get(1));
+            if (visible == null || hidden == null) {
+                return state;
+            }
+
+            java.util.ArrayList<Object> filteredVisible =
+                    filterFavoritesTabItems(visible, hideSubscriptions, hideCollections);
+            java.util.ArrayList<Object> filteredHidden =
+                    filterFavoritesTabItems(hidden, hideSubscriptions, hideCollections);
+
+            selectedField.setAccessible(true);
+            Integer selected = (Integer) selectedField.get(state);
+            if (selected != null && !containsFavoritesTabId(filteredVisible, selected.intValue())) {
+                selected = firstFavoritesTabId(filteredVisible);
+            }
+
+            return state.getClass()
+                    .getConstructor(java.util.ArrayList.class, Integer.class, boolean.class, java.util.ArrayList.class)
+                    .newInstance(filteredVisible, selected, !filteredHidden.isEmpty(), filteredHidden);
+        } catch (Throwable ignored) {
+            return state;
+        }
+    }
+
+    public static void updateFavoritesTabView(Object tabView, Object tab) {
+        try {
+            updateFavoritesTabVisibility(tabView, shouldHideFavoritesTab(
+                    tab,
+                    isEnabled("avito_hide_subscriptions_tab", true),
+                    isEnabled("avito_hide_collections_tab", true)));
+        } catch (Throwable ignored) {
+        }
+    }
+
+    public static void updateFavoritesTabViewByTitle(Object tabView, String title) {
+        try {
+            boolean hideSubscriptions = isEnabled("avito_hide_subscriptions_tab", true);
+            boolean hideCollections = isEnabled("avito_hide_collections_tab", true);
+            boolean hidden = (hideSubscriptions && ("Подписки".equals(title) || "Лента".equals(title)))
+                    || (hideCollections && "Подборки".equals(title));
+            updateFavoritesTabVisibility(tabView, hidden);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void updateFavoritesTabVisibility(Object tabView, boolean hidden) {
+        android.view.View root = firstViewField(tabView);
+        if (root == null) {
+            return;
+        }
+        root.setVisibility(hidden ? android.view.View.GONE : android.view.View.VISIBLE);
+    }
+
+    private static boolean shouldHideFavoritesTab(Object tab, boolean hideSubscriptions, boolean hideCollections) {
+        if (tab == null) {
+            return false;
+        }
+        int id = favoritesTabId(tab);
+        if (hideSubscriptions && id == FAVORITES_SUBSCRIPTIONS_TAB_ID) {
+            return true;
+        }
+        if (hideCollections && id == FAVORITES_COLLECTIONS_TAB_ID) {
+            return true;
+        }
+        if (hideSubscriptions && tab.getClass().getName().endsWith(".SellersTab")) {
+            return true;
+        }
+        java.util.LinkedHashSet<String> values = stringValues(tab);
+        if (hideSubscriptions && (values.contains("Подписки") || values.contains("Лента"))) {
+            return true;
+        }
+        return hideCollections && values.contains("Подборки");
+    }
+
+    private static java.util.ArrayList<Object> filterFavoritesTabItems(
+            java.util.List<?> tabs,
+            boolean hideSubscriptions,
+            boolean hideCollections) {
+        java.util.ArrayList<Object> kept = new java.util.ArrayList<>(tabs.size());
+        for (Object tab : tabs) {
+            if (shouldHideFavoritesTab(tab, hideSubscriptions, hideCollections)) {
+                continue;
+            }
+            kept.add(tab);
+        }
+        return kept;
+    }
+
+    private static java.util.ArrayList<?> getArrayList(Object target, java.lang.reflect.Field field)
+            throws IllegalAccessException {
+        field.setAccessible(true);
+        Object value = field.get(target);
+        return (value instanceof java.util.ArrayList) ? (java.util.ArrayList<?>) value : null;
+    }
+
+    private static boolean containsFavoritesTabId(java.util.List<?> tabs, int id) {
+        for (Object tab : tabs) {
+            if (favoritesTabId(tab) == id) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Integer firstFavoritesTabId(java.util.List<?> tabs) {
+        for (Object tab : tabs) {
+            int id = favoritesTabId(tab);
+            if (id > 0) {
+                return Integer.valueOf(id);
+            }
+        }
+        return null;
+    }
+
+    private static int favoritesTabId(Object target) {
+        if (target == null) {
+            return -1;
+        }
+        try {
+            Class<?> current = target.getClass();
+            while (current != null && current != Object.class) {
+                for (java.lang.reflect.Field field : current.getDeclaredFields()) {
+                    if (field.getType() != int.class) {
+                        continue;
+                    }
+                    field.setAccessible(true);
+                    int value = field.getInt(target);
+                    if (value > 0 && value < 100) {
+                        return value;
+                    }
+                }
+                current = current.getSuperclass();
+            }
+        } catch (Throwable ignored) {
+        }
+        return -1;
+    }
+
+    private static android.view.View firstViewField(Object target) {
+        if (target == null) {
+            return null;
+        }
+        try {
+            Class<?> current = target.getClass();
+            while (current != null && current != Object.class) {
+                for (java.lang.reflect.Field field : current.getDeclaredFields()) {
+                    if (field.getType() != android.view.View.class) {
+                        continue;
+                    }
+                    field.setAccessible(true);
+                    Object value = field.get(target);
+                    if (value instanceof android.view.View) {
+                        return (android.view.View) value;
+                    }
+                }
+                current = current.getSuperclass();
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            Class<?> current = target.getClass();
+            while (current != null && current != Object.class) {
+                for (java.lang.reflect.Field field : current.getDeclaredFields()) {
+                    if (!android.view.View.class.isAssignableFrom(field.getType())) {
+                        continue;
+                    }
+                    field.setAccessible(true);
+                    Object value = field.get(target);
+                    if (value instanceof android.view.View) {
+                        return (android.view.View) value;
+                    }
+                }
+                current = current.getSuperclass();
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private static java.util.LinkedHashSet<String> stringValues(Object target) {
+        java.util.LinkedHashSet<String> values = new java.util.LinkedHashSet<>();
+        try {
+            for (java.lang.reflect.Method method : target.getClass().getMethods()) {
+                if (method.getParameterTypes().length != 0 || method.getReturnType() != String.class) {
+                    continue;
+                }
+                Object value = method.invoke(target);
+                if (value instanceof String) {
+                    values.add((String) value);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            Class<?> current = target.getClass();
+            while (current != null && current != Object.class) {
+                for (java.lang.reflect.Field field : current.getDeclaredFields()) {
+                    if (field.getType() != String.class) {
+                        continue;
+                    }
+                    field.setAccessible(true);
+                    Object value = field.get(target);
+                    if (value instanceof String) {
+                        values.add((String) value);
+                    }
+                }
+                current = current.getSuperclass();
+            }
+        } catch (Throwable ignored) {
+        }
+        return values;
     }
 
     // ---------------------------------------------------------------------

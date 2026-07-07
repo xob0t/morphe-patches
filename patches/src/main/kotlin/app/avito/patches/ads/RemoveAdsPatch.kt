@@ -14,6 +14,7 @@ import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
+import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import org.w3c.dom.Element
 import java.io.FileNotFoundException
@@ -43,6 +44,7 @@ private const val NATIVE_VIDEO = "Lcom/avito/android/remote/model/NativeVideo;"
 private const val VIDEO = "Lcom/avito/android/remote/model/Video;"
 private const val AUTOTEKA_TEASER_RESULT = "Lcom/avito/android/remote/model/autotekateaser/AutotekaTeaserResult;"
 private const val GALLERY_TEASER = "Lcom/avito/android/remote/model/model_card/GalleryTeaser;"
+private const val AD_CLEANUP_CLASS = "Lapp/avito/morphe/AdCleanup;"
 private const val LIST = "Ljava/util/List;"
 private const val MAP = "Ljava/util/Map;"
 private const val BOOLEAN = "Z"
@@ -101,6 +103,11 @@ private fun Method.galleryTeaserParameterIndexes(): List<Int> {
 
     return listOf(galleryTeaserIndex) + extraTeaserListIndexes
 }
+
+private fun Method.isProfileProWidgetGroupConverter(): Boolean =
+    returnType == "Ljava/util/ArrayList;" &&
+        implementation != null &&
+        parameterTypes.size == 1
 
 private fun nullParametersInstructions(parameterIndexes: List<Int>) =
     buildString {
@@ -241,6 +248,7 @@ val removeAdsPatch = bytecodePatch(
 ) {
     compatibleWith(COMPATIBILITY_AVITO)
     dependsOn(removeAdResourcesPatch)
+    extendWith("extensions/extension.mpe")
 
     execute {
         // Every ad surface is mandatory: ad entry points are core to the app, so a
@@ -289,6 +297,46 @@ val removeAdsPatch = bytecodePatch(
             )
         }
 
+        var profilePrizePortalConvertersPatched = 0
+        classDefForEach { classDef ->
+            if (!classDef.type.startsWith("Lcom/avito/android/profile/pro/impl/converters/")) {
+                return@classDefForEach
+            }
+            val converterMethod = classDef.methods.singleOrNull { method ->
+                method.isProfileProWidgetGroupConverter()
+            } ?: return@classDefForEach
+
+            val method = mutableClassDefBy(classDef).methods.single {
+                it.name == converterMethod.name && it.parameterTypes == converterMethod.parameterTypes
+            }
+            val returnTargets = method.instructionsOrNull
+                ?.toList().orEmpty()
+                .mapIndexedNotNull { index, instruction ->
+                    if (instruction.opcode == Opcode.RETURN_OBJECT) {
+                        index to (instruction as OneRegisterInstruction).registerA
+                    } else {
+                        null
+                    }
+                }
+                .reversed()
+            returnTargets.forEach { (returnIndex, register) ->
+                method.addInstructions(
+                    returnIndex,
+                    """
+                        invoke-static/range {v$register .. v$register}, $AD_CLEANUP_CLASS->withoutPrizePortalProfileWidgets(Ljava/util/ArrayList;)Ljava/util/ArrayList;
+                        move-result-object v$register
+                    """,
+                )
+            }
+            profilePrizePortalConvertersPatched++
+        }
+        if (profilePrizePortalConvertersPatched == 0) {
+            throw PatchException(
+                "Remove ads: profile prize portal widget converter not found - " +
+                    "update isProfileProWidgetGroupConverter() for this version.",
+            )
+        }
+
         // Commercial banner loader: emit an Rx error instead of loading a banner.
         val commercialBannerLoaderMethod = CommercialBannerLoaderErrorFingerprint.method
         val rxErrorFactory = commercialBannerLoaderMethod.instructionsOrNull
@@ -316,6 +364,9 @@ val removeAdsPatch = bytecodePatch(
             """,
         )
 
-        println("Remove ads: patched 3 banner surface(s) and $galleryTeaserConvertersPatched gallery Beduin teaser converter(s) (all required).")
+        println(
+            "Remove ads: patched 3 banner surface(s), $galleryTeaserConvertersPatched gallery Beduin teaser " +
+                "converter(s), and $profilePrizePortalConvertersPatched profile junk widget converter(s) (all required).",
+        )
     }
 }

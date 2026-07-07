@@ -20,12 +20,29 @@ import app.avito.blacklist.Blacklist;
  * only ever rebound as a stub — collapsing it per instance is safe and needs no
  * restore. Fully defensive: any failure leaves the row untouched.
  */
-final class AdCleanup {
+public final class AdCleanup {
 
     // -2 = not resolved yet; -1 = resource not found (give up); >0 = the id.
     private static int adEmptyId = -2;
 
     private AdCleanup() {
+    }
+
+    public static java.util.ArrayList<?> withoutPrizePortalProfileWidgets(java.util.ArrayList<?> items) {
+        try {
+            if (items == null || items.isEmpty()) {
+                return items;
+            }
+            java.util.Iterator<?> iterator = items.iterator();
+            while (iterator.hasNext()) {
+                Object item = iterator.next();
+                if (stringValues(item).contains("Портал призов")) {
+                    iterator.remove();
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return items;
     }
 
     static void onBind(Object viewHolder) {
@@ -84,5 +101,42 @@ final class AdCleanup {
             view.setVisibility(View.GONE);
         } catch (Throwable ignored) {
         }
+    }
+
+    private static java.util.LinkedHashSet<String> stringValues(Object target) {
+        java.util.LinkedHashSet<String> values = new java.util.LinkedHashSet<>();
+        if (target == null) {
+            return values;
+        }
+        try {
+            for (java.lang.reflect.Method method : target.getClass().getMethods()) {
+                if (method.getParameterTypes().length != 0 || method.getReturnType() != String.class) {
+                    continue;
+                }
+                Object value = method.invoke(target);
+                if (value instanceof String) {
+                    values.add((String) value);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            Class<?> current = target.getClass();
+            while (current != null && current != Object.class) {
+                for (java.lang.reflect.Field field : current.getDeclaredFields()) {
+                    if (field.getType() != String.class) {
+                        continue;
+                    }
+                    field.setAccessible(true);
+                    Object value = field.get(target);
+                    if (value instanceof String) {
+                        values.add((String) value);
+                    }
+                }
+                current = current.getSuperclass();
+            }
+        } catch (Throwable ignored) {
+        }
+        return values;
     }
 }

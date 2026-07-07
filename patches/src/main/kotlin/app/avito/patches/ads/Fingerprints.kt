@@ -12,24 +12,24 @@ object CommercialBannerLoaderErrorFingerprint : Fingerprint(
 )
 
 /**
- * Matches the home hero-banner widget converter — the method that turns the network
- * `HeroBannerWidget` model into the rendered `HeroBannerWidgetItem`. Nulling it stops
- * the widget from ever building.
+ * Matches the home hero-banner widget converter: the method that turns the network
+ * `HeroBannerWidget` model into the rendered widget item. Nulling it stops the
+ * widget from ever building.
  *
- * Identified structurally so it survives the per-release minification of the
- * class/method names: a concrete method in the (stable) `hero_banner/widget/`
- * package taking a `HeroBannerWidget` and returning a `HeroBannerWidgetItem`. Both
- * model types keep their real names, and that exact shape is unique to the
- * converter — the previous pin to the obfuscated class `e`/method `a` rolled on
- * every R8 build.
+ * Identified structurally so it survives per-release minification. Avito 228.0
+ * minified `HeroBannerWidgetItem`, so the return type is constrained to the stable
+ * widget package instead of the old readable class name.
  */
 object HeroBannerWidgetConverterFingerprint : Fingerprint(
     definingClass = "Lcom/avito/android/hero_banner/widget/",
-    returnType = "Lcom/avito/android/hero_banner/widget/HeroBannerWidgetItem;",
     parameters = listOf(
         "Lcom/avito/android/remote/model/serp/HeroBannerWidget;",
     ),
-    custom = { method, _ -> method.implementation != null },
+    custom = { method, _ ->
+        method.implementation != null &&
+            method.returnType.startsWith("Lcom/avito/android/hero_banner/widget/") &&
+            method.returnType != "V"
+    },
 )
 
 object HeroBannerToolbarConfigFingerprint : Fingerprint(
