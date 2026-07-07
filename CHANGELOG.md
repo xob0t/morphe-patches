@@ -1,16 +1,11 @@
-## [1.6.0-dev.3](https://github.com/xob0t/morphe-patches/compare/v1.6.0-dev.2...v1.6.0-dev.3) (2026-07-07)
+## [1.6.1](https://github.com/xob0t/morphe-patches/compare/v1.6.0...v1.6.1) (2026-07-07)
 
 ### 🐛 Bug Fixes
 
 * **avito:** hide profile prize portal junk ([73a6a30](https://github.com/xob0t/morphe-patches/commit/73a6a305a96abddf63ba556696f0ffea12436242))
-
-## [1.6.0-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.6.0-dev.1...v1.6.0-dev.2) (2026-07-07)
-
-### 🐛 Bug Fixes
-
 * support Avito 228.0 ([96f5dee](https://github.com/xob0t/morphe-patches/commit/96f5dee6a57336c3a72b54d460964b240b696a96))
 
-## [1.6.0-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.5.1...v1.6.0-dev.1) (2026-06-23)
+## [1.6.0](https://github.com/xob0t/morphe-patches/compare/v1.5.1...v1.6.0) (2026-06-23)
 
 ### ✨ New Features
 

@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-07-07T11:04:46",
-  "description": "## [1.6.0-dev.3](https://github.com/xob0t/morphe-patches/compare/v1.6.0-dev.2...v1.6.0-dev.3) (2026-07-07)\n\n### 🐛 Bug Fixes\n\n* **avito:** hide profile prize portal junk ([73a6a30](https://github.com/xob0t/morphe-patches/commit/73a6a305a96abddf63ba556696f0ffea12436242))",
-  "download_url": "https://github.com/xob0t/morphe-patches/releases/download/v1.6.0-dev.3/patches-1.6.0-dev.3.mpp",
+  "created_at": "2026-07-07T11:05:43",
+  "description": "## [1.6.1](https://github.com/xob0t/morphe-patches/compare/v1.6.0...v1.6.1) (2026-07-07)\n\n### 🐛 Bug Fixes\n\n* **avito:** hide profile prize portal junk ([73a6a30](https://github.com/xob0t/morphe-patches/commit/73a6a305a96abddf63ba556696f0ffea12436242))\n* support Avito 228.0 ([96f5dee](https://github.com/xob0t/morphe-patches/commit/96f5dee6a57336c3a72b54d460964b240b696a96))",
+  "download_url": "https://github.com/xob0t/morphe-patches/releases/download/v1.6.1/patches-1.6.1.mpp",
   "signature_download_url": "",
-  "version": "1.6.0-dev.3"
+  "version": "1.6.1"
 }
