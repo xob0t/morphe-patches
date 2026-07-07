@@ -1,3 +1,9 @@
+## [1.6.0-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.6.0-dev.1...v1.6.0-dev.2) (2026-07-07)
+
+### 🐛 Bug Fixes
+
+* support Avito 228.0 ([96f5dee](https://github.com/xob0t/morphe-patches/commit/96f5dee6a57336c3a72b54d460964b240b696a96))
+
 ## [1.6.0-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.5.1...v1.6.0-dev.1) (2026-06-23)
 
 ### ✨ New Features
