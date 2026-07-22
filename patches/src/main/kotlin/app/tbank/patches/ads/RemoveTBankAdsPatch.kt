@@ -5,6 +5,7 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
+import app.morphe.patcher.patch.option
 import app.tbank.patches.shared.Constants.COMPATIBILITY_TBANK
 import org.w3c.dom.Element
 import java.io.FileNotFoundException
@@ -104,6 +105,16 @@ private val sphereFeatureToggleClasses = setOf(
     "Lru/tinkoff/mb/featuretoggles/main/page/toggles/MainSpheresTravelActiveRemote127476Feature;",
 )
 
+private data class TBankResourceTargets(
+    val storyViewIds: Set<String> = emptySet(),
+    val storyAppBarIds: Set<String> = emptySet(),
+    val offerLayouts: Set<String> = emptySet(),
+    val productLayouts: Set<String> = emptySet(),
+    val missingLayouts: Set<String> = emptySet(),
+)
+
+private var patchedResourceTargets = TBankResourceTargets()
+
 private fun Element.walk(): Sequence<Element> = sequence {
     yield(this@walk)
 
@@ -155,12 +166,15 @@ private val removeTBankAdResourcesPatch = resourcePatch {
     compatibleWith(COMPATIBILITY_TBANK)
 
     execute {
+        patchedResourceTargets = TBankResourceTargets()
         var hiddenStoryViews = 0
         var collapsedStoryAppBars = 0
         var hiddenOfferViews = 0
         var hiddenProductViews = 0
-        // Every ad layout is mandatory: a missing one means the app changed and the
-        // patch is stale. Older builds lacking a surface are out of scope.
+        val patchedStoryViewIds = mutableSetOf<String>()
+        val patchedStoryAppBarIds = mutableSetOf<String>()
+        val patchedOfferLayouts = mutableSetOf<String>()
+        val patchedProductLayouts = mutableSetOf<String>()
         val missing = mutableListOf<String>()
 
         storyLayoutFiles.forEach { path ->
@@ -169,6 +183,7 @@ private val removeTBankAdResourcesPatch = resourcePatch {
                     document.documentElement.walk()
                         .filter { it.getAttribute("android:id") in storyViewIds }
                         .forEach { view ->
+                            patchedStoryViewIds += view.getAttribute("android:id")
                             view.hideView()
                             if (view.getAttribute("android:id") == ACCOUNT_LIST_STORIES_WRAPPER_ID) {
                                 view.markInvisibleViewState()
@@ -179,6 +194,7 @@ private val removeTBankAdResourcesPatch = resourcePatch {
                     document.documentElement.walk()
                         .filter { it.getAttribute("android:id") in storyAppBarIds }
                         .forEach { view ->
+                            patchedStoryAppBarIds += view.getAttribute("android:id")
                             view.setAttribute("app:scabw_shadow_height", "0dp")
                             collapsedStoryAppBars++
                         }
@@ -194,6 +210,7 @@ private val removeTBankAdResourcesPatch = resourcePatch {
                     document.documentElement.walk()
                         .filter { it.getAttribute("android:id") == "@id/offerContent" }
                         .forEach { view ->
+                            patchedOfferLayouts += path
                             view.hideView()
                             hiddenOfferViews++
                         }
@@ -207,6 +224,7 @@ private val removeTBankAdResourcesPatch = resourcePatch {
             try {
                 document(path).use { document ->
                     document.documentElement.hideLayoutRoot()
+                    patchedProductLayouts += path
                     hiddenProductViews++
                 }
             } catch (_: FileNotFoundException) {
@@ -214,18 +232,24 @@ private val removeTBankAdResourcesPatch = resourcePatch {
             }
         }
 
-        if (missing.isNotEmpty()) {
-            throw PatchException(
-                "Remove TBank ads: ${missing.size} expected ad layout(s) not found — " +
-                    "the app layout changed, update RemoveTBankAdsPatch: ${missing.joinToString(", ")}",
-            )
-        }
+        patchedResourceTargets = TBankResourceTargets(
+            storyViewIds = patchedStoryViewIds,
+            storyAppBarIds = patchedStoryAppBarIds,
+            offerLayouts = patchedOfferLayouts,
+            productLayouts = patchedProductLayouts,
+            missingLayouts = missing.toSet(),
+        )
 
+        val resourceStatus = if (missing.isEmpty()) {
+            "."
+        } else {
+            "; ${missing.size} layout(s) absent, continuing in best-effort mode."
+        }
         println(
             "Remove TBank ads: hid $hiddenStoryViews story views, " +
                 "collapsed $collapsedStoryAppBars story app bars, " +
                 "hid $hiddenOfferViews offer views, " +
-                "hid $hiddenProductViews product stream views (all required surfaces present).",
+                "hid $hiddenProductViews product stream views$resourceStatus",
         )
     }
 }
@@ -239,11 +263,22 @@ val removeTBankAdsPatch = bytecodePatch(
     compatibleWith(COMPATIBILITY_TBANK)
     dependsOn(removeTBankAdResourcesPatch)
 
+    val strictTargets by option<Boolean>(
+        key = "strictTargets",
+        title = "Require all current targets",
+        description = "Fails when a current promotional surface no longer matches. Intended for automated builds.",
+        default = false,
+    )
+
     execute {
         var disabledFeatureToggles = 0
+        val foundFeatureToggleClasses = mutableSetOf<String>()
+        val patchedFeatureToggleIdClasses = mutableSetOf<String>()
+        val patchedFeatureToggleDefaultClasses = mutableSetOf<String>()
 
         classDefForEach { classDef ->
             if (classDef.type !in sphereFeatureToggleClasses) return@classDefForEach
+            foundFeatureToggleClasses += classDef.type
 
             mutableClassDefBy(classDef).methods.forEach { method ->
                 if (method.instructionsOrNull == null) return@forEach
@@ -258,6 +293,7 @@ val removeTBankAdsPatch = bytecodePatch(
                             """,
                         )
                         disabledFeatureToggles++
+                        patchedFeatureToggleIdClasses += classDef.type
                     }
                     "getDefaultValue" -> {
                         method.addInstructions(
@@ -267,8 +303,33 @@ val removeTBankAdsPatch = bytecodePatch(
                                 return-object p0
                             """,
                         )
+                        patchedFeatureToggleDefaultClasses += classDef.type
                     }
                 }
+            }
+        }
+
+        if (strictTargets == true) {
+            val missingTargets = buildList {
+                patchedResourceTargets.missingLayouts.forEach { add("resource layout $it") }
+                (storyViewIds - patchedResourceTargets.storyViewIds).forEach { add("story view $it") }
+                (storyAppBarIds - patchedResourceTargets.storyAppBarIds).forEach { add("story app bar $it") }
+                (offerLayoutFiles - patchedResourceTargets.offerLayouts).forEach { add("offer content in $it") }
+                (productStreamLayoutFiles - patchedResourceTargets.productLayouts).forEach {
+                    add("product stream layout $it")
+                }
+                (sphereFeatureToggleClasses - foundFeatureToggleClasses).forEach { add("feature toggle class $it") }
+                (foundFeatureToggleClasses - patchedFeatureToggleIdClasses).forEach { add("feature toggle getId in $it") }
+                (foundFeatureToggleClasses - patchedFeatureToggleDefaultClasses).forEach {
+                    add("feature toggle getDefaultValue in $it")
+                }
+            }
+
+            if (missingTargets.isNotEmpty()) {
+                throw PatchException(
+                    "Remove TBank ads strict validation failed; missing current target(s): " +
+                        missingTargets.joinToString(", "),
+                )
             }
         }
 

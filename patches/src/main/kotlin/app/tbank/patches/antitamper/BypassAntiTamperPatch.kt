@@ -2,7 +2,9 @@ package app.tbank.patches.antitamper
 
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
+import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
+import app.morphe.patcher.patch.option
 import app.tbank.patches.shared.Constants.COMPATIBILITY_TBANK
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
@@ -50,6 +52,26 @@ private fun MethodReference.isSystemLoadLibrary() =
         parameterTypes.size == 1 &&
         parameterTypes[0].toString() == "Ljava/lang/String;" &&
         returnType == "V"
+
+private fun MethodReference.isTamperFlagConstructor() =
+    name == "<init>" &&
+        parameterTypes.map { it.toString() } == listOf("Ljava/lang/String;", "J") &&
+        returnType == "V"
+
+private fun List<Instruction>.tamperFlagProviderName(): String? {
+    if (size != 5 ||
+        this[0].opcode != Opcode.NEW_INSTANCE ||
+        this[1].opcode !in setOf(Opcode.CONST_STRING, Opcode.CONST_STRING_JUMBO) ||
+        this[2].opcode !in setOf(Opcode.CONST_WIDE_16, Opcode.CONST_WIDE_32, Opcode.CONST_WIDE) ||
+        this[3].opcode != Opcode.INVOKE_DIRECT ||
+        this[4].opcode != Opcode.RETURN_VOID ||
+        this[3].methodReferenceOrNull()?.isTamperFlagConstructor() != true
+    ) {
+        return null
+    }
+
+    return this[1].stringReferenceOrNull()?.takeIf { it in TAMPER_FLAG_NAMES }
+}
 
 private data class AntiTamperTargets(
     val hasRaspCalls: Boolean,
@@ -99,11 +121,21 @@ val bypassAntiTamperPatch = bytecodePatch(
 ) {
     compatibleWith(COMPATIBILITY_TBANK)
 
+    val strictTargets by option<Boolean>(
+        key = "strictTargets",
+        title = "Require all current targets",
+        description = "Fails when a current integrity-check target no longer matches. Intended for automated builds.",
+        default = false,
+    )
+
     execute {
         var patchedRaspExecCalls = 0
+        var fullyStubbedRaspExecCalls = 0
         var patchedRaspExec2Calls = 0
         var patchedLibraryLoads = 0
         var patchedTamperFlags = 0
+        val blockedNativeLibraries = mutableSetOf<String>()
+        val neutralizedTamperFlagNames = mutableSetOf<String>()
 
         classDefForEach { classDef ->
             val classTargets = classDef.methods
@@ -129,12 +161,20 @@ val bypassAntiTamperPatch = bytecodePatch(
                         // Stub Executor.exec(long) by replacing move-result-object with an empty string.
                         reference?.isRaspExec() == true -> {
                             method.replaceInstruction(index, "nop")
-                            val moveResult = instructionList.getOrNull(index + 1) as? OneRegisterInstruction
-                            if (moveResult != null && moveResult.opcode == Opcode.MOVE_RESULT_OBJECT) {
-                                method.replaceInstruction(
-                                    index + 1,
-                                    "const-string v${moveResult.registerA}, \"\"",
-                                )
+                            val nextInstruction = instructionList.getOrNull(index + 1)
+                            if (nextInstruction?.opcode == Opcode.MOVE_RESULT_OBJECT) {
+                                val moveResult = nextInstruction as? OneRegisterInstruction
+                                if (moveResult != null) {
+                                    method.replaceInstruction(
+                                        index + 1,
+                                        "const-string v${moveResult.registerA}, \"\"",
+                                    )
+                                    fullyStubbedRaspExecCalls++
+                                }
+                            } else {
+                                // The caller discards the String result, so removing the
+                                // invoke itself is the complete patch for this site.
+                                fullyStubbedRaspExecCalls++
                             }
                             patchedRaspExecCalls++
                         }
@@ -153,6 +193,7 @@ val bypassAntiTamperPatch = bytecodePatch(
                                 if (libName in RASP_NATIVE_LIBS) {
                                     method.replaceInstruction(index, "nop")
                                     patchedLibraryLoads++
+                                    blockedNativeLibraries += libName
                                 }
                                 break
                             }
@@ -160,38 +201,38 @@ val bypassAntiTamperPatch = bytecodePatch(
                     }
                 }
 
-                // Neutralize tamper flag provider construction.
+                // Real flag providers are tiny static initializers. The same strings
+                // also appear in a large enum initializer, so never rewrite a whole
+                // method merely because it contains a target string.
                 if (classTargets.hasTamperFlag) {
-                    val methodHasTamperString = instructionList.any { instr ->
-                        instr.stringReferenceOrNull() in TAMPER_FLAG_NAMES
-                    }
-                    if (methodHasTamperString) {
-                        instructionList.forEachIndexed { index, instruction ->
-                            when (instruction.opcode) {
-                                Opcode.NEW_INSTANCE -> {
-                                    method.replaceInstruction(index, "nop")
-                                    patchedTamperFlags++
-                                }
-
-                                Opcode.INVOKE_DIRECT -> {
-                                    method.replaceInstruction(index, "nop")
-                                }
-
-                                Opcode.CONST_STRING, Opcode.CONST_STRING_JUMBO -> {
-                                    if (instruction.stringReferenceOrNull() in TAMPER_FLAG_NAMES) {
-                                        method.replaceInstruction(index, "nop")
-                                    }
-                                }
-
-                                Opcode.CONST_WIDE_16, Opcode.CONST_WIDE_32, Opcode.CONST_WIDE -> {
-                                    method.replaceInstruction(index, "nop")
-                                }
-
-                                else -> {}
-                            }
+                    val tamperFlagName = instructionList.tamperFlagProviderName()
+                    if (method.name == "<clinit>" && tamperFlagName != null) {
+                        for (index in 0..3) {
+                            method.replaceInstruction(index, "nop")
                         }
+                        patchedTamperFlags++
+                        neutralizedTamperFlagNames += tamperFlagName
                     }
                 }
+            }
+        }
+
+        if (strictTargets == true) {
+            val missingTargets = buildList {
+                if (patchedRaspExecCalls == 0) add("Executor.exec")
+                if (fullyStubbedRaspExecCalls != patchedRaspExecCalls) {
+                    add("Executor.exec result handling (${patchedRaspExecCalls - fullyStubbedRaspExecCalls} unresolved)")
+                }
+                if (patchedRaspExec2Calls == 0) add("Executor.exec2")
+                (RASP_NATIVE_LIBS - blockedNativeLibraries).forEach { add("native library $it") }
+                (TAMPER_FLAG_NAMES - neutralizedTamperFlagNames).forEach { add("tamper flag $it") }
+            }
+
+            if (missingTargets.isNotEmpty()) {
+                throw PatchException(
+                    "Bypass anti-tamper strict validation failed; missing current target(s): " +
+                        missingTargets.joinToString(", "),
+                )
             }
         }
 
