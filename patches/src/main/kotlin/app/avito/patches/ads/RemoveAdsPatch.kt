@@ -63,6 +63,7 @@ private val hiddenAdLayouts = listOf(
     "res/layout/yandex_avl_ad.xml",
     "res/layout/my_target_ad.xml",
     "res/layout/my_target_list_ad.xml",
+    "res/layout/sales_promo_widget_item.xml",
 )
 
 private val hiddenHomeBannerLayouts = listOf(
