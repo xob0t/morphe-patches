@@ -1,5 +1,6 @@
 package app.avito.patches.ui
 
+import app.avito.patches.blacklist.SerpElementsConverterFingerprint
 import app.avito.patches.settings.MorpheSettingsRegistry
 import app.avito.patches.settings.morpheSettingsPatch
 import app.avito.patches.shared.Constants.COMPATIBILITY_AVITO
@@ -123,6 +124,7 @@ private fun Method.isFavoritesTabTitleBind() =
  *  - **Hide the Avi assistant tab** in the bottom navigation bar.
  *  - **Hide launch drawers** used by Avito's promotional and informational
  *    onboarding carousel.
+ *  - **Hide “Знак добра” banners** in search results.
  *
  * Most tweaks are applied independently and degrade gracefully if an optional
  * surface is absent. Auto-builds enable strict Favorites-tab validation so a
@@ -322,6 +324,52 @@ val uiTweaksPatch = bytecodePatch(
                 if (strictFavoritesTabs == true) throw PatchException(message)
                 println("UI tweaks: $message; Favorites tabs skipped")
             }
+        }
+
+        // --- Hide the server-driven “Знак добра” SERP cards ---------------------
+        // The compact header card and the larger in-feed card are both Beduin
+        // models carrying the same campaign marker. Filter both the input network
+        // elements and the converted adapter items so either representation is
+        // removed without leaving a blank RecyclerView row.
+        val kindnessSerpConverter = SerpElementsConverterFingerprint.methodOrNull
+        if (kindnessSerpConverter == null) {
+            println("UI tweaks: SERP converter not found; kindness banners skipped")
+        } else {
+            kindnessSerpConverter.addInstructions(
+                0,
+                """
+                    invoke-static/range {p1 .. p1}, $MORPHE_SETTINGS_CLASS->withoutKindnessBanners(Ljava/util/List;)Ljava/util/List;
+                    move-result-object p1
+                """,
+            )
+            val kindnessReturnIndices = kindnessSerpConverter.instructionsOrNull
+                ?.toList().orEmpty()
+                .mapIndexedNotNull { index, instruction ->
+                    if (instruction.opcode == Opcode.RETURN_OBJECT) index else null
+                }
+                .reversed()
+            for (returnIndex in kindnessReturnIndices) {
+                val register =
+                    (kindnessSerpConverter.instructionsOrNull!!.toList()[returnIndex] as OneRegisterInstruction).registerA
+                kindnessSerpConverter.addInstructions(
+                    returnIndex,
+                    """
+                        invoke-static/range {v$register .. v$register}, $MORPHE_SETTINGS_CLASS->withoutKindnessBanners(Ljava/util/List;)Ljava/util/List;
+                        move-result-object v$register
+                        check-cast v$register, Ljava/util/ArrayList;
+                    """,
+                )
+            }
+            MorpheSettingsRegistry.addSwitch(
+                key = "avito_hide_kindness_banners",
+                title = "Скрыть «Знак добра»",
+                summary = "Убрать баннеры «Знак добра» из результатов поиска",
+                default = true,
+            )
+            println(
+                "UI tweaks: gated kindness banners in SERP input and " +
+                    "${kindnessReturnIndices.size} output(s).",
+            )
         }
 
         // --- Hide promotional/informational onboarding drawers on launch --------

@@ -35,6 +35,9 @@ public final class MorpheSettings {
     public static final String SETTINGS_ACTIVITY = "app.avito.morphe.MorpheSettingsActivity";
     private static final int FAVORITES_SUBSCRIPTIONS_TAB_ID = 3;
     private static final int FAVORITES_COLLECTIONS_TAB_ID = 5;
+    private static final java.util.Map<android.view.View, HiddenKindnessViewState> HIDDEN_KINDNESS_VIEWS =
+            java.util.Collections.synchronizedMap(
+                    new java.util.WeakHashMap<android.view.View, HiddenKindnessViewState>());
 
     private static Context appContext;
 
@@ -175,6 +178,143 @@ public final class MorpheSettings {
         } catch (Throwable ignored) {
         }
         return dialog;
+    }
+
+    /**
+     * Removes the server-driven "Знак добра" cards from a SERP list. Both the
+     * compact header card and the larger in-feed card carry the same campaign
+     * marker in their Beduin model, so one model-level filter covers both without
+     * leaving an empty RecyclerView row.
+     */
+    public static java.util.List<?> withoutKindnessBanners(java.util.List<?> items) {
+        if (items == null || items.isEmpty() || !isEnabled("avito_hide_kindness_banners", true)) {
+            return items;
+        }
+        try {
+            java.util.ArrayList<Object> kept = null;
+            for (int index = 0; index < items.size(); index++) {
+                Object item = items.get(index);
+                boolean hidden = String.valueOf(item).contains("Знак добра");
+                if (hidden) {
+                    if (kept == null) {
+                        kept = new java.util.ArrayList<>(items.size());
+                        kept.addAll(items.subList(0, index));
+                    }
+                } else if (kept != null) {
+                    kept.add(item);
+                }
+            }
+            return kept != null ? kept : items;
+        } catch (Throwable ignored) {
+            return items;
+        }
+    }
+
+    /**
+     * Rendered-text fallback for Beduin/promo models that keep their visible copy
+     * outside the adapter item's toString(). The bind hook runs before Avito binds
+     * the item, so inspection is posted until afterwards. Previously collapsed
+     * generic holders are restored before reuse.
+     */
+    private static void updateKindnessBanner(Object viewHolder) {
+        try {
+            final android.view.View root = Blacklist.itemViewOf(viewHolder);
+            if (root == null) {
+                return;
+            }
+            restoreKindnessView(root);
+            if (!isEnabled("avito_hide_kindness_banners", true)) {
+                return;
+            }
+            root.post(() -> {
+                try {
+                    if (containsViewText(root, "Знак добра")) {
+                        collapseKindnessView(root);
+                    }
+                } catch (Throwable ignored) {
+                }
+            });
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static boolean containsViewText(android.view.View view, String marker) {
+        if (view instanceof android.widget.TextView) {
+            CharSequence text = ((android.widget.TextView) view).getText();
+            if (text != null && text.toString().contains(marker)) {
+                return true;
+            }
+        }
+        if (view instanceof android.view.ViewGroup) {
+            android.view.ViewGroup group = (android.view.ViewGroup) view;
+            for (int index = 0; index < group.getChildCount(); index++) {
+                if (containsViewText(group.getChildAt(index), marker)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static void collapseKindnessView(android.view.View view) {
+        if (HIDDEN_KINDNESS_VIEWS.containsKey(view)) {
+            return;
+        }
+        android.view.ViewGroup.LayoutParams params = view.getLayoutParams();
+        if (params == null) {
+            return;
+        }
+        boolean fullSpan = false;
+        try {
+            fullSpan = (Boolean) params.getClass().getMethod("isFullSpan").invoke(params);
+        } catch (Throwable ignored) {
+        }
+        HIDDEN_KINDNESS_VIEWS.put(
+                view,
+                new HiddenKindnessViewState(params.width, params.height, view.getVisibility(), fullSpan));
+        try {
+            params.getClass().getMethod("setFullSpan", boolean.class).invoke(params, true);
+        } catch (Throwable ignored) {
+        }
+        params.height = 0;
+        view.setLayoutParams(params);
+        view.setVisibility(android.view.View.GONE);
+    }
+
+    private static void restoreKindnessView(android.view.View view) {
+        HiddenKindnessViewState state = HIDDEN_KINDNESS_VIEWS.remove(view);
+        if (state == null) {
+            return;
+        }
+        try {
+            android.view.ViewGroup.LayoutParams params = view.getLayoutParams();
+            if (params != null) {
+                params.width = state.width;
+                params.height = state.height;
+                try {
+                    params.getClass().getMethod("setFullSpan", boolean.class)
+                            .invoke(params, state.fullSpan);
+                } catch (Throwable ignored) {
+                }
+                view.setLayoutParams(params);
+            }
+            view.setVisibility(state.visibility);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static final class HiddenKindnessViewState {
+        final int width;
+        final int height;
+        final int visibility;
+        final boolean fullSpan;
+
+        HiddenKindnessViewState(int width, int height, int visibility, boolean fullSpan) {
+            this.width = width;
+            this.height = height;
+            this.visibility = visibility;
+            this.fullSpan = fullSpan;
+        }
     }
 
     /**
@@ -514,6 +654,7 @@ public final class MorpheSettings {
             }
         } catch (Throwable ignored) {
         }
+        updateKindnessBanner(viewHolder);
         // Collapse the leftover "Реклама скрыта" empty-ad stub (ads are removed).
         AdCleanup.onBind(viewHolder);
         Blacklist.onBindAdvert(viewHolder, item);
