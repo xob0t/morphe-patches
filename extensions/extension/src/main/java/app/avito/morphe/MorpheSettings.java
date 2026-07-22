@@ -157,6 +157,27 @@ public final class MorpheSettings {
     }
 
     /**
+     * Suppresses Avito's server-driven onboarding carousel drawers before their
+     * first rendered frame. The dialog is returned unchanged so disabling the
+     * setting restores stock behaviour without rebuilding.
+     */
+    public static android.app.Dialog suppressOnboardingDrawer(android.app.Dialog dialog) {
+        if (dialog == null || !isEnabled("avito_hide_launch_drawers", true)) {
+            return dialog;
+        }
+        try {
+            dialog.setOnShowListener(shown -> {
+                try {
+                    shown.dismiss();
+                } catch (Throwable ignored) {
+                }
+            });
+        } catch (Throwable ignored) {
+        }
+        return dialog;
+    }
+
+    /**
      * Returns the Favorites tab list without the "Подписки" (subscribed sellers)
      * tab when the toggle is on, otherwise the list unchanged. Injected at the
      * entry of the presenter method that consumes the tab list and populates the
