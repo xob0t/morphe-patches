@@ -12,6 +12,7 @@ import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.booleanOption
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.smali.ExternalLabel
+import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.Method
@@ -26,7 +27,7 @@ private const val ADVERT_DETAILS = "Lcom/avito/android/remote/model/AdvertDetail
 private const val CREDIT_BROKER_PRODUCT = "Lcom/avito/android/remote/model/credit_broker/CreditBrokerProduct;"
 private const val ICE_BREAKERS = "Lcom/avito/android/remote/model/IceBreakers;"
 private const val INTEGER = "Ljava/lang/Integer;"
-private const val FAVORITES_TAB_MODEL = "Lcom/avito/android/user_favorites/adapter/a;"
+private const val FAVORITES_ADAPTER_PACKAGE = "Lcom/avito/android/user_favorites/adapter/"
 private const val FAVORITES_TABS_CONTROL_PACKAGE = "Lcom/avito/android/user_favorites/tabs_control/"
 private const val ONBOARDING_DIALOG_FRAGMENT = "Lcom/avito/android/onboarding/dialog/OnboardingDialogFragment;"
 private const val VISUAL_RUBRICATOR_ITEM_MARKER = "VisualRubricatorWidgetElementItemImpl(stringId="
@@ -101,9 +102,21 @@ private fun Method.favoritesTabsControlFilterTarget(): FavoritesTabsControlFilte
     )
 }
 
-private fun Method.isFavoritesTabViewBind() =
+private fun ClassDef.isFavoritesTabModel() =
+    type.startsWith(FAVORITES_ADAPTER_PACKAGE) &&
+        AccessFlags.ABSTRACT.isSet(accessFlags) &&
+        interfaces.any { it.toString() == "Landroid/os/Parcelable;" } &&
+        fields.count { it.type == "I" } == 1 &&
+        fields.count { it.type == "Ljava/lang/String;" } == 2 &&
+        methods.count { method ->
+            method.implementation != null &&
+                method.parameterTypes.isEmpty() &&
+                method.returnType == "Ljava/lang/String;"
+        } >= 2
+
+private fun Method.isFavoritesTabViewBind(modelType: String) =
     returnType == "V" &&
-        parameterTypes.map { it.toString() } == listOf(FAVORITES_TAB_MODEL) &&
+        parameterTypes.map { it.toString() } == listOf(modelType) &&
         implementation != null
 
 private fun Method.isFavoritesTabTitleBind() =
@@ -253,30 +266,44 @@ val uiTweaksPatch = bytecodePatch(
             null
         }
 
-        var favoritesTabViewHooks = 0
+        val favoritesTabModelCandidates = mutableSetOf<String>()
         classDefForEach { classDef ->
-            if (!classDef.type.startsWith("Lcom/avito/android/user_favorites/adapter/")) return@classDefForEach
-            val bind = classDef.methods.firstOrNull { method -> method.isFavoritesTabViewBind() }
-                ?: return@classDefForEach
-            val mutableBind = mutableClassDefBy(classDef).methods.first {
-                it.name == bind.name && it.parameterTypes == bind.parameterTypes
-            }
-            mutableBind.addInstructions(
-                0,
-                "invoke-static/range {p0 .. p1}, $MORPHE_SETTINGS_CLASS->updateFavoritesTabView(Ljava/lang/Object;Ljava/lang/Object;)V",
-            )
-            favoritesTabViewHooks++
+            if (classDef.isFavoritesTabModel()) favoritesTabModelCandidates += classDef.type
+        }
+        val favoritesTabModel = favoritesTabModelCandidates.singleOrNull()
 
-            val titleBind = classDef.methods.firstOrNull { method -> method.isFavoritesTabTitleBind() }
-                ?: return@classDefForEach
-            val mutableTitleBind = mutableClassDefBy(classDef).methods.first {
-                it.name == titleBind.name && it.parameterTypes == titleBind.parameterTypes
+        var favoritesTabViewHooks = 0
+        if (favoritesTabModel != null) {
+            classDefForEach { classDef ->
+                if (!classDef.type.startsWith(FAVORITES_ADAPTER_PACKAGE)) return@classDefForEach
+                val bind = classDef.methods.firstOrNull { method ->
+                    method.isFavoritesTabViewBind(favoritesTabModel)
+                } ?: return@classDefForEach
+                val mutableBind = mutableClassDefBy(classDef).methods.first {
+                    it.name == bind.name && it.parameterTypes == bind.parameterTypes
+                }
+                mutableBind.addInstructions(
+                    0,
+                    "invoke-static/range {p0 .. p1}, $MORPHE_SETTINGS_CLASS->updateFavoritesTabView(Ljava/lang/Object;Ljava/lang/Object;)V",
+                )
+                favoritesTabViewHooks++
+
+                val titleBind = classDef.methods.firstOrNull { method -> method.isFavoritesTabTitleBind() }
+                    ?: return@classDefForEach
+                val mutableTitleBind = mutableClassDefBy(classDef).methods.first {
+                    it.name == titleBind.name && it.parameterTypes == titleBind.parameterTypes
+                }
+                mutableTitleBind.addInstructions(
+                    0,
+                    "invoke-static/range {p0 .. p1}, $MORPHE_SETTINGS_CLASS->updateFavoritesTabViewByTitle(Ljava/lang/Object;Ljava/lang/String;)V",
+                )
+                favoritesTabViewHooks++
             }
-            mutableTitleBind.addInstructions(
-                0,
-                "invoke-static/range {p0 .. p1}, $MORPHE_SETTINGS_CLASS->updateFavoritesTabViewByTitle(Ljava/lang/Object;Ljava/lang/String;)V",
+        } else if (favoritesTabModelCandidates.isNotEmpty()) {
+            println(
+                "UI tweaks: Favorites tab model was ambiguous " +
+                    "(${favoritesTabModelCandidates.joinToString()}); legacy renderers skipped",
             )
-            favoritesTabViewHooks++
         }
 
         when {

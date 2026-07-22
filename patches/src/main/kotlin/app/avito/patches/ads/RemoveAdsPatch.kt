@@ -15,7 +15,9 @@ import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
+import com.android.tools.smali.dexlib2.iface.reference.TypeReference
 import org.w3c.dom.Element
 import java.io.FileNotFoundException
 
@@ -48,6 +50,11 @@ private const val AD_CLEANUP_CLASS = "Lapp/avito/morphe/AdCleanup;"
 private const val LIST = "Ljava/util/List;"
 private const val MAP = "Ljava/util/Map;"
 private const val BOOLEAN = "Z"
+
+private val profileProOutputItemTypes = setOf(
+    "Lcom/avito/android/profile/pro/impl/screen/item/group/row/ProfileProGroupRowItem;",
+    "Lcom/avito/android/profile/pro/impl/screen/item/widget_group/widget/ProfileProWidgetItem;",
+)
 
 private val hiddenRewardLayouts = listOf(
     "res/layout/item_rewards.xml",
@@ -105,10 +112,19 @@ private fun Method.galleryTeaserParameterIndexes(): List<Int> {
     return listOf(galleryTeaserIndex) + extraTeaserListIndexes
 }
 
-private fun Method.isProfileProWidgetGroupConverter(): Boolean =
-    returnType == "Ljava/util/ArrayList;" &&
-        implementation != null &&
-        parameterTypes.size == 1
+private fun Method.profileProOutputItemTypes(): Set<String> {
+    if (returnType != "Ljava/util/ArrayList;" || implementation == null || parameterTypes.size != 1) {
+        return emptySet()
+    }
+
+    return implementation!!.instructions
+        .asSequence()
+        .filter { it.opcode == Opcode.NEW_INSTANCE }
+        .mapNotNull { instruction ->
+            ((instruction as? ReferenceInstruction)?.reference as? TypeReference)?.type
+        }
+        .filterTo(mutableSetOf()) { it in profileProOutputItemTypes }
+}
 
 private fun nullParametersInstructions(parameterIndexes: List<Int>) =
     buildString {
@@ -299,13 +315,15 @@ val removeAdsPatch = bytecodePatch(
         }
 
         var profilePrizePortalConvertersPatched = 0
+        val profileOutputItemTypesPatched = mutableSetOf<String>()
         classDefForEach { classDef ->
             if (!classDef.type.startsWith("Lcom/avito/android/profile/pro/impl/converters/")) {
                 return@classDefForEach
             }
             val converterMethod = classDef.methods.singleOrNull { method ->
-                method.isProfileProWidgetGroupConverter()
+                method.profileProOutputItemTypes().isNotEmpty()
             } ?: return@classDefForEach
+            val outputItemTypes = converterMethod.profileProOutputItemTypes()
 
             val method = mutableClassDefBy(classDef).methods.single {
                 it.name == converterMethod.name && it.parameterTypes == converterMethod.parameterTypes
@@ -330,11 +348,14 @@ val removeAdsPatch = bytecodePatch(
                 )
             }
             profilePrizePortalConvertersPatched++
+            profileOutputItemTypesPatched += outputItemTypes
         }
-        if (profilePrizePortalConvertersPatched == 0) {
+        val missingProfileOutputItemTypes = profileProOutputItemTypes - profileOutputItemTypesPatched
+        if (missingProfileOutputItemTypes.isNotEmpty()) {
             throw PatchException(
-                "Remove ads: profile prize portal widget converter not found - " +
-                    "update isProfileProWidgetGroupConverter() for this version.",
+                "Remove ads: profile prize portal converter(s) not found for " +
+                    "${missingProfileOutputItemTypes.joinToString()} - update the stable output-item anchors " +
+                    "for this version.",
             )
         }
 

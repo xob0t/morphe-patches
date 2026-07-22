@@ -3,15 +3,39 @@ package app.avito.patches.settings
 import app.avito.patches.shared.Constants.COMPATIBILITY_AVITO
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
+import app.morphe.patcher.patch.PatchException
+import app.morphe.patcher.patch.booleanOption
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
 import app.shared.childrenNamed
+import app.shared.methodReferenceOrNull
+import app.shared.stringReferenceOrNull
 import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import org.w3c.dom.Element
 
 private const val MORPHE_SETTINGS_CLASS = "Lapp/avito/morphe/MorpheSettings;"
 private const val MORPHE_SETTINGS_ACTIVITY = "app.avito.morphe.MorpheSettingsActivity"
+private const val KONVEYOR_BIND_MARKER = "onBindViewHolder:#"
+
+private fun Method.isKonveyorBind(definingClass: String, getItem: Method): Boolean =
+    implementation != null &&
+        returnType == "V" &&
+        parameterTypes.map { it.toString() }.let { params ->
+            params.size == 3 &&
+                params[0].startsWith("L") &&
+                params[1] == "I" &&
+                params[2] == "Ljava/util/List;"
+        } &&
+        instructionsOrNull?.any { it.stringReferenceOrNull() == KONVEYOR_BIND_MARKER } == true &&
+        instructionsOrNull?.any { instruction ->
+            val reference = instruction.methodReferenceOrNull() ?: return@any false
+            reference.definingClass == definingClass &&
+                reference.name == "getItem" &&
+                reference.parameterTypes.map { it.toString() } == listOf("I") &&
+                reference.returnType == getItem.returnType
+        } == true
 
 /**
  * Registers the generic Morphe settings screen ([MORPHE_SETTINGS_ACTIVITY],
@@ -66,6 +90,13 @@ val morpheSettingsPatch = bytecodePatch(
     dependsOn(registerMorpheSettingsActivityPatch)
     extendWith("extensions/extension.mpe")
 
+    val strictHooks by booleanOption(
+        key = "strictHooks",
+        default = false,
+        title = "Strict settings hook validation",
+        description = "Fail patching when the Avito settings entry or Konveyor bind hook cannot be applied.",
+    )
+
     execute {
         // Start from a clean registry so a reused Gradle daemon never carries
         // entries between builds. Feature patches (which dependsOn this) add their
@@ -85,9 +116,15 @@ val morpheSettingsPatch = bytecodePatch(
                         "$MORPHE_SETTINGS_CLASS->addSettingsEntry(Ljava/util/List;)V",
                 )
                 println("Morphe settings: added entry to Avito Settings")
+            } else {
+                val message = "Morphe settings: settings list builder has no object return"
+                if (strictHooks == true) throw PatchException(message)
+                println("$message; entry skipped")
             }
         } else {
-            println("Morphe settings: settings list builder not found; entry skipped")
+            val message = "Morphe settings: settings list builder not found"
+            if (strictHooks == true) throw PatchException(message)
+            println("$message; entry skipped")
         }
 
         // Konveyor adapter-presenter bind hook → MorpheSettings.onBind, which wires
@@ -106,22 +143,11 @@ val morpheSettingsPatch = bytecodePatch(
                     method.returnType.startsWith("L")
             } ?: return@classDefForEach
 
-            // The konveyor presenter's bind takes konveyor's own ViewHolder. Exclude
-            // the RecyclerView.Adapter.onBindViewHolder(VH, int, List) override, which
-            // shares the (L, I, List)V shape but is a different method — its name is a
-            // framework override (kept by R8) and its first param is androidx's
-            // RecyclerView$C, so both are stable, non-obfuscated discriminators.
+            // The payload bind carries a stable Konveyor trace marker and calls this
+            // concrete presenter's getItem(int). Together those anchors distinguish
+            // it from RecyclerView and unrelated adapter methods with the same shape.
             val bind = classDef.methods.firstOrNull { method ->
-                method.implementation != null &&
-                    method.returnType == "V" &&
-                    method.name != "onBindViewHolder" &&
-                    method.parameterTypes.map { it.toString() }.let { params ->
-                        params.size == 3 &&
-                            params[0].startsWith("L") &&
-                            params[0] != "Landroidx/recyclerview/widget/RecyclerView\$C;" &&
-                            params[1] == "I" &&
-                            params[2] == "Ljava/util/List;"
-                    }
+                method.isKonveyorBind(classDef.type, getItem)
             } ?: return@classDefForEach
 
             mutableClassDefBy(classDef).methods
@@ -144,6 +170,9 @@ val morpheSettingsPatch = bytecodePatch(
                     """,
                 )
             bindHooks++
+        }
+        if (bindHooks == 0 && strictHooks == true) {
+            throw PatchException("Morphe settings: Konveyor presenter bind hook not found")
         }
         println("Morphe settings: installed bind hook in $bindHooks adapter presenter(s)")
     }
