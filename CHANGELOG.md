@@ -1,3 +1,17 @@
+## [1.7.0-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.6.1...v1.7.0-dev.1) (2026-07-22)
+
+### 🐛 Bug Fixes
+
+* **avito:** harden fingerprints for 229.1 ([55beb08](https://github.com/xob0t/morphe-patches/commit/55beb08de2c1cab9715a9e53a861e258dd257082))
+* **avito:** hide sales promo in search results ([e226828](https://github.com/xob0t/morphe-patches/commit/e22682800023bd7a0a89cfa81d9333664fedfae4))
+* **avito:** restart after Favorites tab changes ([47be975](https://github.com/xob0t/morphe-patches/commit/47be975590c9f5cb362d26f6077a71f66c600d4d))
+* enforce strict targets for current app builds ([b8e3a38](https://github.com/xob0t/morphe-patches/commit/b8e3a38fc33a95aaf30347dc1f433d5e6c80d809))
+
+### ✨ New Features
+
+* **avito:** add kindness banner toggle ([9e10b25](https://github.com/xob0t/morphe-patches/commit/9e10b25155361768cb85adb70a16afafc54e0602))
+* **avito:** harden UI tweaks for 229.1 ([4b13452](https://github.com/xob0t/morphe-patches/commit/4b13452d965d82cf92fd310b6b00dfb2d56683d8))
+
 ## [1.6.1](https://github.com/xob0t/morphe-patches/compare/v1.6.0...v1.6.1) (2026-07-07)
 
 ### 🐛 Bug Fixes
