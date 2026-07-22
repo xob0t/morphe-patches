@@ -232,12 +232,14 @@ val uiTweaksPatch = bytecodePatch(
                 title = "Скрыть вкладку «Подписки/Лента»",
                 summary = "Убрать вкладку подписок на экране Избранное",
                 default = true,
+                restartRequired = true,
             )
             MorpheSettingsRegistry.addSwitch(
                 key = "avito_hide_collections_tab",
                 title = "Скрыть вкладку «Подборки»",
                 summary = "Убрать вкладку подборок на экране Избранное",
                 default = true,
+                restartRequired = true,
             )
         }
 
