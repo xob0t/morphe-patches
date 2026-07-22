@@ -1,5 +1,5 @@
 {
-  "version": "1.6.1",
+  "version": "1.7.0-dev.1",
   "patches": [
     {
       "name": "AMOLED dark theme",
@@ -15,6 +15,12 @@
           "appIconColor": "#00AAFF",
           "signatures": null,
           "targets": [
+            {
+              "version": "229.1",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
             {
               "version": "228.0",
               "isExperimental": false,
@@ -74,6 +80,12 @@
           "signatures": null,
           "targets": [
             {
+              "version": "229.1",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
               "version": "228.0",
               "isExperimental": false,
               "minSdk": 28,
@@ -129,6 +141,12 @@
           "signatures": null,
           "targets": [
             {
+              "version": "7.40.0",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
               "version": "7.36.0",
               "isExperimental": false,
               "minSdk": 28,
@@ -143,7 +161,17 @@
           ]
         }
       ],
-      "options": []
+      "options": [
+        {
+          "key": "strictTargets",
+          "title": "Require all current targets",
+          "description": "Fails when a current integrity-check target no longer matches. Intended for automated builds.",
+          "required": false,
+          "type": "kotlin.Boolean",
+          "default": false,
+          "values": null
+        }
+      ]
     },
     {
       "name": "Disable Adjust",
@@ -234,6 +262,12 @@
           "signatures": null,
           "targets": [
             {
+              "version": "229.1",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
               "version": "228.0",
               "isExperimental": false,
               "minSdk": 28,
@@ -272,7 +306,17 @@
           ]
         }
       ],
-      "options": []
+      "options": [
+        {
+          "key": "strictTargets",
+          "title": "Strict telemetry target validation",
+          "description": "Fail patching when a known Avito telemetry entry point cannot be found.",
+          "required": false,
+          "type": "kotlin.Boolean",
+          "default": false,
+          "values": null
+        }
+      ]
     },
     {
       "name": "Disable update prompts",
@@ -290,6 +334,12 @@
           "appIconColor": "#00AAFF",
           "signatures": null,
           "targets": [
+            {
+              "version": "229.1",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
             {
               "version": "228.0",
               "isExperimental": false,
@@ -348,6 +398,12 @@
           "signatures": null,
           "targets": [
             {
+              "version": "229.1",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
               "version": "228.0",
               "isExperimental": false,
               "minSdk": 28,
@@ -386,7 +442,17 @@
           ]
         }
       ],
-      "options": []
+      "options": [
+        {
+          "key": "strictHooks",
+          "title": "Strict settings hook validation",
+          "description": "Fail patching when the Avito settings entry or Konveyor bind hook cannot be applied.",
+          "required": false,
+          "type": "kotlin.Boolean",
+          "default": false,
+          "values": null
+        }
+      ]
     },
     {
       "name": "Remove Ozon ads",
@@ -404,6 +470,12 @@
           "appIconColor": "#005BFF",
           "signatures": null,
           "targets": [
+            {
+              "version": "19.27.0",
+              "isExperimental": false,
+              "minSdk": 26,
+              "description": null
+            },
             {
               "version": "19.22.0",
               "isExperimental": false,
@@ -440,6 +512,15 @@
           "type": "kotlin.Boolean",
           "default": true,
           "values": null
+        },
+        {
+          "key": "strictTargets",
+          "title": "Require all current targets",
+          "description": "Fails when a current ad surface no longer matches. Intended for automated builds.",
+          "required": false,
+          "type": "kotlin.Boolean",
+          "default": false,
+          "values": null
         }
       ]
     },
@@ -460,6 +541,12 @@
           "signatures": null,
           "targets": [
             {
+              "version": "7.40.0",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
               "version": "7.36.0",
               "isExperimental": false,
               "minSdk": 28,
@@ -474,7 +561,17 @@
           ]
         }
       ],
-      "options": []
+      "options": [
+        {
+          "key": "strictTargets",
+          "title": "Require all current targets",
+          "description": "Fails when a current promotional surface no longer matches. Intended for automated builds.",
+          "required": false,
+          "type": "kotlin.Boolean",
+          "default": false,
+          "values": null
+        }
+      ]
     },
     {
       "name": "Remove Wildberries ads",
@@ -490,6 +587,12 @@
           "appIconColor": "#A73AFD",
           "signatures": null,
           "targets": [
+            {
+              "version": "7.7.2001-rustore",
+              "isExperimental": false,
+              "minSdk": 26,
+              "description": null
+            },
             {
               "version": "7.6.8001",
               "isExperimental": false,
@@ -526,6 +629,15 @@
           "type": "kotlin.Boolean",
           "default": true,
           "values": null
+        },
+        {
+          "key": "strictTargets",
+          "title": "Require all current targets",
+          "description": "Fails when a current banner or recommendation surface no longer matches. Intended for automated builds.",
+          "required": false,
+          "type": "kotlin.Boolean",
+          "default": false,
+          "values": null
         }
       ]
     },
@@ -545,6 +657,12 @@
           "appIconColor": "#00AAFF",
           "signatures": null,
           "targets": [
+            {
+              "version": "229.1",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
             {
               "version": "228.0",
               "isExperimental": false,
@@ -635,6 +753,12 @@
           "signatures": null,
           "targets": [
             {
+              "version": "229.1",
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
               "version": "228.0",
               "isExperimental": false,
               "minSdk": 28,
@@ -673,7 +797,17 @@
           ]
         }
       ],
-      "options": []
+      "options": [
+        {
+          "key": "strictFavoritesTabs",
+          "title": "Strict Favorites tab validation",
+          "description": "Fail patching when the Favorites-tab filtering hook cannot be applied.",
+          "required": false,
+          "type": "kotlin.Boolean",
+          "default": false,
+          "values": null
+        }
+      ]
     }
   ]
 }

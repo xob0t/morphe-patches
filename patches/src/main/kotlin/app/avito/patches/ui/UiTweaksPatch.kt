@@ -1,5 +1,6 @@
 package app.avito.patches.ui
 
+import app.avito.patches.blacklist.SerpElementsConverterFingerprint
 import app.avito.patches.settings.MorpheSettingsRegistry
 import app.avito.patches.settings.morpheSettingsPatch
 import app.avito.patches.shared.Constants.COMPATIBILITY_AVITO
@@ -7,8 +8,11 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
+import app.morphe.patcher.patch.PatchException
+import app.morphe.patcher.patch.booleanOption
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.smali.ExternalLabel
+import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.Method
@@ -23,9 +27,9 @@ private const val ADVERT_DETAILS = "Lcom/avito/android/remote/model/AdvertDetail
 private const val CREDIT_BROKER_PRODUCT = "Lcom/avito/android/remote/model/credit_broker/CreditBrokerProduct;"
 private const val ICE_BREAKERS = "Lcom/avito/android/remote/model/IceBreakers;"
 private const val INTEGER = "Ljava/lang/Integer;"
-private const val FAVORITES_TABS_CONTROL_MAPPER = "Lcom/avito/android/user_favorites/tabs_control/b;"
-private const val FAVORITES_TABS_CONTROL_STATE = "Lcom/avito/android/user_favorites/tabs_control/c;"
-private const val FAVORITES_TAB_MODEL = "Lcom/avito/android/user_favorites/adapter/a;"
+private const val FAVORITES_ADAPTER_PACKAGE = "Lcom/avito/android/user_favorites/adapter/"
+private const val FAVORITES_TABS_CONTROL_PACKAGE = "Lcom/avito/android/user_favorites/tabs_control/"
+private const val ONBOARDING_DIALOG_FRAGMENT = "Lcom/avito/android/onboarding/dialog/OnboardingDialogFragment;"
 private const val VISUAL_RUBRICATOR_ITEM_MARKER = "VisualRubricatorWidgetElementItemImpl(stringId="
 private const val ROW_LINE_MARKER = ", rowLine="
 
@@ -67,26 +71,52 @@ private fun Method.getterForField(field: FieldReference) =
             instruction.fieldReferenceOrNull()?.sameFieldAs(field) == true
         } == true
 
-private fun Method.favoritesTabsControlFilterTarget(): Pair<Int, Int>? {
+private data class FavoritesTabsControlFilterTarget(
+    val index: Int,
+    val register: Int,
+    val stateType: String,
+)
+
+private fun Method.favoritesTabsControlFilterTarget(): FavoritesTabsControlFilterTarget? {
     val instructions = instructionsOrNull?.toList() ?: return null
+    var stateType: String? = null
     val mapperIndex = instructions.indexOfFirst { instruction ->
         val reference = instruction.methodReferenceOrNull() ?: return@indexOfFirst false
-        instruction.opcode in setOf(Opcode.INVOKE_STATIC, Opcode.INVOKE_STATIC_RANGE) &&
-            reference.definingClass == FAVORITES_TABS_CONTROL_MAPPER &&
-            reference.returnType == FAVORITES_TABS_CONTROL_STATE &&
-            reference.parameterTypes.map { it.toString() } == listOf("I", "Ljava/util/List;")
+        val matches =
+            instruction.opcode in setOf(Opcode.INVOKE_STATIC, Opcode.INVOKE_STATIC_RANGE) &&
+                reference.definingClass.startsWith(FAVORITES_TABS_CONTROL_PACKAGE) &&
+                reference.returnType.startsWith(FAVORITES_TABS_CONTROL_PACKAGE) &&
+                reference.parameterTypes.map { it.toString() } == listOf("I", "Ljava/util/List;")
+        if (matches) stateType = reference.returnType
+        matches
     }
     if (mapperIndex < 0) return null
 
     val moveResult = instructions.getOrNull(mapperIndex + 1) as? OneRegisterInstruction ?: return null
     if (moveResult.opcode != Opcode.MOVE_RESULT_OBJECT) return null
 
-    return mapperIndex + 2 to moveResult.registerA
+    return FavoritesTabsControlFilterTarget(
+        index = mapperIndex + 2,
+        register = moveResult.registerA,
+        stateType = stateType ?: return null,
+    )
 }
 
-private fun Method.isFavoritesTabViewBind() =
+private fun ClassDef.isFavoritesTabModel() =
+    type.startsWith(FAVORITES_ADAPTER_PACKAGE) &&
+        AccessFlags.ABSTRACT.isSet(accessFlags) &&
+        interfaces.any { it.toString() == "Landroid/os/Parcelable;" } &&
+        fields.count { it.type == "I" } == 1 &&
+        fields.count { it.type == "Ljava/lang/String;" } == 2 &&
+        methods.count { method ->
+            method.implementation != null &&
+                method.parameterTypes.isEmpty() &&
+                method.returnType == "Ljava/lang/String;"
+        } >= 2
+
+private fun Method.isFavoritesTabViewBind(modelType: String) =
     returnType == "V" &&
-        parameterTypes.map { it.toString() } == listOf(FAVORITES_TAB_MODEL) &&
+        parameterTypes.map { it.toString() } == listOf(modelType) &&
         implementation != null
 
 private fun Method.isFavoritesTabTitleBind() =
@@ -105,10 +135,14 @@ private fun Method.isFavoritesTabTitleBind() =
  *  - **Expand descriptions by default** so the full text shows without tapping
  *    "Читать далее".
  *  - **Hide the Avi assistant tab** in the bottom navigation bar.
+ *  - **Hide launch drawers** used by Avito's promotional and informational
+ *    onboarding carousel.
+ *  - **Hide “Знак добра” banners** in search results.
  *
- * Each tweak is applied independently and degrades gracefully: if the target
- * isn't present on a given release the tweak (and its toggle) is simply skipped,
- * and the patch never aborts the build.
+ * Most tweaks are applied independently and degrade gracefully if an optional
+ * surface is absent. Auto-builds enable strict Favorites-tab validation so a
+ * missing hook aborts there instead of publishing an APK that silently leaves
+ * those tabs visible.
  */
 @Suppress("unused")
 val uiTweaksPatch = bytecodePatch(
@@ -121,6 +155,13 @@ val uiTweaksPatch = bytecodePatch(
 ) {
     compatibleWith(COMPATIBILITY_AVITO)
     dependsOn(morpheSettingsPatch)
+
+    val strictFavoritesTabs by booleanOption(
+        key = "strictFavoritesTabs",
+        default = false,
+        title = "Strict Favorites tab validation",
+        description = "Fail patching when the Favorites-tab filtering hook cannot be applied.",
+    )
 
     execute {
         // --- Force the home-screen categories into a single row -----------------
@@ -182,8 +223,8 @@ val uiTweaksPatch = bytecodePatch(
             println("UI tweaks: gated single-row home categories behind the toggle.")
         }
 
-        // --- Hide the "Подписки" (subscribed sellers) tab in Избранное ----------
-        // Drop the SellersTab from the favorites tab list. Two entry points, tried in
+        // --- Hide the "Подписки" and "Подборки" tabs in Избранное -----------------
+        // Filter the configured Favorites tabs. Two entry points are tried in
         // order so the patch spans app versions:
         //   * 227+: the presenter consumer that reads UserFavoritesTabsRenderMode (the
         //     active path; the obvious builder A.a is bypassed by a feature flag).
@@ -204,12 +245,14 @@ val uiTweaksPatch = bytecodePatch(
                 title = "Скрыть вкладку «Подписки/Лента»",
                 summary = "Убрать вкладку подписок на экране Избранное",
                 default = true,
+                restartRequired = true,
             )
             MorpheSettingsRegistry.addSwitch(
                 key = "avito_hide_collections_tab",
                 title = "Скрыть вкладку «Подборки»",
                 summary = "Убрать вкладку подборок на экране Избранное",
                 default = true,
+                restartRequired = true,
             )
         }
 
@@ -223,55 +266,76 @@ val uiTweaksPatch = bytecodePatch(
             null
         }
 
-        var favoritesTabViewHooks = 0
+        val favoritesTabModelCandidates = mutableSetOf<String>()
         classDefForEach { classDef ->
-            if (!classDef.type.startsWith("Lcom/avito/android/user_favorites/adapter/")) return@classDefForEach
-            val bind = classDef.methods.firstOrNull { method -> method.isFavoritesTabViewBind() }
-                ?: return@classDefForEach
-            val mutableBind = mutableClassDefBy(classDef).methods.first {
-                it.name == bind.name && it.parameterTypes == bind.parameterTypes
-            }
-            mutableBind.addInstructions(
-                0,
-                "invoke-static/range {p0 .. p1}, $MORPHE_SETTINGS_CLASS->updateFavoritesTabView(Ljava/lang/Object;Ljava/lang/Object;)V",
-            )
-            favoritesTabViewHooks++
+            if (classDef.isFavoritesTabModel()) favoritesTabModelCandidates += classDef.type
+        }
+        val favoritesTabModel = favoritesTabModelCandidates.singleOrNull()
 
-            val titleBind = classDef.methods.firstOrNull { method -> method.isFavoritesTabTitleBind() }
-                ?: return@classDefForEach
-            val mutableTitleBind = mutableClassDefBy(classDef).methods.first {
-                it.name == titleBind.name && it.parameterTypes == titleBind.parameterTypes
+        var favoritesTabViewHooks = 0
+        if (favoritesTabModel != null) {
+            classDefForEach { classDef ->
+                if (!classDef.type.startsWith(FAVORITES_ADAPTER_PACKAGE)) return@classDefForEach
+                val bind = classDef.methods.firstOrNull { method ->
+                    method.isFavoritesTabViewBind(favoritesTabModel)
+                } ?: return@classDefForEach
+                val mutableBind = mutableClassDefBy(classDef).methods.first {
+                    it.name == bind.name && it.parameterTypes == bind.parameterTypes
+                }
+                mutableBind.addInstructions(
+                    0,
+                    "invoke-static/range {p0 .. p1}, $MORPHE_SETTINGS_CLASS->updateFavoritesTabView(Ljava/lang/Object;Ljava/lang/Object;)V",
+                )
+                favoritesTabViewHooks++
+
+                val titleBind = classDef.methods.firstOrNull { method -> method.isFavoritesTabTitleBind() }
+                    ?: return@classDefForEach
+                val mutableTitleBind = mutableClassDefBy(classDef).methods.first {
+                    it.name == titleBind.name && it.parameterTypes == titleBind.parameterTypes
+                }
+                mutableTitleBind.addInstructions(
+                    0,
+                    "invoke-static/range {p0 .. p1}, $MORPHE_SETTINGS_CLASS->updateFavoritesTabViewByTitle(Ljava/lang/Object;Ljava/lang/String;)V",
+                )
+                favoritesTabViewHooks++
             }
-            mutableTitleBind.addInstructions(
-                0,
-                "invoke-static/range {p0 .. p1}, $MORPHE_SETTINGS_CLASS->updateFavoritesTabViewByTitle(Ljava/lang/Object;Ljava/lang/String;)V",
+        } else if (favoritesTabModelCandidates.isNotEmpty()) {
+            println(
+                "UI tweaks: Favorites tab model was ambiguous " +
+                    "(${favoritesTabModelCandidates.joinToString()}); legacy renderers skipped",
             )
-            favoritesTabViewHooks++
         }
 
         when {
             tabConsumer != null -> {
-                var favoritesTabHooks = 0
-                tabConsumer.favoritesTabsControlFilterTarget()?.let { (index, register) ->
+                val target = tabConsumer.favoritesTabsControlFilterTarget()
+                if (target != null) {
                     tabConsumer.addInstructions(
-                        index,
+                        target.index,
                         """
-                            invoke-static/range {v$register .. v$register}, $MORPHE_SETTINGS_CLASS->withoutHiddenFavoritesTabsControlState(Ljava/lang/Object;)Ljava/lang/Object;
-                            move-result-object v$register
-                            check-cast v$register, $FAVORITES_TABS_CONTROL_STATE
+                            invoke-static/range {v${target.register} .. v${target.register}}, $MORPHE_SETTINGS_CLASS->withoutHiddenFavoritesTabsControlState(Ljava/lang/Object;)Ljava/lang/Object;
+                            move-result-object v${target.register}
+                            check-cast v${target.register}, ${target.stateType}
                         """,
                     )
-                    favoritesTabHooks++
-                }
-
-                if (favoritesTabHooks + favoritesTabViewHooks > 0) {
                     registerFavoritesTabToggles()
                     println(
-                        "UI tweaks: gated ${favoritesTabHooks + favoritesTabViewHooks} Favorites tab renderer(s) in " +
+                        "UI tweaks: gated Favorites tabs control state ${target.stateType} and " +
+                            "$favoritesTabViewHooks legacy renderer(s) in " +
                             "${FavoritesTabsConsumerFingerprint.originalClassDef.type}->${tabConsumer.name}",
                     )
                 } else {
-                    println("UI tweaks: Favorites tab renderers not found; Favorites tabs skipped")
+                    val message =
+                        "Favorites tabs control mapper was not found in " +
+                            "${FavoritesTabsConsumerFingerprint.originalClassDef.type}->${tabConsumer.name}"
+                    if (strictFavoritesTabs == true) throw PatchException(message)
+
+                    if (favoritesTabViewHooks > 0) {
+                        registerFavoritesTabToggles()
+                        println("UI tweaks: $message; gated $favoritesTabViewHooks legacy renderer(s) only")
+                    } else {
+                        println("UI tweaks: $message; Favorites tabs skipped")
+                    }
                 }
             }
 
@@ -284,7 +348,103 @@ val uiTweaksPatch = bytecodePatch(
                 )
             }
 
-            else -> println("UI tweaks: Favorites tab consumer not found; Favorites tabs skipped")
+            else -> {
+                val message = "Favorites tab consumer and changes constructor were not found"
+                if (strictFavoritesTabs == true) throw PatchException(message)
+                println("UI tweaks: $message; Favorites tabs skipped")
+            }
+        }
+
+        // --- Hide the server-driven “Знак добра” SERP cards ---------------------
+        // The compact header card and the larger in-feed card are both Beduin
+        // models carrying the same campaign marker. Filter both the input network
+        // elements and the converted adapter items so either representation is
+        // removed without leaving a blank RecyclerView row.
+        val kindnessSerpConverter = SerpElementsConverterFingerprint.methodOrNull
+        if (kindnessSerpConverter == null) {
+            println("UI tweaks: SERP converter not found; kindness banners skipped")
+        } else {
+            kindnessSerpConverter.addInstructions(
+                0,
+                """
+                    invoke-static/range {p1 .. p1}, $MORPHE_SETTINGS_CLASS->withoutKindnessBanners(Ljava/util/List;)Ljava/util/List;
+                    move-result-object p1
+                """,
+            )
+            val kindnessReturnIndices = kindnessSerpConverter.instructionsOrNull
+                ?.toList().orEmpty()
+                .mapIndexedNotNull { index, instruction ->
+                    if (instruction.opcode == Opcode.RETURN_OBJECT) index else null
+                }
+                .reversed()
+            for (returnIndex in kindnessReturnIndices) {
+                val register =
+                    (kindnessSerpConverter.instructionsOrNull!!.toList()[returnIndex] as OneRegisterInstruction).registerA
+                kindnessSerpConverter.addInstructions(
+                    returnIndex,
+                    """
+                        invoke-static/range {v$register .. v$register}, $MORPHE_SETTINGS_CLASS->withoutKindnessBanners(Ljava/util/List;)Ljava/util/List;
+                        move-result-object v$register
+                        check-cast v$register, Ljava/util/ArrayList;
+                    """,
+                )
+            }
+            MorpheSettingsRegistry.addSwitch(
+                key = "avito_hide_kindness_banners",
+                title = "Скрыть «Знак добра»",
+                summary = "Убрать баннеры «Знак добра» из результатов поиска",
+                default = true,
+            )
+            println(
+                "UI tweaks: gated kindness banners in SERP input and " +
+                    "${kindnessReturnIndices.size} output(s).",
+            )
+        }
+
+        // --- Hide promotional/informational onboarding drawers on launch --------
+        // OnboardingDialogFragment is dedicated to Avito's server-driven onboarding
+        // carousel bottom sheet. Install an on-show dismiss gate on the dialog it
+        // returns, which suppresses the drawer before the first rendered frame while
+        // leaving unrelated bottom sheets untouched.
+        val onboardingDialogFactory = classDefByOrNull(ONBOARDING_DIALOG_FRAGMENT)
+            ?.methods
+            ?.firstOrNull { method ->
+                method.name == "onCreateDialog" &&
+                    method.returnType == "Landroid/app/Dialog;" &&
+                    method.parameterTypes.map { it.toString() } == listOf("Landroid/os/Bundle;") &&
+                    method.implementation != null
+            }
+        if (onboardingDialogFactory == null) {
+            println("UI tweaks: onboarding dialog factory not found; launch drawers skipped")
+        } else {
+            val method = mutableClassDefBy(ONBOARDING_DIALOG_FRAGMENT).methods.first {
+                it.name == onboardingDialogFactory.name &&
+                    it.parameterTypes == onboardingDialogFactory.parameterTypes
+            }
+            val returnIndices = method.instructionsOrNull
+                ?.toList().orEmpty()
+                .mapIndexedNotNull { index, instruction ->
+                    if (instruction.opcode == Opcode.RETURN_OBJECT) index else null
+                }
+                .reversed()
+            for (returnIndex in returnIndices) {
+                val register =
+                    (method.instructionsOrNull!!.toList()[returnIndex] as OneRegisterInstruction).registerA
+                method.addInstructions(
+                    returnIndex,
+                    """
+                        invoke-static/range {v$register .. v$register}, $MORPHE_SETTINGS_CLASS->suppressOnboardingDrawer(Landroid/app/Dialog;)Landroid/app/Dialog;
+                        move-result-object v$register
+                    """,
+                )
+            }
+            MorpheSettingsRegistry.addSwitch(
+                key = "avito_hide_launch_drawers",
+                title = "Скрыть шторки при запуске",
+                summary = "Не показывать рекламные и информационные шторки при запуске приложения",
+                default = true,
+            )
+            println("UI tweaks: gated onboarding launch drawers (${returnIndices.size} returns).")
         }
 
         // --- Hide offer-page blocks by nulling their AdvertDetails source -------

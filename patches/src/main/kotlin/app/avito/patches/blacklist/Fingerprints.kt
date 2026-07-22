@@ -1,6 +1,7 @@
 package app.avito.patches.blacklist
 
 import app.morphe.patcher.Fingerprint
+import app.morphe.patcher.methodCall
 
 private const val SERP_DISPLAY_TYPE = "Lcom/avito/android/remote/model/SerpDisplayType;"
 private const val LIST = "Ljava/util/List;"
@@ -32,18 +33,24 @@ object SellerProfileConverterFingerprint : Fingerprint(
  * advert-detail toolbar (and inflates its menu) and receives the full
  * `AdvertDetails`. We hook its entry to add block-offer / block-seller actions.
  *
- * Identified purely by its distinctive, stable parameter shape — an
- * `AdvertDetailsStyle`, an `AdvertDetails`, a `String` and a `boolean`, returning
- * void — so it survives the per-release minification of the class/method names.
- * Both model/style types keep their real names across releases.
+ * Identified by its stable advert-presenter package, parameter shape and its call
+ * to `AdvertDetails.getNavigationBar()`. The concrete class and method names are
+ * minified per release, while the model API and feature package remain stable.
  */
 object AdvertDetailsToolbarMenuFingerprint : Fingerprint(
+    definingClass = "Lcom/avito/android/advert/",
     returnType = "V",
     parameters = listOf(
         ADVERT_DETAILS_STYLE,
         ADVERT_DETAILS,
         STRING,
         "Z",
+    ),
+    filters = listOf(
+        methodCall(
+            definingClass = ADVERT_DETAILS,
+            name = "getNavigationBar",
+        ),
     ),
     // Only the concrete presenter implementation — not the abstract interface
     // declaration with the same signature (which has no body to patch).
