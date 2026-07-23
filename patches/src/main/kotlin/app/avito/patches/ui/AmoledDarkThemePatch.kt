@@ -2,6 +2,7 @@ package app.avito.patches.ui
 
 import app.avito.patches.shared.Constants.COMPATIBILITY_AVITO
 import app.morphe.patcher.patch.resourcePatch
+import org.w3c.dom.Document
 import org.w3c.dom.Element
 import java.io.FileNotFoundException
 
@@ -23,6 +24,11 @@ private val AMOLED_SURFACE_NIGHT_RGB = setOf("0a0a0a", "191919", "1f1e1d", "2525
 
 private const val AMOLED_PURE_BLACK = "#ff000000"
 
+private val AMOLED_SYSTEM_BAR_STYLES = mapOf(
+    "Theme.Semantic.Base" to "@style/Theme.Semantic",
+    "Theme.Semantic.Dialog.Base" to "@style/Theme.Semantic.Dialog",
+)
+
 /** Normalises a colour literal to its lower-case 6-digit RGB (drops a leading ff alpha). */
 private fun amoledRgbOf(value: String): String {
     var s = value.trim().removePrefix("#").lowercase()
@@ -43,18 +49,83 @@ private fun isAmoledSurfaceColorName(name: String): Boolean {
         n.endsWith("toolbar_background")
 }
 
+private fun Document.setAmoledSystemBars(): Int {
+    var changed = 0
+
+    AMOLED_SYSTEM_BAR_STYLES.forEach { (styleName, parentName) ->
+        val resources = documentElement
+        val styles = resources.childNodes
+        var style: Element? = null
+
+        for (i in 0 until styles.length) {
+            val node = styles.item(i)
+            if (node is Element &&
+                node.nodeName == "style" &&
+                node.getAttribute("name") == styleName
+            ) {
+                style = node
+                break
+            }
+        }
+
+        if (style == null) {
+            style = createElement("style").apply {
+                setAttribute("name", styleName)
+                setAttribute("parent", parentName)
+            }
+            resources.appendChild(style)
+        }
+
+        mapOf(
+            "android:statusBarColor" to AMOLED_PURE_BLACK,
+            "android:navigationBarColor" to AMOLED_PURE_BLACK,
+            "android:windowLightStatusBar" to "false",
+            "android:windowLightNavigationBar" to "false",
+        ).forEach { (itemName, itemValue) ->
+            val items = style.childNodes
+            var item: Element? = null
+
+            for (i in 0 until items.length) {
+                val node = items.item(i)
+                if (node is Element &&
+                    node.nodeName == "item" &&
+                    node.getAttribute("name") == itemName
+                ) {
+                    item = node
+                    break
+                }
+            }
+
+            if (item == null) {
+                item = createElement("item").apply {
+                    setAttribute("name", itemName)
+                }
+                style.appendChild(item)
+            }
+
+            if (item.textContent != itemValue) {
+                item.textContent = itemValue
+                changed++
+            }
+        }
+    }
+
+    return changed
+}
+
 /**
  * Makes Avito's dark theme AMOLED-friendly by rewriting page and navigation
- * backgrounds to #000000. Elevated cards, sheets, list items and control fills remain
- * gray so their boundaries stay readable. Dark mode only — the light theme is
- * untouched — and borders, dividers, branded banner/promo fills and disabled states
- * are left alone. Baked into the resources at build time (opt-in via patch selection).
+ * backgrounds plus the status and system navigation bars to #000000. Elevated cards,
+ * sheets, list items and control fills remain gray so their boundaries stay readable.
+ * Dark mode only — the light theme is untouched — and borders, dividers, branded
+ * banner/promo fills and disabled states are left alone. Baked into the resources at
+ * build time (opt-in via patch selection).
  */
 @Suppress("unused")
 val amoledDarkThemePatch = resourcePatch(
     name = "AMOLED dark theme",
-    description = "Makes dark-theme page and navigation backgrounds pure black (AMOLED) while keeping " +
-        "elevated cards, sheets and controls gray so their boundaries remain visible.",
+    description = "Makes dark-theme page, app navigation and system bars pure black (AMOLED) while " +
+        "keeping elevated cards, sheets and controls gray so their boundaries remain visible.",
     default = false,
 ) {
     compatibleWith(COMPATIBILITY_AVITO)
@@ -81,6 +152,14 @@ val amoledDarkThemePatch = resourcePatch(
             }
         }
 
-        println("AMOLED dark theme: blackened $changed dark-mode page/navigation background colour(s).")
+        try {
+            document("res/values-night/styles.xml").use { document ->
+                changed += document.setAmoledSystemBars()
+            }
+        } catch (_: FileNotFoundException) {
+            // Avito currently ships this file on every supported build.
+        }
+
+        println("AMOLED dark theme: blackened $changed dark-mode page/navigation/system-bar colour(s).")
     }
 }
