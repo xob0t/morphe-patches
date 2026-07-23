@@ -39,9 +39,14 @@ private fun MethodReference.isRaspExec() =
         parameterTypes[0].toString() == "J" &&
         returnType == "Ljava/lang/String;"
 
-private fun MethodReference.isRaspExec2() =
+// Matches every native void executor call: exec2, exec5, exec6, and any future
+// execN(boolean) the app adds. All share the RASP executor and a single boolean
+// parameter; 7.40.0 added exec5/exec6 alongside exec2, and an un-stubbed one hits
+// an unresolved JNI symbol (the native lib is blocked from loading) and crashes.
+private fun MethodReference.isRaspVoidExec() =
     definingClass == RASP_EXECUTOR &&
-        name == "exec2" &&
+        name.startsWith("exec") &&
+        name.drop(4).all { it.isDigit() } &&
         parameterTypes.size == 1 &&
         parameterTypes[0].toString() == "Z" &&
         returnType == "V"
@@ -90,7 +95,7 @@ private fun Iterable<Instruction>.antiTamperTargets(): AntiTamperTargets {
 
     forEach { instruction ->
         val reference = instruction.methodReferenceOrNull()
-        if (reference?.isRaspExec() == true || reference?.isRaspExec2() == true) {
+        if (reference?.isRaspExec() == true || reference?.isRaspVoidExec() == true) {
             hasRaspCalls = true
         }
         if (reference?.isSystemLoadLibrary() == true) {
@@ -131,7 +136,7 @@ val bypassAntiTamperPatch = bytecodePatch(
     execute {
         var patchedRaspExecCalls = 0
         var fullyStubbedRaspExecCalls = 0
-        var patchedRaspExec2Calls = 0
+        var patchedRaspVoidExecCalls = 0
         var patchedLibraryLoads = 0
         var patchedTamperFlags = 0
         val blockedNativeLibraries = mutableSetOf<String>()
@@ -179,10 +184,10 @@ val bypassAntiTamperPatch = bytecodePatch(
                             patchedRaspExecCalls++
                         }
 
-                        // Stub Executor.exec2(boolean).
-                        reference?.isRaspExec2() == true -> {
+                        // Stub Executor.execN(boolean) (exec2, exec5, exec6, ...).
+                        reference?.isRaspVoidExec() == true -> {
                             method.replaceInstruction(index, "nop")
-                            patchedRaspExec2Calls++
+                            patchedRaspVoidExecCalls++
                         }
 
                         // Block RASP native library loading.
@@ -223,7 +228,7 @@ val bypassAntiTamperPatch = bytecodePatch(
                 if (fullyStubbedRaspExecCalls != patchedRaspExecCalls) {
                     add("Executor.exec result handling (${patchedRaspExecCalls - fullyStubbedRaspExecCalls} unresolved)")
                 }
-                if (patchedRaspExec2Calls == 0) add("Executor.exec2")
+                if (patchedRaspVoidExecCalls == 0) add("Executor.execN(boolean)")
                 (RASP_NATIVE_LIBS - blockedNativeLibraries).forEach { add("native library $it") }
                 (TAMPER_FLAG_NAMES - neutralizedTamperFlagNames).forEach { add("tamper flag $it") }
             }
@@ -238,7 +243,7 @@ val bypassAntiTamperPatch = bytecodePatch(
 
         println(
             "Bypass anti-tamper: stubbed $patchedRaspExecCalls Executor.exec() calls, " +
-                "$patchedRaspExec2Calls Executor.exec2() calls, " +
+                "$patchedRaspVoidExecCalls Executor.execN(boolean) calls, " +
                 "blocked $patchedLibraryLoads native library loads, " +
                 "neutralized $patchedTamperFlags tamper flag providers.",
         )
