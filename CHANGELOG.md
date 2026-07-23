@@ -1,3 +1,10 @@
+## [1.7.2](https://github.com/xob0t/morphe-patches/compare/v1.7.1...v1.7.2) (2026-07-23)
+
+### 🐛 Bug Fixes
+
+* **avito:** harden blacklist controls and seller identity ([8a0c143](https://github.com/xob0t/morphe-patches/commit/8a0c1437f1cc8f349a920c717f3173d4788d1361))
+* **avito:** preserve cards in AMOLED theme ([eae4717](https://github.com/xob0t/morphe-patches/commit/eae47179884c18ec315e59185b0ed51b7307e898))
+
 ## [1.7.2-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.7.1...v1.7.2-dev.1) (2026-07-23)
 
 ### 🐛 Bug Fixes
