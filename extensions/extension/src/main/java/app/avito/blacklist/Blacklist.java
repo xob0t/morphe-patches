@@ -36,16 +36,20 @@ public final class Blacklist {
     private static final String KEY_SELLERS = "sellers";
     private static final String KEY_OFFER_LABELS = "offer_labels";
     private static final String KEY_SELLER_LABELS = "seller_labels";
+    private static final String KEY_SELLER_LINKS = "seller_links";
     private static final String KEY_OFFER_SELLER_LABELS = "offer_seller_labels";
     private static final String KEY_OFFER_TIMES = "offer_times";
     private static final String KEY_SELLER_TIMES = "seller_times";
+    private static final String JOB_EMPLOYER_PREFIX = "job_employer:";
+    public static final String BRAND_SELLER_PREFIX = "brand:";
+    public static final String JOB_EMPLOYER_URI_PREFIX = "job_employer_uri:";
 
     /** Suffixes used by the browser extension's export/import format. */
     public static final String SUFFIX_OFFER = "_blacklist_ad";
     public static final String SUFFIX_SELLER = "_blacklist_user";
 
     private static final Object LOCK = new Object();
-
+    private static final String LOG_TAG = "AvitoBlacklist";
     private static volatile boolean loaded = false;
     private static Context appContext;
     private static final Set<String> blockedOffers = new LinkedHashSet<>();
@@ -54,6 +58,7 @@ public final class Blacklist {
     // metadata, not part of the import/export format.
     private static final java.util.Map<String, String> offerLabels = new java.util.HashMap<>();
     private static final java.util.Map<String, String> sellerLabels = new java.util.HashMap<>();
+    private static final java.util.Map<String, String> sellerLinks = new java.util.HashMap<>();
     // Seller name of each blocked offer, keyed by offer id. Shown under the offer
     // in the manager so it's clear who the listing belongs to.
     private static final java.util.Map<String, String> offerSellerLabels = new java.util.HashMap<>();
@@ -61,6 +66,16 @@ public final class Blacklist {
     // manager most-recent-first. Local-only metadata, not part of import/export.
     private static final java.util.Map<String, Long> offerTimes = new java.util.HashMap<>();
     private static final java.util.Map<String, Long> sellerTimes = new java.util.HashMap<>();
+    private static final java.util.Map<String, String> seenOfferSellerKeys =
+            new java.util.HashMap<>();
+    private static final java.util.Map<String, String> seenOfferSellerNames =
+            new java.util.HashMap<>();
+    private static final java.util.Map<String, String> seenSellerAliasKeys =
+            new java.util.HashMap<>();
+    private static final java.util.Map<String, String> seenSellerAliasNames =
+            new java.util.HashMap<>();
+    private static final Set<String> loggedSerpInputDiagnostics =
+            Collections.synchronizedSet(new LinkedHashSet<String>());
 
     private Blacklist() {
     }
@@ -112,6 +127,7 @@ public final class Blacklist {
             readInto(blockedSellers, prefs.getString(KEY_SELLERS, null));
             readMap(offerLabels, prefs.getString(KEY_OFFER_LABELS, null));
             readMap(sellerLabels, prefs.getString(KEY_SELLER_LABELS, null));
+            readMap(sellerLinks, prefs.getString(KEY_SELLER_LINKS, null));
             readMap(offerSellerLabels, prefs.getString(KEY_OFFER_SELLER_LABELS, null));
             readTimes(offerTimes, prefs.getString(KEY_OFFER_TIMES, null));
             readTimes(sellerTimes, prefs.getString(KEY_SELLER_TIMES, null));
@@ -203,6 +219,7 @@ public final class Blacklist {
                 .putString(KEY_SELLERS, new JSONArray(blockedSellers).toString())
                 .putString(KEY_OFFER_LABELS, new JSONObject(offerLabels).toString())
                 .putString(KEY_SELLER_LABELS, new JSONObject(sellerLabels).toString())
+                .putString(KEY_SELLER_LINKS, new JSONObject(sellerLinks).toString())
                 .putString(KEY_OFFER_SELLER_LABELS, new JSONObject(offerSellerLabels).toString())
                 .putString(KEY_OFFER_TIMES, new JSONObject(offerTimes).toString())
                 .putString(KEY_SELLER_TIMES, new JSONObject(sellerTimes).toString())
@@ -224,6 +241,13 @@ public final class Blacklist {
         ensureLoaded();
         synchronized (LOCK) {
             return sellerLabels.get(userKey);
+        }
+    }
+
+    public static String getSellerLink(String userKey) {
+        ensureLoaded();
+        synchronized (LOCK) {
+            return sellerLinks.get(userKey);
         }
     }
 
@@ -270,6 +294,20 @@ public final class Blacklist {
         synchronized (LOCK) {
             if (blockedSellers.contains(userKey) && !label.equals(sellerLabels.get(userKey))) {
                 sellerLabels.put(userKey, label.trim());
+                persist();
+            }
+        }
+    }
+
+    private static void putSellerLink(String userKey, String link) {
+        if (userKey == null || link == null || link.trim().isEmpty()) {
+            return;
+        }
+        ensureLoaded();
+        synchronized (LOCK) {
+            String trimmed = link.trim();
+            if (blockedSellers.contains(userKey) && !trimmed.equals(sellerLinks.get(userKey))) {
+                sellerLinks.put(userKey, trimmed);
                 persist();
             }
         }
@@ -438,11 +476,46 @@ public final class Blacklist {
         return added;
     }
 
+    public static String sellerKeyForBlocking(Object item) {
+        try {
+            return sellerUserKey(item);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    public static String sellerNameForBlocking(Object item) {
+        try {
+            Object sellerObj = sellerObjectOf(item);
+            String sellerName = nameOf(sellerObj);
+            if (isBlank(sellerName)) {
+                sellerName = seenSellerNameFor(item);
+            }
+            if (isBlank(sellerName)) {
+                sellerName = sellerNameFromConstructor(item);
+            }
+            if (isBlank(sellerName)) {
+                sellerName = jobEmployerNameOf(item);
+            }
+            return sellerName;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    public static void putSellerLinkForBlocking(String userKey, Object item) {
+        try {
+            putSellerLink(userKey, itemLinkOf(item));
+        } catch (Throwable ignored) {
+        }
+    }
+
     public static boolean removeSeller(String userKey) {
         ensureLoaded();
         synchronized (LOCK) {
             if (blockedSellers.remove(userKey)) {
                 sellerLabels.remove(userKey);
+                sellerLinks.remove(userKey);
                 sellerTimes.remove(userKey);
                 persist();
                 return true;
@@ -458,6 +531,7 @@ public final class Blacklist {
             blockedSellers.clear();
             offerLabels.clear();
             sellerLabels.clear();
+            sellerLinks.clear();
             offerSellerLabels.clear();
             offerTimes.clear();
             sellerTimes.clear();
@@ -506,6 +580,7 @@ public final class Blacklist {
         if (elements == null || elements.isEmpty()) {
             return;
         }
+        rememberSeenSellerKeys(elements);
         ensureLoaded();
         synchronized (LOCK) {
             if (blockedOffers.isEmpty() && blockedSellers.isEmpty()) {
@@ -519,6 +594,7 @@ public final class Blacklist {
                 if (element == null) {
                     continue;
                 }
+                rememberSeenSellerKeys(element);
                 if (shouldHide(element)) {
                     try {
                         it.remove();
@@ -546,6 +622,7 @@ public final class Blacklist {
         if (items == null || items.isEmpty()) {
             return;
         }
+        rememberSeenSellerKeys(items);
         if (offerCount() == 0 && sellerCount() == 0) {
             return;
         }
@@ -553,9 +630,10 @@ public final class Blacklist {
             Iterator<?> it = items.iterator();
             while (it.hasNext()) {
                 Object item = it.next();
-                if (item == null || !item.getClass().getName().endsWith("AdvertItem")) {
+                if (item == null || !isBlockableListingItem(item)) {
                     continue;
                 }
+                rememberSeenSellerKeys(item);
                 if (isItemBlocked(item)) {
                     try {
                         it.remove();
@@ -616,7 +694,8 @@ public final class Blacklist {
             if (viewHolder == null || item == null) {
                 return;
             }
-            if (!item.getClass().getName().endsWith("AdvertItem")) {
+            rememberSeenSellerKeys(item);
+            if (!isBlockableListingItem(item)) {
                 return;
             }
             final android.view.View root = itemViewOf(viewHolder);
@@ -811,13 +890,19 @@ public final class Blacklist {
     private static void showBlockDialog(android.content.Context ctx, final android.view.View root, Object item) {
         final String offerId = offerIdOf(item);
         final String userKey = sellerUserKey(item);
-        final String offerTitle = callString(item, "getTitle");
+        final String offerTitle = listingTitleOf(item);
         final Object sellerObj = sellerObjectOf(item);
         String sellerName = nameOf(sellerObj);
+        if (isBlank(sellerName)) {
+            sellerName = seenSellerNameFor(item);
+        }
         if (isBlank(sellerName)) {
             // The redesigned tile leaves SellerInfoModel.displayName empty and
             // shows the store name in the Beduin freeForm tree instead.
             sellerName = sellerNameFromConstructor(item);
+        }
+        if (isBlank(sellerName)) {
+            sellerName = jobEmployerNameOf(item);
         }
         final String sellerNameFinal = sellerName;
 
@@ -849,6 +934,7 @@ public final class Blacklist {
                 public void run() {
                     addSeller(userKey);
                     putSellerLabel(userKey, sellerNameFinal);
+                    putSellerLink(userKey, itemLinkOf(item));
                     collapseMatching(false, userKey);
                     String who = isBlank(sellerNameFinal) ? "Продавец" : sellerNameFinal;
                     undoBar(root, who + " скрыт", "common_ic_block_user_24", new Runnable() {
@@ -977,15 +1063,30 @@ public final class Blacklist {
     }
 
     /**
-     * The real numeric advert id, matching what the feed filter blocks and what
-     * the browser-extension export uses. The conveyor {@code getStringId()} is the
-     * advert id string (same value the network model's {@code getId()} returns);
-     * the item's {@code getId()} long is an internal id and must not be used.
+     * The real numeric advert/vacancy id, matching what the feed filter blocks and
+     * what the browser-extension export uses. The conveyor advert
+     * {@code getStringId()} is usually the id string (same value the network
+     * model's {@code getId()} returns). Job/vacancy rows sometimes wrap that id in
+     * a typed row id or expose it only in their deeplink, so they get a narrow
+     * fallback below. The item's plain long {@code getId()} remains deliberately
+     * unused for non-job adverts: on regular tiles it is an internal hash-like id.
      */
     private static String offerIdOf(Object item) {
         String stringId = callString(item, "getStringId");
         if (stringId != null && !stringId.isEmpty() && isAllDigits(stringId)) {
             return stringId;
+        }
+        if (isJobOrVacancyListingItem(item)) {
+            String id = firstLongDigitRun(stringId);
+            if (id == null) {
+                id = firstLongDigitRun(String.valueOf(callObject(item, "getDeepLink")));
+            }
+            if (id == null) {
+                id = firstLongDigitRun(String.valueOf(item));
+            }
+            if (id != null) {
+                return id;
+            }
         }
         // Last resort: a string-valued getId() that is itself a numeric advert id.
         // The item's *long* getId() is an internal id (often a hashCode-like value
@@ -998,6 +1099,56 @@ public final class Blacklist {
         return null;
     }
 
+    private static boolean isBlockableListingItem(Object item) {
+        if (item == null) {
+            return false;
+        }
+        String name = item.getClass().getName();
+        if (name != null && name.contains("AdvertItem")) {
+            return true;
+        }
+        return isJobOrVacancyListingItem(item);
+    }
+
+    private static boolean isJobOrVacancyListingItem(Object item) {
+        if (item == null) {
+            return false;
+        }
+        String name = item.getClass().getName();
+        if (name != null && name.toLowerCase(java.util.Locale.US).contains("vacancy")) {
+            return true;
+        }
+        String s = String.valueOf(item);
+        return s.startsWith("JobListItem(")
+                || s.startsWith("ApplyToVacancyItem(")
+                || s.startsWith("SearchAdvertItem(") && s.contains("Vacancy")
+                || s.contains("displayType=Vacancy")
+                || s.contains("displayType=CarouselVacancy");
+    }
+
+    private static String listingTitleOf(Object item) {
+        String title = callString(item, "getTitle");
+        if (!isBlank(title)) {
+            return title;
+        }
+        title = parseField(String.valueOf(item), "title=");
+        return isBlank(title) ? null : title;
+    }
+
+    private static String firstLongDigitRun(String s) {
+        if (s == null) {
+            return null;
+        }
+        try {
+            java.util.regex.Matcher matcher = java.util.regex.Pattern
+                    .compile("(?<!\\d)(\\d{5,})(?!\\d)")
+                    .matcher(s);
+            return matcher.find() ? matcher.group(1) : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
     /**
      * The seller's {@code userKey}. Works for both the legacy {@code AdvertItem}
      * ({@code AdvertSellerInfo} field) and the redesigned item
@@ -1006,15 +1157,462 @@ public final class Blacklist {
      * {@code toString()} ("...userKey=<value>, ..."), which is stable.
      */
     private static String sellerUserKey(Object item) {
+        String seenKey = seenSellerKeyFor(item);
+        if (!isBlank(seenKey)) {
+            return seenKey;
+        }
+        String aliasKey = seenAliasSellerKeyFor(jobEmployerNameOf(item));
+        if (!isBlank(aliasKey)) {
+            return aliasKey;
+        }
         Object seller = sellerObjectOf(item);
         if (seller == null) {
-            return null;
+            String brandKey = brandSellerKeyOf(item);
+            if (brandKey != null) {
+                return brandKey;
+            }
+            String uriKey = jobEmployerUriKeyOf(item);
+            return uriKey != null ? uriKey : jobEmployerNameKeyOf(item);
         }
         String key = callString(seller, "getUserKey");
         if (key != null && !key.isEmpty()) {
             return key;
         }
-        return parseField(seller.toString(), "userKey=");
+        key = parseField(seller.toString(), "userKey=");
+        if (key != null && !key.isEmpty()) {
+            return key;
+        }
+        String brandKey = brandSellerKeyOf(item);
+        if (brandKey != null) {
+            return brandKey;
+        }
+        String uriKey = jobEmployerUriKeyOf(item);
+        return uriKey != null ? uriKey : jobEmployerNameKeyOf(item);
+    }
+
+    private static String seenSellerKeyFor(Object item) {
+        String offerId = offerIdOf(item);
+        if (isBlank(offerId)) {
+            return null;
+        }
+        synchronized (LOCK) {
+            return seenOfferSellerKeys.get(offerId);
+        }
+    }
+
+    private static String seenSellerNameFor(Object item) {
+        String offerId = offerIdOf(item);
+        if (isBlank(offerId)) {
+            String aliasName = seenAliasSellerNameFor(jobEmployerNameOf(item));
+            return isBlank(aliasName) ? null : aliasName;
+        }
+        synchronized (LOCK) {
+            String name = seenOfferSellerNames.get(offerId);
+            if (!isBlank(name)) {
+                return name;
+            }
+        }
+        return seenAliasSellerNameFor(jobEmployerNameOf(item));
+    }
+
+    private static void rememberSeenSellerKeys(Object item) {
+        if (item instanceof Iterable) {
+            int count = 0;
+            Iterator<?> it = ((Iterable<?>) item).iterator();
+            while (it.hasNext() && count < 200) {
+                Object nested = it.next();
+                count++;
+                if (nested != null && nested != item) {
+                    rememberSeenSellerKeys(nested);
+                }
+            }
+            return;
+        }
+        rememberDirectSellerKey(item);
+        rememberNestedSellerKeys(item);
+    }
+
+    private static void rememberDirectSellerKey(Object item) {
+        String offerId = offerIdOf(item);
+        if (isBlank(offerId)) {
+            return;
+        }
+        Object seller = sellerObjectOf(item);
+        if (seller == null) {
+            return;
+        }
+        String key = callString(seller, "getUserKey");
+        if (isBlank(key)) {
+            key = parseField(String.valueOf(seller), "userKey=");
+        }
+        if (isBlank(key)) {
+            return;
+        }
+        synchronized (LOCK) {
+            seenOfferSellerKeys.put(offerId, key);
+            String label = nameOf(seller);
+            if (!isBlank(label)) {
+                seenOfferSellerNames.put(offerId, label);
+                rememberSellerAliasLocked(label, key);
+                migrateLegacySellerBlocksLocked(label, key);
+            }
+            trimSeenSellerCache();
+        }
+    }
+
+    public static String resolveSellerKeyForNavigation(String userKey) {
+        ensureLoaded();
+        if (isBlank(userKey) || !userKey.startsWith(JOB_EMPLOYER_PREFIX)) {
+            return userKey;
+        }
+        synchronized (LOCK) {
+            return resolveLegacySellerKeyLocked(userKey);
+        }
+    }
+
+    private static String seenAliasSellerKeyFor(String label) {
+        String alias = sellerAliasOf(label);
+        if (isBlank(alias)) {
+            return null;
+        }
+        synchronized (LOCK) {
+            return seenSellerAliasKeys.get(alias);
+        }
+    }
+
+    private static String seenAliasSellerNameFor(String label) {
+        String alias = sellerAliasOf(label);
+        if (isBlank(alias)) {
+            return null;
+        }
+        synchronized (LOCK) {
+            return seenSellerAliasNames.get(alias);
+        }
+    }
+
+    private static void rememberSellerAliasLocked(String label, String key) {
+        String alias = sellerAliasOf(label);
+        if (isBlank(alias) || isBlank(key)) {
+            return;
+        }
+        seenSellerAliasKeys.put(alias, key);
+        seenSellerAliasNames.put(alias, label);
+    }
+
+    private static void migrateLegacySellerBlocksLocked(String label, String realKey) {
+        if (isBlank(label) || isBlank(realKey)) {
+            return;
+        }
+        String labelAlias = sellerAliasOf(label);
+        if (isBlank(labelAlias)) {
+            return;
+        }
+        String matchedLegacy = null;
+        Iterator<String> it = blockedSellers.iterator();
+        while (it.hasNext()) {
+            String blocked = it.next();
+            if (!isLegacyJobSellerKey(blocked)) {
+                continue;
+            }
+            String legacyAlias = sellerAliasOf(legacyJobSellerLabel(blocked));
+            if (aliasesMatch(labelAlias, legacyAlias)) {
+                matchedLegacy = blocked;
+                it.remove();
+                break;
+            }
+        }
+        if (matchedLegacy == null) {
+            return;
+        }
+        boolean hadReal = blockedSellers.contains(realKey);
+        if (!hadReal) {
+            blockedSellers.add(realKey);
+        }
+        String oldLabel = sellerLabels.remove(matchedLegacy);
+        Long oldTime = sellerTimes.remove(matchedLegacy);
+        if (!hadReal || isBlank(sellerLabels.get(realKey))) {
+            sellerLabels.put(realKey, isBlank(label) ? oldLabel : label);
+        }
+        if (!hadReal || !sellerTimes.containsKey(realKey)) {
+            if (oldTime != null && oldTime > 0L) {
+                sellerTimes.put(realKey, oldTime);
+            } else {
+                sellerTimes.put(realKey, System.currentTimeMillis());
+            }
+        }
+        persist();
+    }
+
+    private static String resolveLegacySellerKeyLocked(String legacyKey) {
+        String legacyAlias = sellerAliasOf(legacyJobSellerLabel(legacyKey));
+        if (isBlank(legacyAlias)) {
+            return legacyKey;
+        }
+        String direct = seenSellerAliasKeys.get(legacyAlias);
+        if (!isBlank(direct)) {
+            return direct;
+        }
+        for (java.util.Map.Entry<String, String> entry : seenSellerAliasKeys.entrySet()) {
+            if (aliasesMatch(entry.getKey(), legacyAlias)) {
+                return entry.getValue();
+            }
+        }
+        return legacyKey;
+    }
+
+    private static boolean isLegacyJobSellerKey(String key) {
+        return key != null && key.startsWith(JOB_EMPLOYER_PREFIX);
+    }
+
+    private static String legacyJobSellerLabel(String key) {
+        if (!isLegacyJobSellerKey(key)) {
+            return key;
+        }
+        String label = sellerLabels.get(key);
+        if (!isBlank(label)) {
+            return label;
+        }
+        return key.substring(JOB_EMPLOYER_PREFIX.length());
+    }
+
+    private static boolean aliasesMatch(String a, String b) {
+        if (isBlank(a) || isBlank(b)) {
+            return false;
+        }
+        return a.equals(b) || a.contains(b) || b.contains(a);
+    }
+
+    private static String sellerAliasOf(String label) {
+        String value = cleanEmployerName(label);
+        if (isBlank(value)) {
+            return null;
+        }
+        value = value.toLowerCase(java.util.Locale.US).replace('ё', 'е');
+        value = value.replaceAll("[^\\p{L}\\p{Nd}]+", " ");
+        value = " " + value.replaceAll("\\s+", " ").trim() + " ";
+        String[] noise = new String[] {
+                "работа", "вакансия", "вакансии", "в", "на", "для", "и", "ооо", "ип"
+        };
+        for (int i = 0; i < noise.length; i++) {
+            value = value.replace(" " + noise[i] + " ", " ");
+        }
+        value = value.replaceAll("\\s+", "");
+        return value.length() < 3 ? null : value;
+    }
+
+    private static void rememberNestedSellerKeys(Object holder) {
+        if (holder == null) {
+            return;
+        }
+        try {
+            Class<?> cls = holder.getClass();
+            int inspected = 0;
+            while (cls != null && cls != Object.class && inspected < 60) {
+                java.lang.reflect.Field[] fields = cls.getDeclaredFields();
+                for (int i = 0; i < fields.length && inspected < 60; i++) {
+                    java.lang.reflect.Field field = fields[i];
+                    field.setAccessible(true);
+                    Object value = field.get(holder);
+                    inspected++;
+                    if (value instanceof Iterable) {
+                        int count = 0;
+                        Iterator<?> it = ((Iterable<?>) value).iterator();
+                        while (it.hasNext() && count < 80) {
+                            Object nested = it.next();
+                            count++;
+                            if (nested != null && nested != holder) {
+                                rememberDirectSellerKey(nested);
+                            }
+                        }
+                    } else if (value != null && value.getClass().isArray()) {
+                        int len = Math.min(java.lang.reflect.Array.getLength(value), 80);
+                        for (int j = 0; j < len; j++) {
+                            Object nested = java.lang.reflect.Array.get(value, j);
+                            if (nested != null && nested != holder) {
+                                rememberDirectSellerKey(nested);
+                            }
+                        }
+                    }
+                }
+                cls = cls.getSuperclass();
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void trimSeenSellerCache() {
+        if (seenOfferSellerKeys.size() <= 300) {
+            return;
+        }
+        Iterator<String> it = seenOfferSellerKeys.keySet().iterator();
+        int remove = seenOfferSellerKeys.size() - 240;
+        while (it.hasNext() && remove > 0) {
+            String key = it.next();
+            it.remove();
+            seenOfferSellerNames.remove(key);
+            remove--;
+        }
+    }
+
+    private static String jobEmployerNameKeyOf(Object item) {
+        String employer = jobEmployerNameOf(item);
+        return isBlank(employer) ? null : jobEmployerKey(employer);
+    }
+
+    private static String itemLinkOf(Object item) {
+        Object deepLink = callObject(item, "getDeepLink");
+        if (deepLink != null) {
+            String value = String.valueOf(deepLink).trim();
+            if (!value.isEmpty() && !"null".equals(value)) {
+                return value;
+            }
+        }
+        String offerId = offerIdOf(item);
+        if (!isBlank(offerId)) {
+            return "https://www.avito.ru/items/" + offerId;
+        }
+        return null;
+    }
+
+    private static void logSerpInputDiagnostics(List<?> elements) {
+        try {
+            int count = 0;
+            Iterator<?> it = elements.iterator();
+            while (it.hasNext() && count < 80) {
+                Object element = it.next();
+                count++;
+                if (element == null) {
+                    continue;
+                }
+                String text = String.valueOf(element);
+                String lower = text.toLowerCase(java.util.Locale.US);
+                if (!lower.contains("vacancy") && !lower.contains("работ") && !lower.contains("seller")
+                        && !lower.contains("userkey") && !lower.contains("profile")
+                        && !lower.contains("employer") && !lower.contains("brand")
+                        && !lower.contains("advert")) {
+                    continue;
+                }
+                String id = firstNonBlank(callString(element, "getId"), offerIdOf(element));
+                String signature = element.getClass().getName() + ":" + id + ":" + System.identityHashCode(element);
+                synchronized (loggedSerpInputDiagnostics) {
+                    if (loggedSerpInputDiagnostics.contains(signature)) {
+                        continue;
+                    }
+                    if (loggedSerpInputDiagnostics.size() > 160) {
+                        loggedSerpInputDiagnostics.clear();
+                    }
+                    loggedSerpInputDiagnostics.add(signature);
+                }
+                StringBuilder out = new StringBuilder(9000);
+                appendDiag(out, "stage", "serp-input");
+                appendDiag(out, "class", element.getClass().getName());
+                appendDiag(out, "id", id);
+                appendDiag(out, "toString", element);
+                appendDiag(out, "getId", callObject(element, "getId"));
+                appendDiag(out, "getStringId", callObject(element, "getStringId"));
+                appendDiag(out, "getTitle", callObject(element, "getTitle"));
+                appendDiag(out, "getDeepLink", callObject(element, "getDeepLink"));
+                appendDiag(out, "getSellerInfo", callObject(element, "getSellerInfo"));
+                appendDiag(out, "getSeller", callObject(element, "getSeller"));
+                appendDiag(out, "getShop", callObject(element, "getShop"));
+                appendDiag(out, "getEmployer", callObject(element, "getEmployer"));
+                appendDiag(out, "getBrand", callObject(element, "getBrand"));
+                appendDiag(out, "getProfile", callObject(element, "getProfile"));
+                appendDiag(out, "getOwner", callObject(element, "getOwner"));
+                appendDiag(out, "getUser", callObject(element, "getUser"));
+                appendDiag(out, "getAnalyticParams", callObject(element, "getAnalyticParams"));
+                appendDiag(out, "getAdditionalAnalyticsParams", callObject(element, "getAdditionalAnalyticsParams"));
+                appendDiagnosticFields(out, element, 0, Collections.newSetFromMap(new java.util.IdentityHashMap<Object, Boolean>()));
+                logDiagChunks(out.toString());
+            }
+        } catch (Throwable t) {
+            try {
+                android.util.Log.i(LOG_TAG, "serp-input diag failed " + t);
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    private static void appendDiagnosticFields(StringBuilder out, Object value, int depth, Set<Object> seen) {
+        if (value == null || depth > 2 || seen.contains(value)) {
+            return;
+        }
+        seen.add(value);
+        Class<?> cls = value.getClass();
+        if (cls.getName().startsWith("java.lang.") || cls.isEnum()) {
+            return;
+        }
+        if (value instanceof Iterable) {
+            int count = 0;
+            Iterator<?> it = ((Iterable<?>) value).iterator();
+            while (it.hasNext() && count < 20) {
+                appendDiagnosticFields(out, it.next(), depth + 1, seen);
+                count++;
+            }
+            return;
+        }
+        if (value instanceof java.util.Map) {
+            appendDiag(out, "diag.map.depth" + depth + "." + cls.getName(), value);
+            return;
+        }
+        try {
+            while (cls != null && cls != Object.class) {
+                java.lang.reflect.Field[] fields = cls.getDeclaredFields();
+                for (int i = 0; i < fields.length; i++) {
+                    java.lang.reflect.Field field = fields[i];
+                    field.setAccessible(true);
+                    Object fieldValue;
+                    try {
+                        fieldValue = field.get(value);
+                    } catch (Throwable t) {
+                        fieldValue = "<read failed " + t.getClass().getName() + ">";
+                    }
+                    String fieldText = String.valueOf(fieldValue);
+                    String haystack = (field.getName() + " " + field.getType().getName() + " " + fieldText)
+                            .toLowerCase(java.util.Locale.US);
+                    if (haystack.contains("userkey") || haystack.contains("seller")
+                            || haystack.contains("profile") || haystack.contains("employer")
+                            || haystack.contains("brand") || haystack.contains("shop")
+                            || haystack.contains("vacancy") || haystack.contains("работ")) {
+                        appendDiag(out, "diag.field.depth" + depth + "." + cls.getSimpleName()
+                                + "." + field.getName() + ":" + field.getType().getName(), fieldValue);
+                        appendDiagnosticFields(out, fieldValue, depth + 1, seen);
+                    }
+                }
+                cls = cls.getSuperclass();
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void appendDiag(StringBuilder out, String name, Object value) {
+        out.append('\n').append(name).append('=').append(safeDiag(value));
+    }
+
+    private static String safeDiag(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        try {
+            String s = String.valueOf(value);
+            if (s.length() > 3500) {
+                return s.substring(0, 3500) + "...<truncated " + s.length() + ">";
+            }
+            return s;
+        } catch (Throwable t) {
+            return "<toString failed " + t.getClass().getName() + ">";
+        }
+    }
+
+    private static void logDiagChunks(String text) {
+        if (text == null) {
+            return;
+        }
+        int max = 3500;
+        for (int start = 0, part = 1; start < text.length(); start += max, part++) {
+            int end = Math.min(text.length(), start + max);
+            android.util.Log.i(LOG_TAG, "serpinput[" + part + "] " + text.substring(start, end));
+        }
     }
 
     private static Object sellerObjectOf(Object item) {
@@ -1080,6 +1678,179 @@ public final class Blacklist {
         }
     }
 
+    /**
+     * Vacancy SERP cards do not expose the normal seller userKey. Use the visible
+     * employer/company name as a synthetic seller key so "block seller" still
+     * works consistently across job search cards.
+     */
+    private static String jobEmployerNameOf(Object item) {
+        if (!isJobOrVacancyListingItem(item)) {
+            return null;
+        }
+        String direct = firstNonBlank(
+                callString(item, "getEmployerName"),
+                callString(item, "getCompanyName"),
+                parseField(String.valueOf(item), "employerName="),
+                parseField(String.valueOf(item), "companyName="),
+                parseField(String.valueOf(item), "shopName="),
+                parseField(String.valueOf(item), "additionalName="));
+        direct = cleanEmployerName(direct);
+        if (!isBlank(direct)) {
+            return direct;
+        }
+        return employerNameFromTextTokens(String.valueOf(item), listingTitleOf(item));
+    }
+
+    private static String brandSellerKeyOf(Object item) {
+        String url = brandUrlOf(item);
+        return isBlank(url) ? null : BRAND_SELLER_PREFIX + url;
+    }
+
+    private static String jobEmployerKey(String employer) {
+        String normalized = cleanEmployerName(employer);
+        if (isBlank(normalized)) {
+            return null;
+        }
+        normalized = normalized.toLowerCase(java.util.Locale.US).replaceAll("\\s+", " ").trim();
+        return normalized.isEmpty() ? null : JOB_EMPLOYER_PREFIX + normalized;
+    }
+
+    private static String jobEmployerUriKeyOf(Object item) {
+        if (!isJobOrVacancyListingItem(item)) {
+            return null;
+        }
+        String uri = jobEmployerUriOf(item);
+        return isBlank(uri) ? null : JOB_EMPLOYER_URI_PREFIX + uri.trim();
+    }
+
+    private static String jobEmployerUriOf(Object item) {
+        Object employer = callObject(item, "getEmployer");
+        String direct = uriStringOf(employer);
+        if (!isBlank(direct)) {
+            return direct;
+        }
+        employer = fieldObject(item, "f36730e");
+        direct = uriStringOf(employer);
+        if (!isBlank(direct)) {
+            return direct;
+        }
+        String parsed = parseUriField(String.valueOf(item), "uri=");
+        if (!isBlank(parsed) && looksLikeWorkProfileUri(parsed)) {
+            return parsed;
+        }
+        return null;
+    }
+
+    private static String uriStringOf(Object holder) {
+        if (holder == null) {
+            return null;
+        }
+        Object uri = callObject(holder, "getUri");
+        if (uri == null) {
+            uri = fieldObject(holder, "uri");
+        }
+        if (uri == null) {
+            return null;
+        }
+        Object androidUri = callObject(uri, "getUri");
+        String value = androidUri != null ? String.valueOf(androidUri) : String.valueOf(uri);
+        return looksLikeWorkProfileUri(value) ? value : null;
+    }
+
+    private static boolean looksLikeWorkProfileUri(String s) {
+        if (s == null) {
+            return false;
+        }
+        String lower = s.toLowerCase(java.util.Locale.US);
+        return lower.contains("work") || lower.contains("job") || lower.contains("employer")
+                || lower.contains("company") || lower.contains("vacancy") || lower.contains("/brands/");
+    }
+
+    private static String brandUrlOf(Object item) {
+        String s = String.valueOf(item);
+        if (s == null) {
+            return null;
+        }
+        try {
+            java.util.regex.Matcher matcher = java.util.regex.Pattern
+                    .compile("(?:https?://(?:www\\.|m\\.)?avito\\.ru)?/brands/[0-9a-fA-F]{16,64}(?:\\?[^\\s,)]+)?")
+                    .matcher(s);
+            if (matcher.find()) {
+                String url = matcher.group();
+                if (url.startsWith("/")) {
+                    url = "https://www.avito.ru" + url;
+                }
+                return url;
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private static String employerNameFromTextTokens(String s, String listingTitle) {
+        if (s == null) {
+            return null;
+        }
+        String title = cleanEmployerName(listingTitle);
+        try {
+            java.util.regex.Matcher matcher = java.util.regex.Pattern
+                    .compile("title=([^,)]+)")
+                    .matcher(s);
+            while (matcher.find()) {
+                String candidate = cleanEmployerName(matcher.group(1));
+                if (isBlank(candidate)) {
+                    continue;
+                }
+                if (title != null && candidate.equalsIgnoreCase(title)) {
+                    continue;
+                }
+                if (looksLikeEmployerName(candidate)) {
+                    return candidate;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private static boolean looksLikeEmployerName(String s) {
+        if (isBlank(s)) {
+            return false;
+        }
+        String lower = s.toLowerCase(java.util.Locale.US);
+        if (lower.contains("отзыв") || lower.contains("график") || lower.contains("опыт")
+                || lower.contains("зарплат") || lower.contains("смен") || lower.contains("₽")) {
+            return false;
+        }
+        return !s.matches(".*\\d{2,}.*");
+    }
+
+    private static String cleanEmployerName(String s) {
+        if (s == null) {
+            return null;
+        }
+        String value = s.trim();
+        while (value.startsWith("_")) {
+            value = value.substring(1).trim();
+        }
+        value = value.replace('\u00A0', ' ');
+        value = value.replaceAll("\\s+в сети$", "");
+        value = value.replaceAll("\\s+", " ").trim();
+        return (value.isEmpty() || "null".equals(value)) ? null : value;
+    }
+
+    private static String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (!isBlank(value)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
     private static Object sellerFieldOf(Object item) {
         try {
             for (java.lang.reflect.Field field : item.getClass().getDeclaredFields()) {
@@ -1118,6 +1889,18 @@ public final class Blacklist {
         return (value.isEmpty() || "null".equals(value)) ? null : value;
     }
 
+    private static String parseUriField(String s, String key) {
+        String value = parseField(s, key);
+        if (value == null) {
+            return null;
+        }
+        value = value.trim();
+        while (value.endsWith(")")) {
+            value = value.substring(0, value.length() - 1).trim();
+        }
+        return value;
+    }
+
     /** Advert tiles currently bound to a view, so a block can hide them at once. */
     private static final java.util.Map<android.view.View, Object> boundAdvertViews =
             java.util.Collections.synchronizedMap(new java.util.WeakHashMap<android.view.View, Object>());
@@ -1134,7 +1917,11 @@ public final class Blacklist {
             return true;
         }
         String userKey = sellerUserKey(item);
-        return userKey != null && isSellerBlocked(userKey);
+        if (userKey != null && isSellerBlocked(userKey)) {
+            return true;
+        }
+        String legacyJobKey = jobEmployerNameKeyOf(item);
+        return legacyJobKey != null && isSellerBlocked(legacyJobKey);
     }
 
     /** Immediately collapse every currently-bound tile that matches the block. */
@@ -1346,6 +2133,23 @@ public final class Blacklist {
         } catch (Throwable ignored) {
             return null;
         }
+    }
+
+    private static Object fieldObject(Object target, String name) {
+        if (target == null || name == null) {
+            return null;
+        }
+        Class<?> cls = target.getClass();
+        while (cls != null) {
+            try {
+                java.lang.reflect.Field field = cls.getDeclaredField(name);
+                field.setAccessible(true);
+                return field.get(target);
+            } catch (Throwable ignored) {
+            }
+            cls = cls.getSuperclass();
+        }
+        return null;
     }
 
     // ---------------------------------------------------------------------

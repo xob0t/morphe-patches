@@ -5,20 +5,20 @@ import app.morphe.patcher.patch.resourcePatch
 import org.w3c.dom.Element
 import java.io.FileNotFoundException
 
-private val NIGHT_COLOR_FILES = listOf(
+private val DARK_COLOR_FILES = listOf(
+    // Newer RUIKit screens reference dark_gray_white directly from the base
+    // palette instead of going through a values-night semantic colour.
+    "res/values/colors.xml",
     "res/values-night/colors.xml",
     "res/values-night-v29/colors.xml",
 )
 
-// "Which Avito dark-theme colours are flat-black surfaces."
+// "Which Avito dark-theme colours are flat-black backgrounds."
 //
-// A colour counts as a flattenable surface only when BOTH hold: its night value is
-// one of the neutral dark tiers (page bg #0a0a0a, elevated nav/panel #191919, warm
-// search/tab-bar #1f1e1d/#262624, card/sheet #252525) AND its name is a recognised
-// background/surface token. The value gate keeps us off the lighter greys (#454545+:
-// dividers/icons/text); the name gate keeps us off non-surface colours that share
-// those values (branded banner/promo/gradient fills, a border, a map pin, disabled
-// button fills).
+// A colour counts as a flattenable background only when BOTH hold: its dark value
+// is one of Avito's neutral dark tiers and its name identifies a page or navigation
+// background. Elevated cards, sheets, list items and control fills deliberately stay
+// gray so their boundaries remain visible against the black page.
 private val AMOLED_SURFACE_NIGHT_RGB = setOf("0a0a0a", "191919", "1f1e1d", "252525", "262624")
 
 private const val AMOLED_PURE_BLACK = "#ff000000"
@@ -34,38 +34,27 @@ private fun isAmoledSurfaceColorName(name: String): Boolean {
     val n = name.lowercase()
     return n.endsWith("white") ||                 // page background (white / *_white / common_white)
         n.endsWith("old_background") ||           // legacy screen background
-        n == "gray4" || n == "gray2" || n == "warmgray4" || n == "warmgray2" ||
-        n.endsWith("_gray_4") || n.endsWith("_gray_2") ||   // gray/warm-gray surface tiers (not _44/_48)
-        n.contains("floating_card_background") ||
-        n.contains("material_card_background") ||
-        n.contains("gray_plain") ||
         n == "tab_bar_background" ||
-        (n.contains("bottom_sheet") && n.contains("bg")) ||
-        // Elevated surfaces (#191919): the bottom nav/tab bar (ru_bg_elevation2),
-        // bottom action panel, floating contact actions, the SERP filter toolbar and
-        // advert-detail list items — all sit on the page and read "too bright" if left.
+        // Navigation chrome (#191919): the bottom nav/tab bar (ru_bg_elevation2),
+        // bottom action panel, floating contact actions and the SERP filter toolbar.
         n.contains("bg_elevation") ||
         n.contains("bottom_action_panel") ||
         n.contains("floating_contact_actions") ||
-        n.endsWith("toolbar_background") ||
-        (n.contains("basic_info") && n.contains("item_background"))
+        n.endsWith("toolbar_background")
 }
 
 /**
- * Makes Avito's dark theme a fully-flat pure-black AMOLED theme: rewrites every
- * dark-mode background **and** surface/card/sheet/bar colour to #000000, so the whole
- * UI is true OLED black (deeper black, pixels off, some battery saving). Dark mode
- * only — the light theme is untouched — and borders, dividers, branded banner/promo
- * fills and disabled states are left alone so the UI stays readable. Baked into the
- * resources at build time (opt-in via patch selection); there is no runtime toggle,
- * because a theme overlay can only reach ?attr/ surfaces, not the many direct @color
- * and drawable fills the dark UI uses — only rewriting the colour values covers them.
+ * Makes Avito's dark theme AMOLED-friendly by rewriting page and navigation
+ * backgrounds to #000000. Elevated cards, sheets, list items and control fills remain
+ * gray so their boundaries stay readable. Dark mode only — the light theme is
+ * untouched — and borders, dividers, branded banner/promo fills and disabled states
+ * are left alone. Baked into the resources at build time (opt-in via patch selection).
  */
 @Suppress("unused")
 val amoledDarkThemePatch = resourcePatch(
     name = "AMOLED dark theme",
-    description = "Makes the dark theme fully pure-black (AMOLED): backgrounds and surfaces/cards/bars " +
-        "become #000000. Dark mode only; borders, dividers and branded fills are kept for readability.",
+    description = "Makes dark-theme page and navigation backgrounds pure black (AMOLED) while keeping " +
+        "elevated cards, sheets and controls gray so their boundaries remain visible.",
     default = false,
 ) {
     compatibleWith(COMPATIBILITY_AVITO)
@@ -73,7 +62,7 @@ val amoledDarkThemePatch = resourcePatch(
     execute {
         var changed = 0
 
-        NIGHT_COLOR_FILES.forEach { path ->
+        DARK_COLOR_FILES.forEach { path ->
             try {
                 document(path).use { document ->
                     val nodes = document.documentElement.childNodes
@@ -88,10 +77,10 @@ val amoledDarkThemePatch = resourcePatch(
                     }
                 }
             } catch (_: FileNotFoundException) {
-                // This night-colour file doesn't exist on this build; skip it.
+                // This colour file doesn't exist on this build; skip it.
             }
         }
 
-        println("AMOLED dark theme: blackened $changed dark-mode background/surface colour(s).")
+        println("AMOLED dark theme: blackened $changed dark-mode page/navigation background colour(s).")
     }
 }
