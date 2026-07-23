@@ -1,3 +1,9 @@
+## [1.7.1](https://github.com/xob0t/morphe-patches/compare/v1.7.0...v1.7.1) (2026-07-23)
+
+### 🐛 Bug Fixes
+
+* stub all TBank Executor.execN native calls (exec5/exec6) ([47abf03](https://github.com/xob0t/morphe-patches/commit/47abf034f63267e3324cd863b01b93ad6f81cb62))
+
 ## [1.7.1-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.7.0...v1.7.1-dev.1) (2026-07-23)
 
 ### 🐛 Bug Fixes
