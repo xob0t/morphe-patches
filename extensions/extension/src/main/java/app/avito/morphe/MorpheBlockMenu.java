@@ -47,8 +47,17 @@ public final class MorpheBlockMenu {
             final String offerId = Blacklist.callString(advertDetails, "getId");
             final String offerTitle = Blacklist.callString(advertDetails, "getTitle");
             Object seller = callObject(advertDetails, "getSeller");
-            final String userKey = seller == null ? null : Blacklist.callString(seller, "getUserKey");
-            final String sellerName = seller == null ? null : Blacklist.callString(seller, "getName");
+            String key = seller == null ? null : Blacklist.callString(seller, "getUserKey");
+            String name = seller == null ? null : Blacklist.callString(seller, "getName");
+            if (key == null || key.isEmpty()) {
+                key = Blacklist.sellerKeyForBlocking(advertDetails);
+            }
+            if (name == null || name.isEmpty()) {
+                name = Blacklist.sellerNameForBlocking(advertDetails);
+            }
+            final String userKey = key;
+            final String sellerName = name;
+            final boolean sellerResolvedWithoutDetailSeller = seller == null && userKey != null && !userKey.isEmpty();
             if ((offerId == null || offerId.isEmpty()) && (userKey == null || userKey.isEmpty())) {
                 return;
             }
@@ -63,53 +72,77 @@ public final class MorpheBlockMenu {
             if (decor == null) {
                 return;
             }
-            Menu menu = toolbarMenu(decor);
-            if (menu == null) {
+            android.view.ViewGroup navBarActions = visibleNavBarActions(decor);
+            Menu menu = navBarActions == null ? toolbarMenu(decor) : null;
+            if (navBarActions == null && menu == null) {
                 return;
             }
+            if (navBarActions != null) {
+                clearNavBarToggle(navBarActions, ID_BLOCK_OFFER);
+                clearNavBarToggle(navBarActions, ID_BLOCK_SELLER);
+            }
             Context ctx = decor.getContext();
-            if (offerId != null && !offerId.isEmpty()) {
-                addToggle(menu, ctx, ID_BLOCK_OFFER, "common_ic_block_24",
+            if (!sellerResolvedWithoutDetailSeller && offerId != null && !offerId.isEmpty()) {
+                final Toggle offerToggle = new Toggle() {
+                    @Override
+                    public boolean blocked() {
+                        return Blacklist.isOfferBlocked(offerId);
+                    }
+
+                    @Override
+                    public void toggle() {
+                        if (Blacklist.isOfferBlocked(offerId)) {
+                            Blacklist.removeOffer(offerId);
+                        } else {
+                            Blacklist.addOffer(offerId, offerTitle, sellerName);
+                        }
+                    }
+                };
+                if (navBarActions != null) {
+                    addNavBarToggle(navBarActions, ctx, ID_BLOCK_OFFER, "common_ic_block_24",
+                            "Скрыть объявление",
+                            "Объявление в чёрном списке — скрыто из ленты",
+                            "Объявление убрано из чёрного списка",
+                            offerToggle);
+                } else {
+                    addToggle(menu, ctx, ID_BLOCK_OFFER, "common_ic_block_24",
                         "Скрыть объявление",
                         "Объявление в чёрном списке — скрыто из ленты",
                         "Объявление убрано из чёрного списка",
-                        new Toggle() {
-                            @Override
-                            public boolean blocked() {
-                                return Blacklist.isOfferBlocked(offerId);
-                            }
-
-                            @Override
-                            public void toggle() {
-                                if (Blacklist.isOfferBlocked(offerId)) {
-                                    Blacklist.removeOffer(offerId);
-                                } else {
-                                    Blacklist.addOffer(offerId, offerTitle, sellerName);
-                                }
-                            }
-                        });
+                            offerToggle);
+                }
             }
             if (userKey != null && !userKey.isEmpty()) {
                 final String sellerLabel = sellerName == null || sellerName.isEmpty() ? "Продавец" : sellerName;
-                addToggle(menu, ctx, ID_BLOCK_SELLER, "common_ic_block_user_24",
+                final Toggle sellerToggle = new Toggle() {
+                    @Override
+                    public boolean blocked() {
+                        return Blacklist.isSellerBlocked(userKey);
+                    }
+
+                    @Override
+                    public void toggle() {
+                        if (Blacklist.isSellerBlocked(userKey)) {
+                            Blacklist.removeSeller(userKey);
+                        } else {
+                            Blacklist.addSeller(userKey, sellerName);
+                            Blacklist.putSellerLinkForBlocking(userKey, advertDetails);
+                        }
+                    }
+                };
+                if (navBarActions != null) {
+                    addNavBarToggle(navBarActions, ctx, ID_BLOCK_SELLER, "common_ic_block_user_24",
+                            "Скрыть продавца",
+                            sellerLabel + " в чёрном списке — его объявления скрыты",
+                            sellerLabel + " убран из чёрного списка",
+                            sellerToggle);
+                } else {
+                    addToggle(menu, ctx, ID_BLOCK_SELLER, "common_ic_block_user_24",
                         "Скрыть продавца",
                         sellerLabel + " в чёрном списке — его объявления скрыты",
                         sellerLabel + " убран из чёрного списка",
-                        new Toggle() {
-                            @Override
-                            public boolean blocked() {
-                                return Blacklist.isSellerBlocked(userKey);
-                            }
-
-                            @Override
-                            public void toggle() {
-                                if (Blacklist.isSellerBlocked(userKey)) {
-                                    Blacklist.removeSeller(userKey);
-                                } else {
-                                    Blacklist.addSeller(userKey, sellerName);
-                                }
-                            }
-                        });
+                            sellerToggle);
+                }
             }
         } catch (Throwable ignored) {
         }
@@ -165,6 +198,42 @@ public final class MorpheBlockMenu {
                     });
         } catch (Throwable ignored) {
         }
+    }
+
+    /**
+     * Returns the action container used by Avito's newer advert NavBar. Realty
+     * adverts commonly use this bar and hide the legacy Toolbar entirely.
+     */
+    private static android.view.ViewGroup visibleNavBarActions(View root) {
+        try {
+            Context ctx = root.getContext();
+            int id = ctx.getResources().getIdentifier(
+                    "nav_bar_actions_container", "id", ctx.getPackageName());
+            View actions = id == 0 ? null : findVisibleViewById(root, id);
+            return actions instanceof android.view.ViewGroup
+                    ? (android.view.ViewGroup) actions : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static View findVisibleViewById(View view, int id) {
+        if (view == null) {
+            return null;
+        }
+        if (view.getId() == id && view.isShown()) {
+            return view;
+        }
+        if (view instanceof android.view.ViewGroup) {
+            android.view.ViewGroup group = (android.view.ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                View found = findVisibleViewById(group.getChildAt(i), id);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 
     /**
@@ -302,6 +371,169 @@ public final class MorpheBlockMenu {
                 }
             });
         } catch (Throwable ignored) {
+        }
+    }
+
+    private static void clearNavBarToggle(android.view.ViewGroup container, int id) {
+        try {
+            Object old = container.getTag(id);
+            if (old instanceof NavBarToggleInstaller) {
+                NavBarToggleInstaller installer = (NavBarToggleInstaller) old;
+                container.removeOnLayoutChangeListener(installer);
+                container.removeCallbacks(installer);
+            }
+            container.setTag(id, null);
+            View existing = container.findViewById(id);
+            if (existing != null && existing.getParent() == container) {
+                container.removeView(existing);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void addNavBarToggle(android.view.ViewGroup container, Context ctx, int id,
+                                        String iconName, String title, String blockedMsg,
+                                        String unblockedMsg, Toggle toggle) {
+        try {
+            NavBarToggleInstaller installer = new NavBarToggleInstaller(
+                    container, ctx, id, iconName, title, blockedMsg, unblockedMsg, toggle);
+            container.setTag(id, installer);
+            container.addOnLayoutChangeListener(installer);
+            installer.run();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /**
+     * Avito rebuilds the custom NavBar's children when favorite/share state
+     * changes. Keep each injected action bound to the persistent container and
+     * restore it after such a rebuild.
+     */
+    private static final class NavBarToggleInstaller
+            implements View.OnLayoutChangeListener, Runnable {
+        private final android.view.ViewGroup container;
+        private final Context context;
+        private final int id;
+        private final String iconName;
+        private final String title;
+        private final String blockedMsg;
+        private final String unblockedMsg;
+        private final Toggle toggle;
+
+        NavBarToggleInstaller(android.view.ViewGroup container, Context context, int id,
+                              String iconName, String title, String blockedMsg,
+                              String unblockedMsg, Toggle toggle) {
+            this.container = container;
+            this.context = context;
+            this.id = id;
+            this.iconName = iconName;
+            this.title = title;
+            this.blockedMsg = blockedMsg;
+            this.unblockedMsg = unblockedMsg;
+            this.toggle = toggle;
+        }
+
+        @Override
+        public void onLayoutChange(View v, int left, int top, int right, int bottom,
+                                   int oldLeft, int oldTop, int oldRight, int oldBottom) {
+            try {
+                if (container.findViewById(id) == null) {
+                    container.removeCallbacks(this);
+                    container.post(this);
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+
+        @Override
+        public void run() {
+            try {
+                if (!container.isShown()) {
+                    return;
+                }
+                View existing = container.findViewById(id);
+                android.widget.ImageButton button;
+                if (existing instanceof android.widget.ImageButton
+                        && existing.getParent() == container) {
+                    button = (android.widget.ImageButton) existing;
+                } else {
+                    if (existing != null && existing.getParent() == container) {
+                        container.removeView(existing);
+                    }
+                    button = createButton();
+                    int size = dp(40);
+                    android.widget.LinearLayout.LayoutParams params =
+                            new android.widget.LinearLayout.LayoutParams(size, size);
+                    container.addView(button, params);
+                }
+                bind(button);
+            } catch (Throwable ignored) {
+            }
+        }
+
+        private android.widget.ImageButton createButton() {
+            android.widget.ImageButton button = new android.widget.ImageButton(context);
+            button.setId(id);
+            button.setScaleType(android.widget.ImageView.ScaleType.CENTER);
+            button.setPadding(dp(8), dp(8), dp(8), dp(8));
+            button.setMinimumWidth(0);
+            button.setMinimumHeight(0);
+            button.setContentDescription(title);
+            if (android.os.Build.VERSION.SDK_INT >= 26) {
+                button.setTooltipText(title);
+            }
+            try {
+                android.util.TypedValue value = new android.util.TypedValue();
+                if (context.getTheme().resolveAttribute(
+                        android.R.attr.selectableItemBackgroundBorderless, value, true)
+                        && value.resourceId != 0) {
+                    button.setBackgroundResource(value.resourceId);
+                } else {
+                    button.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+                }
+            } catch (Throwable ignored) {
+                button.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+            }
+            return button;
+        }
+
+        private void bind(final android.widget.ImageButton button) {
+            refresh(button);
+            button.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    try {
+                        toggle.toggle();
+                        final boolean nowBlocked = toggle.blocked();
+                        refresh(button);
+                        if (nowBlocked) {
+                            undoBar(context, blockedMsg, iconName, true, new Runnable() {
+                                @Override
+                                public void run() {
+                                    toggle.toggle();
+                                    refresh(button);
+                                }
+                            });
+                        } else {
+                            toast(context, unblockedMsg, iconName, false);
+                        }
+                    } catch (Throwable ignored) {
+                    }
+                }
+            });
+        }
+
+        private void refresh(android.widget.ImageButton button) {
+            try {
+                button.setImageDrawable(applyTint(
+                        drawableByName(context, iconName), toggle.blocked(), iconColor(context)));
+            } catch (Throwable ignored) {
+            }
+        }
+
+        private int dp(int value) {
+            return Math.max(1, (int) (value
+                    * context.getResources().getDisplayMetrics().density + 0.5f));
         }
     }
 

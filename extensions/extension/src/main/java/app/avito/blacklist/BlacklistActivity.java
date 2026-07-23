@@ -38,6 +38,7 @@ public final class BlacklistActivity extends Activity {
     private static final int REQ_EXPORT = 1001;
     private static final int REQ_IMPORT = 1002;
     private static final Charset UTF8 = Charset.forName("UTF-8");
+    private static final String JOB_EMPLOYER_PREFIX = "job_employer:";
 
     private int colorBackground;
     private int colorSurface;
@@ -714,6 +715,28 @@ public final class BlacklistActivity extends Activity {
      * back to the avito.ru profile link if the reflective build fails.
      */
     private void openSeller(String userKey) {
+        userKey = Blacklist.resolveSellerKeyForNavigation(userKey);
+        if (isBrandSellerKey(userKey)) {
+            openInApp(userKey.substring(Blacklist.BRAND_SELLER_PREFIX.length()));
+            return;
+        }
+        if (isJobEmployerKey(userKey)) {
+            String link = Blacklist.getSellerLink(userKey);
+            if (link != null && !link.trim().isEmpty()) {
+                openInApp(link);
+            } else {
+                toast("Профиль работодателя из вакансии недоступен");
+            }
+            return;
+        }
+        if (isJobEmployerUriKey(userKey)) {
+            toast("Профиль работодателя из вакансии недоступен");
+            return;
+        }
+        if (isJobEmployerKey(userKey)) {
+            toast("Профиль работодателя из вакансии недоступен");
+            return;
+        }
         try {
             Object args = buildExtendedProfileArguments(userKey);
             if (args instanceof android.os.Parcelable) {
@@ -727,6 +750,26 @@ public final class BlacklistActivity extends Activity {
         } catch (Throwable ignored) {
         }
         openInApp("https://www.avito.ru/user/" + Uri.encode(userKey) + "/profile");
+    }
+
+    private boolean isJobEmployerKey(String userKey) {
+        return userKey != null && userKey.startsWith(JOB_EMPLOYER_PREFIX);
+    }
+
+    private boolean isBrandSellerKey(String userKey) {
+        return userKey != null && userKey.startsWith(Blacklist.BRAND_SELLER_PREFIX);
+    }
+
+    private boolean isJobEmployerUriKey(String userKey) {
+        return userKey != null && userKey.startsWith(Blacklist.JOB_EMPLOYER_URI_PREFIX);
+    }
+
+    private String jobEmployerSearchUrl(String userKey) {
+        String query = Blacklist.getSellerLabel(userKey);
+        if (query == null || query.trim().isEmpty()) {
+            query = userKey == null ? "" : userKey.substring(JOB_EMPLOYER_PREFIX.length());
+        }
+        return "https://www.avito.ru/all/vakansii?q=" + Uri.encode(query);
     }
 
     /**
@@ -743,11 +786,19 @@ public final class BlacklistActivity extends Activity {
         Class<?> argsClass;
         Class<?> searchParams;
         try {
-            argsClass = Class.forName(
-                    "com.avito.android.extended_profile.ExtendedProfileArguments");
+            argsClass = extendedProfileArgumentsClass();
             searchParams = Class.forName("com.avito.android.remote.model.SearchParams");
         } catch (Throwable t) {
             return null;
+        }
+        // Avito 228.0 obfuscates ExtendedProfileArguments to C29931c and keeps
+        // the real constructor order from the Parcelable creator:
+        // (SearchParams, userKey, contextId, floatingBuyBlock, withProfileTabs).
+        try {
+            java.lang.reflect.Constructor<?> ctor = argsClass.getConstructor(
+                    searchParams, String.class, String.class, String.class, boolean.class);
+            return ctor.newInstance(null, userKey, null, null, true);
+        } catch (Throwable ignored) {
         }
         // Primary constructor: userKey is the first parameter.
         try {
@@ -764,6 +815,14 @@ public final class BlacklistActivity extends Activity {
         } catch (Throwable ignored) {
         }
         return null;
+    }
+
+    private Class<?> extendedProfileArgumentsClass() throws ClassNotFoundException {
+        try {
+            return Class.forName("com.avito.android.extended_profile.C29931c");
+        } catch (ClassNotFoundException ignored) {
+        }
+        return Class.forName("com.avito.android.extended_profile.ExtendedProfileArguments");
     }
 
     private void openInApp(String uri) {
