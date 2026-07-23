@@ -1,3 +1,9 @@
+## [1.7.3-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.7.2...v1.7.3-dev.1) (2026-07-23)
+
+### 🐛 Bug Fixes
+
+* **avito:** blacken AMOLED system bars ([fa91acd](https://github.com/xob0t/morphe-patches/commit/fa91acd0284146105f9d699ee89fa251d19b47ae))
+
 ## [1.7.2](https://github.com/xob0t/morphe-patches/compare/v1.7.1...v1.7.2) (2026-07-23)
 
 ### 🐛 Bug Fixes

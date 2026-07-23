@@ -10,7 +10,7 @@ Personal Morphe patches for Android apps.
 ## Patches
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.7.2](https://github.com/xob0t/morphe-patches/releases/tag/v1.7.2)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;24 patches total
+> **[v1.7.3-dev.1](https://github.com/xob0t/morphe-patches/releases/tag/v1.7.3-dev.1)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;24 patches total
 <details open>
 <summary>📦 Avito&nbsp;&nbsp;•&nbsp;&nbsp;7 patches</summary>
 <br>
@@ -22,7 +22,7 @@ Personal Morphe patches for Android apps.
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
-| [AMOLED dark theme](#amoled-dark-theme) | Makes dark-theme page and navigation backgrounds pure black (AMOLED) while keeping elevated cards, sheets and controls gray so their boundaries remain visible. |  |
+| [AMOLED dark theme](#amoled-dark-theme) | Makes dark-theme page, app navigation and system bars pure black (AMOLED) while keeping elevated cards, sheets and controls gray so their boundaries remain visible. |  |
 | [Block listings](#block-listings) | Hides Avito offers from blacklisted adverts or sellers and adds a blacklist manager (import/export compatible with the Ave Blacklist extension). |  |
 | [Disable telemetry](#disable-telemetry) | Disables Avito first-party clickstream analytics and Avito's direct Adjust telemetry wrapper. | • Strict telemetry target validation |
 | [Disable update prompts](#disable-update-prompts) | Prevents Avito's force-update screen opener from launching update screens. Toggleable in Настройки Morphe. |  |
