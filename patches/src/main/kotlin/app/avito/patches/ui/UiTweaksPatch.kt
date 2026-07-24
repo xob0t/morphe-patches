@@ -17,7 +17,9 @@ import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.reference.FieldReference
+import com.android.tools.smali.dexlib2.iface.reference.TypeReference
 import app.shared.*
 
 private const val NAVIGATION_TAB = "Lcom/avito/android/bottom_navigation/NavigationTab;"
@@ -30,10 +32,15 @@ private const val INTEGER = "Ljava/lang/Integer;"
 private const val FAVORITES_ADAPTER_PACKAGE = "Lcom/avito/android/user_favorites/adapter/"
 private const val FAVORITES_TABS_CONTROL_PACKAGE = "Lcom/avito/android/user_favorites/tabs_control/"
 private const val ONBOARDING_DIALOG_FRAGMENT = "Lcom/avito/android/onboarding/dialog/OnboardingDialogFragment;"
+private const val USER_PROFILE_RESULT = "Lcom/avito/android/remote/model/user_profile/UserProfileResult;"
 private const val VISUAL_RUBRICATOR_ITEM_MARKER = "VisualRubricatorWidgetElementItemImpl(stringId="
 private const val ROW_LINE_MARKER = ", rowLine="
 
 private val AVI_TAB_NAMES = setOf("AI_ASSISTANT", "AI_ASSISTANT_SELLER")
+private val PROFILE_PRO_OUTPUT_ITEM_TYPES = setOf(
+    "Lcom/avito/android/profile/pro/impl/screen/item/group/row/ProfileProGroupRowItem;",
+    "Lcom/avito/android/profile/pro/impl/screen/item/widget_group/widget/ProfileProWidgetItem;",
+)
 
 private fun Method.usesBottomNavigationSpace() =
     parameterTypes.any { it.toString() == BOTTOM_NAVIGATION_SPACE }
@@ -124,6 +131,20 @@ private fun Method.isFavoritesTabTitleBind() =
         parameterTypes.map { it.toString() } == listOf("Ljava/lang/String;", "Ljava/lang/String;") &&
         implementation != null
 
+private fun Method.profileProOutputItemTypes(): Set<String> {
+    if (returnType != "Ljava/util/ArrayList;" || implementation == null || parameterTypes.size != 1) {
+        return emptySet()
+    }
+
+    return implementation!!.instructions
+        .asSequence()
+        .filter { it.opcode == Opcode.NEW_INSTANCE }
+        .mapNotNull { instruction ->
+            ((instruction as? ReferenceInstruction)?.reference as? TypeReference)?.type
+        }
+        .filterTo(mutableSetOf()) { it in PROFILE_PRO_OUTPUT_ITEM_TYPES }
+}
+
 /**
  * A collection of optional interface tweaks, each gated by its own toggle in
  * Настройки Morphe so it can be turned off without rebuilding:
@@ -134,10 +155,14 @@ private fun Method.isFavoritesTabTitleBind() =
  *    продавца"** block on offer pages.
  *  - **Expand descriptions by default** so the full text shows without tapping
  *    "Читать далее".
+ *  - **Hide the recommendations block** at the bottom of offer pages.
  *  - **Hide the Avi assistant tab** in the bottom navigation bar.
  *  - **Hide launch drawers** used by Avito's promotional and informational
  *    onboarding carousel.
  *  - **Hide “Знак добра” banners** in search results.
+ *  - **Hide the “Портал призов” raffle promo** on the profile page.
+ *  - **Hide the referral-program entry point** on the profile page.
+ *  - **Hide the Avito Pro entry point** on the profile page.
  *
  * Most tweaks are applied independently and degrade gracefully if an optional
  * surface is absent. Auto-builds enable strict Favorites-tab validation so a
@@ -150,7 +175,7 @@ val uiTweaksPatch = bytecodePatch(
     description = "Optional interface tweaks, each toggleable in Настройки Morphe: single-row home " +
         "categories, hide the \"Подписки\" tab in Избранное, hide installments (Рассрочка) and the " +
         "\"Спросите у продавца\" block on offers, expand descriptions by default (no \"Читать далее\"), " +
-        "and hide the Avi assistant tab in the bottom navigation.",
+        "hide offer recommendations, hide profile raffle, referral and Avito Pro promos, and hide the Avi assistant tab in the bottom navigation.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_AVITO)
@@ -219,6 +244,8 @@ val uiTweaksPatch = bytecodePatch(
                 summary = "Показывать категории на главной одной строкой",
                 default = true,
                 restartRequired = true,
+                section = MorpheSettingsRegistry.Section.NAVIGATION,
+                order = 10,
             )
             println("UI tweaks: gated single-row home categories behind the toggle.")
         }
@@ -246,6 +273,8 @@ val uiTweaksPatch = bytecodePatch(
                 summary = "Убрать вкладку подписок на экране Избранное",
                 default = true,
                 restartRequired = true,
+                section = MorpheSettingsRegistry.Section.FAVORITES,
+                order = 10,
             )
             MorpheSettingsRegistry.addSwitch(
                 key = "avito_hide_collections_tab",
@@ -253,6 +282,8 @@ val uiTweaksPatch = bytecodePatch(
                 summary = "Убрать вкладку подборок на экране Избранное",
                 default = true,
                 restartRequired = true,
+                section = MorpheSettingsRegistry.Section.FAVORITES,
+                order = 20,
             )
         }
 
@@ -394,11 +425,141 @@ val uiTweaksPatch = bytecodePatch(
                 title = "Скрыть «Знак добра»",
                 summary = "Убрать баннеры «Знак добра» из результатов поиска",
                 default = true,
+                section = MorpheSettingsRegistry.Section.PROMO,
+                order = 10,
             )
             println(
                 "UI tweaks: gated kindness banners in SERP input and " +
                     "${kindnessReturnIndices.size} output(s).",
             )
+        }
+
+        // --- Hide the "Портал призов" raffle promo on the profile page ----------
+        // Profile Pro builds the promo into two independently converted widget
+        // groups. Filter their returned lists through a live setting gate so the
+        // stock promo comes back as soon as the toggle is disabled.
+        var profilePromoConvertersPatched = 0
+        val profileOutputItemTypesPatched = mutableSetOf<String>()
+        classDefForEach { classDef ->
+            if (!classDef.type.startsWith("Lcom/avito/android/profile/pro/impl/converters/")) {
+                return@classDefForEach
+            }
+            val converterMethod = classDef.methods.singleOrNull { method ->
+                method.profileProOutputItemTypes().isNotEmpty()
+            } ?: return@classDefForEach
+            val outputItemTypes = converterMethod.profileProOutputItemTypes()
+            val method = mutableClassDefBy(classDef).methods.single {
+                it.name == converterMethod.name && it.parameterTypes == converterMethod.parameterTypes
+            }
+            val returnTargets = method.instructionsOrNull
+                ?.toList().orEmpty()
+                .mapIndexedNotNull { index, instruction ->
+                    if (instruction.opcode == Opcode.RETURN_OBJECT) {
+                        index to (instruction as OneRegisterInstruction).registerA
+                    } else {
+                        null
+                    }
+                }
+                .reversed()
+            returnTargets.forEach { (returnIndex, register) ->
+                method.addInstructions(
+                    returnIndex,
+                    """
+                        invoke-static/range {v$register .. v$register}, $MORPHE_SETTINGS_CLASS->withoutProfilePromoWidgets(Ljava/util/ArrayList;)Ljava/util/ArrayList;
+                        move-result-object v$register
+                    """,
+                )
+            }
+            method.addInstructionsWithLabels(
+                0,
+                """
+                    invoke-static/range {p1 .. p1}, $MORPHE_SETTINGS_CLASS->hideProfilePromoGroup(Ljava/lang/Object;)Z
+                    move-result v0
+                    if-eqz v0, :stock
+                    new-instance v0, Ljava/util/ArrayList;
+                    invoke-direct {v0}, Ljava/util/ArrayList;-><init>()V
+                    return-object v0
+                """,
+                ExternalLabel("stock", method.getInstruction(0)),
+            )
+            profilePromoConvertersPatched++
+            profileOutputItemTypesPatched += outputItemTypes
+        }
+        val missingProfileOutputItemTypes = PROFILE_PRO_OUTPUT_ITEM_TYPES - profileOutputItemTypesPatched
+        if (profilePromoConvertersPatched == 0) {
+            println("UI tweaks: profile promo converters not found; raffle and Avito Pro toggles skipped")
+        } else {
+            MorpheSettingsRegistry.addSwitch(
+                key = "avito_hide_profile_raffle",
+                title = "Скрыть «Портал призов»",
+                summary = "Убрать блок с розыгрышем со страницы профиля",
+                default = true,
+                section = MorpheSettingsRegistry.Section.PROMO,
+                order = 20,
+            )
+            MorpheSettingsRegistry.addSwitch(
+                key = "avito_hide_profile_avito_pro",
+                title = "Скрыть «Авито Pro»",
+                summary = "Убрать блок «Работайте как профи» со страницы профиля",
+                default = true,
+                section = MorpheSettingsRegistry.Section.PROMO,
+                order = 40,
+            )
+            println(
+                "UI tweaks: gated $profilePromoConvertersPatched profile promo converter(s)" +
+                    if (missingProfileOutputItemTypes.isEmpty()) "." else
+                        "; missing ${missingProfileOutputItemTypes.joinToString()}.",
+            )
+        }
+
+        // --- Hide the referral-program entry point on the profile page ----------
+        // The server sends referrals as a dedicated ReferralEntryPoint model in
+        // UserProfileResult.elements. Gate getItems() so every profile consumer
+        // sees a list without that exact model while the setting is enabled. The
+        // same API-level gate covers the RewardsItem representation of the prize
+        // portal used by the current profile screen.
+        val profileItemsGetter = classDefByOrNull(USER_PROFILE_RESULT)
+            ?.methods
+            ?.firstOrNull { method ->
+                method.name == "getItems" &&
+                    method.parameterTypes.isEmpty() &&
+                    method.returnType == "Ljava/util/List;" &&
+                    method.implementation != null
+            }
+        if (profileItemsGetter == null) {
+            println("UI tweaks: UserProfileResult.getItems not found; referrals toggle skipped")
+        } else {
+            val method = mutableClassDefBy(USER_PROFILE_RESULT).methods.first {
+                it.name == profileItemsGetter.name && it.parameterTypes == profileItemsGetter.parameterTypes
+            }
+            val returnTargets = method.instructionsOrNull
+                ?.toList().orEmpty()
+                .mapIndexedNotNull { index, instruction ->
+                    if (instruction.opcode == Opcode.RETURN_OBJECT) {
+                        index to (instruction as OneRegisterInstruction).registerA
+                    } else {
+                        null
+                    }
+                }
+                .reversed()
+            returnTargets.forEach { (returnIndex, register) ->
+                method.addInstructions(
+                    returnIndex,
+                    """
+                        invoke-static/range {v$register .. v$register}, $MORPHE_SETTINGS_CLASS->withoutProfilePromoItems(Ljava/util/List;)Ljava/util/List;
+                        move-result-object v$register
+                    """,
+                )
+            }
+            MorpheSettingsRegistry.addSwitch(
+                key = "avito_hide_profile_referrals",
+                title = "Скрыть реферальный блок",
+                summary = "Убрать предложение пригласить друзей со страницы профиля",
+                default = true,
+                section = MorpheSettingsRegistry.Section.PROMO,
+                order = 30,
+            )
+            println("UI tweaks: gated profile referrals behind the toggle (${returnTargets.size} returns).")
         }
 
         // --- Hide promotional/informational onboarding drawers on launch --------
@@ -443,6 +604,8 @@ val uiTweaksPatch = bytecodePatch(
                 title = "Скрыть шторки при запуске",
                 summary = "Не показывать рекламные и информационные шторки при запуске приложения",
                 default = true,
+                section = MorpheSettingsRegistry.Section.APP,
+                order = 10,
             )
             println("UI tweaks: gated onboarding launch drawers (${returnIndices.size} returns).")
         }
@@ -463,6 +626,7 @@ val uiTweaksPatch = bytecodePatch(
             key: String,
             title: String,
             summary: String,
+            order: Int,
         ) {
             val getter = advertDetailsClass?.methods?.firstOrNull {
                 it.name == getterName && it.parameterTypes.isEmpty()
@@ -492,7 +656,14 @@ val uiTweaksPatch = bytecodePatch(
                     """,
                 )
             }
-            MorpheSettingsRegistry.addSwitch(key = key, title = title, summary = summary, default = true)
+            MorpheSettingsRegistry.addSwitch(
+                key = key,
+                title = title,
+                summary = summary,
+                default = true,
+                section = MorpheSettingsRegistry.Section.ADVERT,
+                order = order,
+            )
             println("UI tweaks: gated AdvertDetails.$getterName behind $key (${returnIndices.size} returns).")
         }
 
@@ -504,6 +675,7 @@ val uiTweaksPatch = bytecodePatch(
             key = "avito_hide_installments",
             title = "Скрыть рассрочку",
             summary = "Убрать рассрочку со страниц объявлений",
+            order = 20,
         )
 
         // "Спросите у продавца" (icebreakers): the suggested-questions block.
@@ -514,6 +686,7 @@ val uiTweaksPatch = bytecodePatch(
             key = "avito_hide_ask_seller",
             title = "Скрыть «Спросите у продавца»",
             summary = "Убрать блок с вопросами продавцу",
+            order = 30,
         )
 
         // --- Expand offer descriptions by default -------------------------------
@@ -538,8 +711,40 @@ val uiTweaksPatch = bytecodePatch(
                 title = "Разворачивать описание",
                 summary = "Показывать полное описание объявления без кнопки «Читать далее»",
                 default = true,
+                section = MorpheSettingsRegistry.Section.ADVERT,
+                order = 10,
             )
             println("UI tweaks: gated ExpandablePanelLayout collapsed-line count behind avito_expand_description.")
+        }
+
+        // --- Hide the complete recommendations block on offer pages ------------
+        // AdvertAsyncComplementaryPresenter starts the recommendation request when
+        // an AdvertDetails is loaded. Returning before that launch keeps its item
+        // flow empty, so the title, filter chips and carousel are all omitted
+        // without a blank section or unnecessary network work.
+        val recommendationsLoader = OfferRecommendationsLoadFingerprint.methodOrNull
+        if (recommendationsLoader == null) {
+            println("UI tweaks: offer recommendations loader not found; recommendations toggle skipped")
+        } else {
+            recommendationsLoader.addInstructionsWithLabels(
+                0,
+                """
+                    invoke-static {}, $MORPHE_SETTINGS_CLASS->hideOfferRecommendations()Z
+                    move-result v0
+                    if-eqz v0, :stock
+                    return-void
+                """,
+                ExternalLabel("stock", recommendationsLoader.getInstruction(0)),
+            )
+            MorpheSettingsRegistry.addSwitch(
+                key = "avito_hide_offer_recommendations",
+                title = "Скрыть рекомендации",
+                summary = "Убрать блок «Рекомендации» со страницы объявления",
+                default = true,
+                section = MorpheSettingsRegistry.Section.ADVERT,
+                order = 40,
+            )
+            println("UI tweaks: gated the offer recommendations loader behind the toggle.")
         }
 
         // --- Hide the Avi assistant tab in the bottom navigation ----------------
@@ -637,6 +842,8 @@ val uiTweaksPatch = bytecodePatch(
             summary = "Убрать кнопку ИИ-ассистента из нижней навигации",
             default = true,
             restartRequired = true,
+            section = MorpheSettingsRegistry.Section.NAVIGATION,
+            order = 20,
         )
         println("UI tweaks: gated $patchedReferences Avi tab references behind the toggle.")
     }

@@ -2,6 +2,7 @@ package app.avito.patches.ui
 
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.fieldAccess
+import app.morphe.patcher.methodCall
 import app.morphe.patcher.string
 
 /**
@@ -57,4 +58,24 @@ object ExpandablePanelCollapsedLinesFingerprint : Fingerprint(
     definingClass = "Lcom/avito/android/util/ExpandablePanelLayout;",
     returnType = "V",
     parameters = listOf("Ljava/lang/Integer;"),
+)
+
+/**
+ * Matches the advert-details complementary-section loader that fetches and emits
+ * the complete "Рекомендации" block (title, filter chips and advert cards).
+ *
+ * The implementation class is minified, but remains in the stable
+ * `advert/item/similars` package. Its load method takes the current AdvertDetails
+ * and starts a coroutine; the sibling setter with the same parameter does not.
+ */
+object OfferRecommendationsLoadFingerprint : Fingerprint(
+    definingClass = "Lcom/avito/android/advert/item/similars/",
+    returnType = "V",
+    parameters = listOf("Lcom/avito/android/remote/model/AdvertDetails;"),
+    filters = listOf(
+        methodCall(
+            definingClass = "Lkotlinx/coroutines/k;",
+            name = "d",
+        ),
+    ),
 )

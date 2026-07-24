@@ -143,6 +143,13 @@ val blockListingsPatch = bytecodePatch(
         }
 
         // Register the blacklist manager as a sub-screen of Настройки Morphe.
-        MorpheSettingsRegistry.addScreen("avito_blacklist", "Чёрный список", BLACKLIST_ACTIVITY)
+        MorpheSettingsRegistry.addScreen(
+            key = "avito_blacklist",
+            title = "Чёрный список",
+            activity = BLACKLIST_ACTIVITY,
+            summary = "Заблокированные объявления и продавцы",
+            section = MorpheSettingsRegistry.Section.FILTERING,
+            order = 10,
+        )
     }
 }

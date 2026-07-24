@@ -34,6 +34,7 @@ public final class MorpheTheme {
     public final int textPrimary;
     public final int textSecondary;
     public final int accent;
+    public final int warning;
     public final int divider;
 
     public MorpheTheme(Activity host) {
@@ -43,6 +44,7 @@ public final class MorpheTheme {
         this.textPrimary = avitoColor("black", themeColor(android.R.attr.textColorPrimary, Color.BLACK));
         this.textSecondary = avitoColor("gray54", themeColor(android.R.attr.textColorSecondary, Color.GRAY));
         this.accent = avitoColor("blue", 0xFF00AAFF);
+        this.warning = avitoColor("orange600", 0xFFFCA400);
         this.colorSurface = avitoColor("gray4", blend(colorBackground, textPrimary, 0.05f));
         this.divider = avitoColor("gray8", blend(colorBackground, textPrimary, 0.12f));
     }

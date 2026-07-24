@@ -14,10 +14,7 @@ import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
-import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
-import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
-import com.android.tools.smali.dexlib2.iface.reference.TypeReference
 import org.w3c.dom.Element
 import java.io.FileNotFoundException
 
@@ -46,15 +43,9 @@ private const val NATIVE_VIDEO = "Lcom/avito/android/remote/model/NativeVideo;"
 private const val VIDEO = "Lcom/avito/android/remote/model/Video;"
 private const val AUTOTEKA_TEASER_RESULT = "Lcom/avito/android/remote/model/autotekateaser/AutotekaTeaserResult;"
 private const val GALLERY_TEASER = "Lcom/avito/android/remote/model/model_card/GalleryTeaser;"
-private const val AD_CLEANUP_CLASS = "Lapp/avito/morphe/AdCleanup;"
 private const val LIST = "Ljava/util/List;"
 private const val MAP = "Ljava/util/Map;"
 private const val BOOLEAN = "Z"
-
-private val profileProOutputItemTypes = setOf(
-    "Lcom/avito/android/profile/pro/impl/screen/item/group/row/ProfileProGroupRowItem;",
-    "Lcom/avito/android/profile/pro/impl/screen/item/widget_group/widget/ProfileProWidgetItem;",
-)
 
 private val hiddenRewardLayouts = listOf(
     "res/layout/item_rewards.xml",
@@ -110,20 +101,6 @@ private fun Method.galleryTeaserParameterIndexes(): List<Int> {
         .map { it.index }
 
     return listOf(galleryTeaserIndex) + extraTeaserListIndexes
-}
-
-private fun Method.profileProOutputItemTypes(): Set<String> {
-    if (returnType != "Ljava/util/ArrayList;" || implementation == null || parameterTypes.size != 1) {
-        return emptySet()
-    }
-
-    return implementation!!.instructions
-        .asSequence()
-        .filter { it.opcode == Opcode.NEW_INSTANCE }
-        .mapNotNull { instruction ->
-            ((instruction as? ReferenceInstruction)?.reference as? TypeReference)?.type
-        }
-        .filterTo(mutableSetOf()) { it in profileProOutputItemTypes }
 }
 
 private fun nullParametersInstructions(parameterIndexes: List<Int>) =
@@ -314,51 +291,6 @@ val removeAdsPatch = bytecodePatch(
             )
         }
 
-        var profilePrizePortalConvertersPatched = 0
-        val profileOutputItemTypesPatched = mutableSetOf<String>()
-        classDefForEach { classDef ->
-            if (!classDef.type.startsWith("Lcom/avito/android/profile/pro/impl/converters/")) {
-                return@classDefForEach
-            }
-            val converterMethod = classDef.methods.singleOrNull { method ->
-                method.profileProOutputItemTypes().isNotEmpty()
-            } ?: return@classDefForEach
-            val outputItemTypes = converterMethod.profileProOutputItemTypes()
-
-            val method = mutableClassDefBy(classDef).methods.single {
-                it.name == converterMethod.name && it.parameterTypes == converterMethod.parameterTypes
-            }
-            val returnTargets = method.instructionsOrNull
-                ?.toList().orEmpty()
-                .mapIndexedNotNull { index, instruction ->
-                    if (instruction.opcode == Opcode.RETURN_OBJECT) {
-                        index to (instruction as OneRegisterInstruction).registerA
-                    } else {
-                        null
-                    }
-                }
-                .reversed()
-            returnTargets.forEach { (returnIndex, register) ->
-                method.addInstructions(
-                    returnIndex,
-                    """
-                        invoke-static/range {v$register .. v$register}, $AD_CLEANUP_CLASS->withoutPrizePortalProfileWidgets(Ljava/util/ArrayList;)Ljava/util/ArrayList;
-                        move-result-object v$register
-                    """,
-                )
-            }
-            profilePrizePortalConvertersPatched++
-            profileOutputItemTypesPatched += outputItemTypes
-        }
-        val missingProfileOutputItemTypes = profileProOutputItemTypes - profileOutputItemTypesPatched
-        if (missingProfileOutputItemTypes.isNotEmpty()) {
-            throw PatchException(
-                "Remove ads: profile prize portal converter(s) not found for " +
-                    "${missingProfileOutputItemTypes.joinToString()} - update the stable output-item anchors " +
-                    "for this version.",
-            )
-        }
-
         // Commercial banner loader: emit an Rx error instead of loading a banner.
         val commercialBannerLoaderMethod = CommercialBannerLoaderErrorFingerprint.method
         val rxErrorFactory = commercialBannerLoaderMethod.instructionsOrNull
@@ -388,7 +320,7 @@ val removeAdsPatch = bytecodePatch(
 
         println(
             "Remove ads: patched 3 banner surface(s), $galleryTeaserConvertersPatched gallery Beduin teaser " +
-                "converter(s), and $profilePrizePortalConvertersPatched profile junk widget converter(s) (all required).",
+                "converter(s) (all required).",
         )
     }
 }
