@@ -28,23 +28,6 @@ public final class AdCleanup {
     private AdCleanup() {
     }
 
-    public static java.util.ArrayList<?> withoutPrizePortalProfileWidgets(java.util.ArrayList<?> items) {
-        try {
-            if (items == null || items.isEmpty()) {
-                return items;
-            }
-            java.util.Iterator<?> iterator = items.iterator();
-            while (iterator.hasNext()) {
-                Object item = iterator.next();
-                if (stringValues(item).contains("Портал призов")) {
-                    iterator.remove();
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-        return items;
-    }
-
     static void onBind(Object viewHolder) {
         try {
             final View itemView = Blacklist.itemViewOf(viewHolder);
@@ -103,40 +86,4 @@ public final class AdCleanup {
         }
     }
 
-    private static java.util.LinkedHashSet<String> stringValues(Object target) {
-        java.util.LinkedHashSet<String> values = new java.util.LinkedHashSet<>();
-        if (target == null) {
-            return values;
-        }
-        try {
-            for (java.lang.reflect.Method method : target.getClass().getMethods()) {
-                if (method.getParameterTypes().length != 0 || method.getReturnType() != String.class) {
-                    continue;
-                }
-                Object value = method.invoke(target);
-                if (value instanceof String) {
-                    values.add((String) value);
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-        try {
-            Class<?> current = target.getClass();
-            while (current != null && current != Object.class) {
-                for (java.lang.reflect.Field field : current.getDeclaredFields()) {
-                    if (field.getType() != String.class) {
-                        continue;
-                    }
-                    field.setAccessible(true);
-                    Object value = field.get(target);
-                    if (value instanceof String) {
-                        values.add((String) value);
-                    }
-                }
-                current = current.getSuperclass();
-            }
-        } catch (Throwable ignored) {
-        }
-        return values;
-    }
 }

@@ -170,6 +170,97 @@ public final class MorpheSettings {
     }
 
     /**
+     * Removes configured promo rows from the profile's Pro widget groups. The
+     * converter returns a mutable ArrayList, so filtering it in place avoids
+     * leaving empty profile rows. Disabling either toggle restores the matching
+     * stock row on the next profile load.
+     */
+    public static java.util.ArrayList<?> withoutProfilePromoWidgets(java.util.ArrayList<?> items) {
+        if (items == null || items.isEmpty()) {
+            return items;
+        }
+        try {
+            boolean hideRaffle = isEnabled("avito_hide_profile_raffle", true);
+            boolean hideAvitoPro = isEnabled("avito_hide_profile_avito_pro", true);
+            if (!hideRaffle && !hideAvitoPro) {
+                return items;
+            }
+            java.util.Iterator<?> iterator = items.iterator();
+            while (iterator.hasNext()) {
+                Object item = iterator.next();
+                boolean hiddenRaffle = hideRaffle && containsStringValue(item, "Портал призов");
+                boolean hiddenAvitoPro = hideAvitoPro
+                        && (containsStringValue(item, "Работайте как профи")
+                        || containsStringValue(item, "Авито Pro"));
+                if (hiddenRaffle || hiddenAvitoPro) {
+                    iterator.remove();
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return items;
+    }
+
+    /** Returns true when an entire Profile Pro group is a configured promo
+     * section. Used before conversion so both its heading and rows are omitted. */
+    public static boolean hideProfilePromoGroup(Object group) {
+        if (group == null) {
+            return false;
+        }
+        try {
+            return (isEnabled("avito_hide_profile_avito_pro", true)
+                    && containsStringValue(group, "Авито Pro"))
+                    || (isEnabled("avito_hide_profile_raffle", true)
+                    && containsStringValue(group, "Портал призов"));
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /**
+     * Removes configurable promotional items from the profile API result. Referral
+     * cards have a dedicated stable model. The prize portal uses the broader
+     * RewardsItem model, so its exact title is checked as well.
+     */
+    public static java.util.List<?> withoutProfilePromoItems(java.util.List<?> items) {
+        if (items == null || items.isEmpty()) {
+            return items;
+        }
+        try {
+            boolean hideRaffle = isEnabled("avito_hide_profile_raffle", true);
+            boolean hideReferrals = isEnabled("avito_hide_profile_referrals", true);
+            boolean hideAvitoPro = isEnabled("avito_hide_profile_avito_pro", true);
+            if (!hideRaffle && !hideReferrals && !hideAvitoPro) {
+                return items;
+            }
+            java.util.ArrayList<Object> kept = null;
+            for (int index = 0; index < items.size(); index++) {
+                Object item = items.get(index);
+                String type = item != null ? item.getClass().getName() : "";
+                boolean hiddenReferral = hideReferrals
+                        && "com.avito.android.remote.model.user_profile.items.ReferralEntryPoint".equals(type);
+                boolean hiddenRaffle = hideRaffle
+                        && "com.avito.android.remote.model.user_profile.items.RewardsItem".equals(type)
+                        && containsStringValue(item, "Портал призов");
+                boolean hiddenAvitoPro = hideAvitoPro
+                        && "com.avito.android.remote.model.user_profile.items.AvitoProItem".equals(type);
+                boolean hidden = hiddenReferral || hiddenRaffle || hiddenAvitoPro;
+                if (hidden) {
+                    if (kept == null) {
+                        kept = new java.util.ArrayList<>(items.size() - 1);
+                        kept.addAll(items.subList(0, index));
+                    }
+                } else if (kept != null) {
+                    kept.add(item);
+                }
+            }
+            return kept != null ? kept : items;
+        } catch (Throwable ignored) {
+            return items;
+        }
+    }
+
+    /**
      * Gate for the "single-row home categories" feature, injected into the
      * rubricator tile's getRowLine(): when on, every tile reports row 1 so the
      * category rubricator collapses to one row. Off → stock (two rows).
@@ -603,6 +694,18 @@ public final class MorpheSettings {
         } catch (Throwable ignored) {
         }
         return values;
+    }
+
+    private static boolean containsStringValue(Object target, String marker) {
+        if (marker == null || marker.isEmpty()) {
+            return false;
+        }
+        for (String value : stringValues(target)) {
+            if (value != null && value.contains(marker)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ---------------------------------------------------------------------
