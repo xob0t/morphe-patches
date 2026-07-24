@@ -58,6 +58,25 @@ jobs:
           subject-name: 'Morphe Patches ${{ steps.release.outputs.new_release_git_tag }}'
           subject-path: patches/build/libs/patches-*.mpp
 
+      # On a new STABLE (main) release, nudge the auto-builder to rebuild every app
+      # against the new bundle immediately, instead of waiting for its daily cron.
+      # Needs a PAT with actions:write on the auto-builds repo as AUTOBUILDS_DISPATCH_TOKEN;
+      # without it this no-ops and the cron still picks the release up within 24h.
+      - name: Trigger auto-builds
+        if: github.ref == 'refs/heads/main' && steps.release.outputs.new_release_published == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.AUTOBUILDS_DISPATCH_TOKEN }}
+          AUTOBUILDS_REPO: xob0t/morphe-autobuilds
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::notice::No AUTOBUILDS_DISPATCH_TOKEN secret — auto-builder will pick up ${{ steps.release.outputs.new_release_git_tag }} on its daily cron."
+            exit 0
+          fi
+          gh api "repos/$AUTOBUILDS_REPO/dispatches" \
+            -f event_type=patches-released \
+            -F "client_payload[tag]=${{ steps.release.outputs.new_release_git_tag }}"
+          echo "::notice::Dispatched patches-released (${{ steps.release.outputs.new_release_git_tag }}) to $AUTOBUILDS_REPO."
+
       # Keep only the newest dev prerelease. After a new one is published, delete
       # every older `*-dev.*` prerelease (its assets and git tag included) so they
       # don't accumulate. Stable (main) releases are never touched: this runs only
