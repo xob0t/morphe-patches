@@ -169,6 +169,12 @@ public final class MorpheSettings {
         return isEnabled("avito_expand_description", true) ? Integer.valueOf(Integer.MAX_VALUE) : count;
     }
 
+    /** Gate for the offer-page complementary recommendations loader. Returning
+     *  true before its coroutine starts leaves the entire section absent. */
+    public static boolean hideOfferRecommendations() {
+        return isEnabled("avito_hide_offer_recommendations", true);
+    }
+
     /**
      * Removes configured promo rows from the profile's Pro widget groups. The
      * converter returns a mutable ArrayList, so filtering it in place avoids

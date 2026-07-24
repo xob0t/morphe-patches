@@ -155,10 +155,14 @@ private fun Method.profileProOutputItemTypes(): Set<String> {
  *    продавца"** block on offer pages.
  *  - **Expand descriptions by default** so the full text shows without tapping
  *    "Читать далее".
+ *  - **Hide the recommendations block** at the bottom of offer pages.
  *  - **Hide the Avi assistant tab** in the bottom navigation bar.
  *  - **Hide launch drawers** used by Avito's promotional and informational
  *    onboarding carousel.
  *  - **Hide “Знак добра” banners** in search results.
+ *  - **Hide the “Портал призов” raffle promo** on the profile page.
+ *  - **Hide the referral-program entry point** on the profile page.
+ *  - **Hide the Avito Pro entry point** on the profile page.
  *
  * Most tweaks are applied independently and degrade gracefully if an optional
  * surface is absent. Auto-builds enable strict Favorites-tab validation so a
@@ -171,7 +175,7 @@ val uiTweaksPatch = bytecodePatch(
     description = "Optional interface tweaks, each toggleable in Настройки Morphe: single-row home " +
         "categories, hide the \"Подписки\" tab in Избранное, hide installments (Рассрочка) and the " +
         "\"Спросите у продавца\" block on offers, expand descriptions by default (no \"Читать далее\"), " +
-        "and hide the Avi assistant tab in the bottom navigation.",
+        "hide offer recommendations, hide profile raffle, referral and Avito Pro promos, and hide the Avi assistant tab in the bottom navigation.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_AVITO)
@@ -711,6 +715,36 @@ val uiTweaksPatch = bytecodePatch(
                 order = 10,
             )
             println("UI tweaks: gated ExpandablePanelLayout collapsed-line count behind avito_expand_description.")
+        }
+
+        // --- Hide the complete recommendations block on offer pages ------------
+        // AdvertAsyncComplementaryPresenter starts the recommendation request when
+        // an AdvertDetails is loaded. Returning before that launch keeps its item
+        // flow empty, so the title, filter chips and carousel are all omitted
+        // without a blank section or unnecessary network work.
+        val recommendationsLoader = OfferRecommendationsLoadFingerprint.methodOrNull
+        if (recommendationsLoader == null) {
+            println("UI tweaks: offer recommendations loader not found; recommendations toggle skipped")
+        } else {
+            recommendationsLoader.addInstructionsWithLabels(
+                0,
+                """
+                    invoke-static {}, $MORPHE_SETTINGS_CLASS->hideOfferRecommendations()Z
+                    move-result v0
+                    if-eqz v0, :stock
+                    return-void
+                """,
+                ExternalLabel("stock", recommendationsLoader.getInstruction(0)),
+            )
+            MorpheSettingsRegistry.addSwitch(
+                key = "avito_hide_offer_recommendations",
+                title = "Скрыть рекомендации",
+                summary = "Убрать блок «Рекомендации» со страницы объявления",
+                default = true,
+                section = MorpheSettingsRegistry.Section.ADVERT,
+                order = 40,
+            )
+            println("UI tweaks: gated the offer recommendations loader behind the toggle.")
         }
 
         // --- Hide the Avi assistant tab in the bottom navigation ----------------
