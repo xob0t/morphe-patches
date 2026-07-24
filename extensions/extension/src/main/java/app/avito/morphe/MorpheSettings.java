@@ -658,6 +658,7 @@ public final class MorpheSettings {
         // Collapse the leftover "Реклама скрыта" empty-ad stub (ads are removed).
         AdCleanup.onBind(viewHolder);
         Blacklist.onBindAdvert(viewHolder, item);
+        app.avito.sellerfilter.ProfessionalSellerFilter.onBind(viewHolder, item);
     }
 
     private static void wireSettingsRow(final android.view.View root) {
