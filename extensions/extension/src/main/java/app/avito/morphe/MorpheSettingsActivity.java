@@ -23,7 +23,9 @@ import org.json.JSONObject;
  *   <li>{@code screen} — a row that opens another Activity (e.g. the blacklist
  *       manager). Stacks in the same task so back returns here.</li>
  * </ul>
- * Styled with {@link MorpheTheme} so it matches Avito's palette and light/dark.
+ * Entries are grouped by their build-time {@code section} metadata and already
+ * arrive in stable display order. Styled with {@link MorpheTheme} so it matches
+ * Avito's palette and light/dark.
  */
 public final class MorpheSettingsActivity extends Activity {
 
@@ -55,7 +57,7 @@ public final class MorpheSettingsActivity extends Activity {
 
         LinearLayout list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
-        list.setPadding(theme.dp(16), 0, theme.dp(16), theme.dp(24));
+        list.setPadding(theme.dp(16), 0, theme.dp(16), theme.dp(32));
         scroll.addView(list);
 
         renderEntries(list);
@@ -120,21 +122,42 @@ public final class MorpheSettingsActivity extends Activity {
             empty.setTextSize(14);
             empty.setPadding(0, theme.dp(16), 0, 0);
             list.addView(empty);
-            return;
         }
+        String currentSection = null;
+        boolean hasItemInSection = false;
         for (int i = 0; i < entries.length(); i++) {
             JSONObject e = entries.optJSONObject(i);
             if (e == null) {
                 continue;
             }
+            String section = e.optString("section", "Прочее");
+            if (!section.equals(currentSection)) {
+                currentSection = section;
+                hasItemInSection = false;
+                list.addView(buildSectionHeader(section, list.getChildCount() == 0));
+            } else if (hasItemInSection) {
+                list.addView(theme.makeDivider());
+            }
             String type = e.optString("type");
             if ("switch".equals(type)) {
                 list.addView(buildSwitchRow(e));
+                hasItemInSection = true;
             } else if ("screen".equals(type)) {
                 list.addView(buildScreenRow(e));
+                hasItemInSection = true;
             }
-            list.addView(theme.makeDivider());
         }
+        buildFooter(list);
+    }
+
+    private View buildSectionHeader(String title, boolean first) {
+        TextView header = new TextView(this);
+        header.setText(title);
+        header.setTextColor(theme.accent);
+        header.setTextSize(MorpheTheme.SUBTITLE_SP);
+        header.setIncludeFontPadding(false);
+        header.setPadding(0, theme.dp(first ? 16 : 28), 0, theme.dp(8));
+        return header;
     }
 
     private View buildSwitchRow(JSONObject e) {
@@ -149,6 +172,7 @@ public final class MorpheSettingsActivity extends Activity {
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setMinimumHeight(theme.dp(56));
         row.setPadding(0, theme.dp(10), 0, theme.dp(10));
+        row.setBackground(theme.themeDrawable(android.R.attr.selectableItemBackground));
 
         LinearLayout textCol = new LinearLayout(this);
         textCol.setOrientation(LinearLayout.VERTICAL);
@@ -173,9 +197,18 @@ public final class MorpheSettingsActivity extends Activity {
             sub.setPadding(0, theme.dp(2), 0, 0);
             textCol.addView(sub);
         }
+        if (restartRequired) {
+            TextView restartHint = new TextView(this);
+            restartHint.setText("Требуется перезапуск приложения");
+            restartHint.setTextColor(theme.warning);
+            restartHint.setIncludeFontPadding(false);
+            restartHint.setTextSize(MorpheTheme.META_SP);
+            restartHint.setPadding(0, theme.dp(3), 0, 0);
+            textCol.addView(restartHint);
+        }
         row.addView(textCol);
 
-        Switch sw = new Switch(this);
+        final Switch sw = new Switch(this);
         sw.setChecked(MorpheSettings.isEnabled(key, def));
         sw.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
@@ -187,11 +220,18 @@ public final class MorpheSettingsActivity extends Activity {
             }
         });
         row.addView(sw);
+        row.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                sw.setChecked(!sw.isChecked());
+            }
+        });
         return row;
     }
 
     private View buildScreenRow(JSONObject e) {
         String title = e.optString("title", e.optString("key"));
+        String summary = e.optString("summary", null);
         final String activity = e.optString("activity", null);
 
         LinearLayout row = new LinearLayout(this);
@@ -215,14 +255,129 @@ public final class MorpheSettingsActivity extends Activity {
             }
         });
 
-        // Like Avito's own navigation rows: just the title, no trailing chevron.
+        // Like Avito's own navigation rows: text only, no trailing chevron.
+        LinearLayout textCol = new LinearLayout(this);
+        textCol.setOrientation(LinearLayout.VERTICAL);
+        textCol.setLayoutParams(new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
         TextView titleView = new TextView(this);
         titleView.setText(title);
         titleView.setTextColor(theme.textPrimary);
         titleView.setIncludeFontPadding(false);
         titleView.setTextSize(MorpheTheme.ROW_TITLE_SP);
-        titleView.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        row.addView(titleView);
+        textCol.addView(titleView);
+
+        if (summary != null && !summary.isEmpty()) {
+            TextView sub = new TextView(this);
+            sub.setText(summary);
+            sub.setTextColor(theme.textSecondary);
+            sub.setIncludeFontPadding(false);
+            sub.setTextSize(MorpheTheme.SUBTITLE_SP);
+            sub.setPadding(0, theme.dp(2), 0, 0);
+            textCol.addView(sub);
+        }
+        row.addView(textCol);
         return row;
+    }
+
+    private void buildFooter(LinearLayout list) {
+        list.addView(buildSectionHeader("О приложении", false));
+        list.addView(buildVersionRow());
+        list.addView(theme.makeDivider());
+        list.addView(buildPatchVersionRow());
+        list.addView(theme.makeDivider());
+        list.addView(buildResetRow());
+    }
+
+    private View buildVersionRow() {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setMinimumHeight(theme.dp(56));
+        row.setPadding(0, theme.dp(10), 0, theme.dp(10));
+
+        TextView title = new TextView(this);
+        title.setText("Версия Avito");
+        title.setTextColor(theme.textPrimary);
+        title.setIncludeFontPadding(false);
+        title.setTextSize(MorpheTheme.ROW_TITLE_SP);
+        row.addView(title);
+
+        TextView summary = new TextView(this);
+        summary.setText(appVersionSummary());
+        summary.setTextColor(theme.textSecondary);
+        summary.setIncludeFontPadding(false);
+        summary.setTextSize(MorpheTheme.SUBTITLE_SP);
+        summary.setPadding(0, theme.dp(2), 0, 0);
+        row.addView(summary);
+        return row;
+    }
+
+    private String appVersionSummary() {
+        try {
+            android.content.pm.PackageInfo info =
+                    getPackageManager().getPackageInfo(getPackageName(), 0);
+            String name = info.versionName == null ? "—" : info.versionName;
+            return name + " · сборка " + info.versionCode;
+        } catch (Throwable ignored) {
+            return "—";
+        }
+    }
+
+    private View buildPatchVersionRow() {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setMinimumHeight(theme.dp(56));
+        row.setPadding(0, theme.dp(10), 0, theme.dp(10));
+
+        TextView title = new TextView(this);
+        title.setText("Версия пакета патчей Morphe");
+        title.setTextColor(theme.textPrimary);
+        title.setIncludeFontPadding(false);
+        title.setTextSize(MorpheTheme.ROW_TITLE_SP);
+        row.addView(title);
+
+        TextView summary = new TextView(this);
+        summary.setText(MorpheSettings.patchVersion());
+        summary.setTextColor(theme.textSecondary);
+        summary.setIncludeFontPadding(false);
+        summary.setTextSize(MorpheTheme.SUBTITLE_SP);
+        summary.setPadding(0, theme.dp(2), 0, 0);
+        row.addView(summary);
+        return row;
+    }
+
+    private View buildResetRow() {
+        TextView row = new TextView(this);
+        row.setText("Сбросить настройки");
+        row.setTextColor(theme.accent);
+        row.setIncludeFontPadding(false);
+        row.setTextSize(MorpheTheme.ROW_TITLE_SP);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setMinimumHeight(theme.dp(56));
+        row.setPadding(0, theme.dp(10), 0, theme.dp(10));
+        row.setBackground(theme.themeDrawable(android.R.attr.selectableItemBackground));
+        row.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                confirmReset();
+            }
+        });
+        return row;
+    }
+
+    private void confirmReset() {
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Сбросить настройки?")
+                .setMessage("Все переключатели Morphe вернутся к значениям по умолчанию. Чёрный список не изменится.")
+                .setNegativeButton("Отмена", null)
+                .setPositiveButton("Сбросить", new android.content.DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(android.content.DialogInterface dialog, int which) {
+                        MorpheSettings.resetPreferences();
+                        recreate();
+                    }
+                })
+                .show();
     }
 }

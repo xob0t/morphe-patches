@@ -14,10 +14,19 @@ import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import org.w3c.dom.Element
+import java.io.File
+import java.util.jar.JarFile
 
 private const val MORPHE_SETTINGS_CLASS = "Lapp/avito/morphe/MorpheSettings;"
 private const val MORPHE_SETTINGS_ACTIVITY = "app.avito.morphe.MorpheSettingsActivity"
 private const val KONVEYOR_BIND_MARKER = "onBindViewHolder:#"
+
+private fun patchBundleVersion(): String = runCatching {
+    val location = MorpheSettingsRegistry::class.java.protectionDomain.codeSource.location
+    JarFile(File(location.toURI())).use { jar ->
+        jar.manifest.mainAttributes.getValue("Version")
+    }
+}.getOrNull()?.takeIf { it.isNotBlank() } ?: "неизвестна"
 
 private fun Method.isKonveyorBind(definingClass: String, getItem: Method): Boolean =
     implementation != null &&
@@ -179,13 +188,15 @@ val morpheSettingsPatch = bytecodePatch(
 
     finalize {
         // Bake the registry (now populated by every feature patch's execute) into
-        // MorpheSettings.config() by prepending a const-string return of the JSON.
+        // MorpheSettings.config() and expose the MPP's own manifest version to the
+        // runtime info section.
         val json = MorpheSettingsRegistry.toJson()
         val smaliJson = json.replace("\\", "\\\\").replace("\"", "\\\"")
-        val config = classDefByOrNull(MORPHE_SETTINGS_CLASS)
-            ?.methods?.firstOrNull { it.name == "config" && it.parameterTypes.isEmpty() }
+        val settingsClass = classDefByOrNull(MORPHE_SETTINGS_CLASS)
+        val config = settingsClass?.methods
+            ?.firstOrNull { it.name == "config" && it.parameterTypes.isEmpty() }
         if (config != null) {
-            mutableClassDefBy(classDefByOrNull(MORPHE_SETTINGS_CLASS)!!).methods
+            mutableClassDefBy(settingsClass).methods
                 .first { it.name == "config" && it.parameterTypes.isEmpty() }
                 .addInstructions(
                     0,
@@ -197,6 +208,25 @@ val morpheSettingsPatch = bytecodePatch(
             println("Morphe settings: baked config $json")
         } else {
             println("Morphe settings: MorpheSettings.config() not found; config not baked")
+        }
+
+        val version = patchBundleVersion()
+        val smaliVersion = version.replace("\\", "\\\\").replace("\"", "\\\"")
+        val versionMethod = settingsClass?.methods
+            ?.firstOrNull { it.name == "patchVersion" && it.parameterTypes.isEmpty() }
+        if (versionMethod != null) {
+            mutableClassDefBy(settingsClass).methods
+                .first { it.name == "patchVersion" && it.parameterTypes.isEmpty() }
+                .addInstructions(
+                    0,
+                    """
+                        const-string v0, "$smaliVersion"
+                        return-object v0
+                    """,
+                )
+            println("Morphe settings: baked patch bundle version $version")
+        } else {
+            println("Morphe settings: MorpheSettings.patchVersion() not found; version not baked")
         }
     }
 }

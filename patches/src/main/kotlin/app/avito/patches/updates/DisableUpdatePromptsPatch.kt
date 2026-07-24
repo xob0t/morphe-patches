@@ -27,6 +27,8 @@ val disableUpdatePromptsPatch = bytecodePatch(
             title = "Отключить обновления",
             summary = "Не показывать экраны принудительного обновления",
             default = true,
+            section = MorpheSettingsRegistry.Section.APP,
+            order = 20,
         )
 
         // Gate the opener: return early (suppress the update screen) only while the

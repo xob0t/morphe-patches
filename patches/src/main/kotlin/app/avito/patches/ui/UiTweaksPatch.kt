@@ -219,6 +219,8 @@ val uiTweaksPatch = bytecodePatch(
                 summary = "Показывать категории на главной одной строкой",
                 default = true,
                 restartRequired = true,
+                section = MorpheSettingsRegistry.Section.NAVIGATION,
+                order = 10,
             )
             println("UI tweaks: gated single-row home categories behind the toggle.")
         }
@@ -246,6 +248,8 @@ val uiTweaksPatch = bytecodePatch(
                 summary = "Убрать вкладку подписок на экране Избранное",
                 default = true,
                 restartRequired = true,
+                section = MorpheSettingsRegistry.Section.FAVORITES,
+                order = 10,
             )
             MorpheSettingsRegistry.addSwitch(
                 key = "avito_hide_collections_tab",
@@ -253,6 +257,8 @@ val uiTweaksPatch = bytecodePatch(
                 summary = "Убрать вкладку подборок на экране Избранное",
                 default = true,
                 restartRequired = true,
+                section = MorpheSettingsRegistry.Section.FAVORITES,
+                order = 20,
             )
         }
 
@@ -394,6 +400,8 @@ val uiTweaksPatch = bytecodePatch(
                 title = "Скрыть «Знак добра»",
                 summary = "Убрать баннеры «Знак добра» из результатов поиска",
                 default = true,
+                section = MorpheSettingsRegistry.Section.FILTERING,
+                order = 20,
             )
             println(
                 "UI tweaks: gated kindness banners in SERP input and " +
@@ -443,6 +451,8 @@ val uiTweaksPatch = bytecodePatch(
                 title = "Скрыть шторки при запуске",
                 summary = "Не показывать рекламные и информационные шторки при запуске приложения",
                 default = true,
+                section = MorpheSettingsRegistry.Section.APP,
+                order = 10,
             )
             println("UI tweaks: gated onboarding launch drawers (${returnIndices.size} returns).")
         }
@@ -463,6 +473,7 @@ val uiTweaksPatch = bytecodePatch(
             key: String,
             title: String,
             summary: String,
+            order: Int,
         ) {
             val getter = advertDetailsClass?.methods?.firstOrNull {
                 it.name == getterName && it.parameterTypes.isEmpty()
@@ -492,7 +503,14 @@ val uiTweaksPatch = bytecodePatch(
                     """,
                 )
             }
-            MorpheSettingsRegistry.addSwitch(key = key, title = title, summary = summary, default = true)
+            MorpheSettingsRegistry.addSwitch(
+                key = key,
+                title = title,
+                summary = summary,
+                default = true,
+                section = MorpheSettingsRegistry.Section.ADVERT,
+                order = order,
+            )
             println("UI tweaks: gated AdvertDetails.$getterName behind $key (${returnIndices.size} returns).")
         }
 
@@ -504,6 +522,7 @@ val uiTweaksPatch = bytecodePatch(
             key = "avito_hide_installments",
             title = "Скрыть рассрочку",
             summary = "Убрать рассрочку со страниц объявлений",
+            order = 20,
         )
 
         // "Спросите у продавца" (icebreakers): the suggested-questions block.
@@ -514,6 +533,7 @@ val uiTweaksPatch = bytecodePatch(
             key = "avito_hide_ask_seller",
             title = "Скрыть «Спросите у продавца»",
             summary = "Убрать блок с вопросами продавцу",
+            order = 30,
         )
 
         // --- Expand offer descriptions by default -------------------------------
@@ -538,6 +558,8 @@ val uiTweaksPatch = bytecodePatch(
                 title = "Разворачивать описание",
                 summary = "Показывать полное описание объявления без кнопки «Читать далее»",
                 default = true,
+                section = MorpheSettingsRegistry.Section.ADVERT,
+                order = 10,
             )
             println("UI tweaks: gated ExpandablePanelLayout collapsed-line count behind avito_expand_description.")
         }
@@ -637,6 +659,8 @@ val uiTweaksPatch = bytecodePatch(
             summary = "Убрать кнопку ИИ-ассистента из нижней навигации",
             default = true,
             restartRequired = true,
+            section = MorpheSettingsRegistry.Section.NAVIGATION,
+            order = 20,
         )
         println("UI tweaks: gated $patchedReferences Avi tab references behind the toggle.")
     }

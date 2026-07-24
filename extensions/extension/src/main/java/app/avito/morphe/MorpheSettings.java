@@ -52,6 +52,12 @@ public final class MorpheSettings {
         return "[]";
     }
 
+    /** Morphe patch-bundle version, replaced with the MPP manifest version when
+     *  the settings patch is applied. */
+    public static String patchVersion() {
+        return "неизвестна";
+    }
+
     public static boolean isEnabled(String key, boolean defaultValue) {
         SharedPreferences prefs = prefs();
         if (prefs == null || key == null) {
@@ -71,6 +77,19 @@ public final class MorpheSettings {
         }
         try {
             prefs.edit().putBoolean(key, value).apply();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** Restores every Morphe toggle to its registered default. Feature data such
+     *  as the blacklist is stored separately and is intentionally preserved. */
+    public static void resetPreferences() {
+        SharedPreferences prefs = prefs();
+        if (prefs == null) {
+            return;
+        }
+        try {
+            prefs.edit().clear().apply();
         } catch (Throwable ignored) {
         }
     }
