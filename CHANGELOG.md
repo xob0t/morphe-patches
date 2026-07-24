@@ -1,3 +1,9 @@
+## [1.8.0-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.7.3...v1.8.0-dev.1) (2026-07-24)
+
+### ✨ New Features
+
+* **avito:** filter professional sellers by review count ([8dc0513](https://github.com/xob0t/morphe-patches/commit/8dc051385b06621d1aba444a8a8167efe1295db3))
+
 ## [1.7.3](https://github.com/xob0t/morphe-patches/compare/v1.7.2...v1.7.3) (2026-07-23)
 
 ### 🐛 Bug Fixes
