@@ -18,6 +18,7 @@ object MorpheSettingsRegistry {
         val order: Int,
     ) {
         FILTERING("Фильтрация", 100),
+        PROMO("Реклама и промо", 150),
         ADVERT("Страница объявления", 200),
         NAVIGATION("Главная и навигация", 300),
         FAVORITES("Избранное", 400),

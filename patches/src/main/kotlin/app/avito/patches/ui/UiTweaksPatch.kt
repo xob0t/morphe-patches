@@ -400,8 +400,8 @@ val uiTweaksPatch = bytecodePatch(
                 title = "Скрыть «Знак добра»",
                 summary = "Убрать баннеры «Знак добра» из результатов поиска",
                 default = true,
-                section = MorpheSettingsRegistry.Section.FILTERING,
-                order = 20,
+                section = MorpheSettingsRegistry.Section.PROMO,
+                order = 10,
             )
             println(
                 "UI tweaks: gated kindness banners in SERP input and " +
