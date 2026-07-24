@@ -1,3 +1,11 @@
+## [1.9.0](https://github.com/xob0t/morphe-patches/compare/v1.8.0...v1.9.0) (2026-07-24)
+
+### ✨ New Features
+
+* **avito:** add configurable profile promo controls ([bfc873e](https://github.com/xob0t/morphe-patches/commit/bfc873e2b35f10567229adebb5f8f9ec544ac93e))
+* **avito:** add offer recommendations toggle ([cb30ba7](https://github.com/xob0t/morphe-patches/commit/cb30ba776e4709470a04df65d58484ae7d066019))
+* **avito:** restructure Morphe settings menu ([013a7e4](https://github.com/xob0t/morphe-patches/commit/013a7e478f34d448c34dcc5a3d3a8575a2461b21))
+
 ## [1.9.0-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.8.0...v1.9.0-dev.1) (2026-07-24)
 
 ### ✨ New Features
