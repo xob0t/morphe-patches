@@ -70,16 +70,27 @@ private fun Method.isVoidMethod(name: String) =
         returnType == "V" &&
         hasImplementation()
 
+// A Kotlin `suspend` function lowers to a trailing `Continuation` param. R8 on
+// 7.7.2001 specializes many of these to the concrete `ContinuationImpl` subtype,
+// so an exact match on `Lkotlin/coroutines/Continuation;` silently misses them
+// (this alone dropped lottery `handleTicketCommand`/`emitDelegateEvent` and raffle
+// `observe`/`invalidate`). Accept either the interface or the specialized subtype.
+private fun Method.hasContinuationTail() =
+    parameterTypes.lastOrNull()?.toString().let {
+        it == "Lkotlin/coroutines/Continuation;" ||
+            it == "Lkotlin/coroutines/jvm/internal/ContinuationImpl;"
+    }
+
 private fun Method.isSuspendUnitMethod(name: String) =
     this.name == name &&
         returnType == "Ljava/lang/Object;" &&
-        parameterTypes.lastOrNull()?.toString() == "Lkotlin/coroutines/Continuation;" &&
+        hasContinuationTail() &&
         hasImplementation()
 
 private fun Method.isSuspendObjectMethod(name: String) =
     this.name == name &&
         returnType == "Ljava/lang/Object;" &&
-        parameterTypes.lastOrNull()?.toString() == "Lkotlin/coroutines/Continuation;" &&
+        hasContinuationTail() &&
         hasImplementation()
 
 /**
@@ -99,6 +110,27 @@ private object BigSaleSearchBarFingerprint : Fingerprint(
             classDef.type.startsWith("Lru/wildberries/")
     },
 )
+
+// The main-page "big sale" promo search bar restyles the whole header in place of
+// the normal search toolbar (red theme, the "находки из Китая" promo strip, the
+// `bigSaleCounterButton`). On 7.6.8001 the gate was an `isBigSaleSearchBarEnabled()Z`
+// getter (still covered by BigSaleSearchBarFingerprint above), but R8 on 7.7.2001
+// inlined that getter to a direct field read, so the fingerprint matches nothing
+// there. The version-stable root is `IsBigSaleSearchBarEnabledUseCase`, which feeds
+// the `MainPageOptions.isBigSaleSearchBarEnabled` field via two paths: `invoke()Z`
+// (synchronous — used by PromoSearchBarInteractor) and `observeIsEnabled()` (reactive
+// — used by MainPageOptionsProvider, whose emitted value is computed by the combine
+// lambda `…$observeIsEnabled$1`). Forcing both to false reverts the header to the
+// app's own non-sale toolbar — MainPageComposeFragment selects the normal bar when
+// the flag is false.
+private fun String.isBigSaleSearchBarUseCaseClass() =
+    startsWith("Lru/wildberries/mainpage/") &&
+        endsWith("/IsBigSaleSearchBarEnabledUseCase;")
+
+private fun String.isBigSaleSearchBarObserveLambdaClass() =
+    startsWith("Lru/wildberries/mainpage/") &&
+        contains("IsBigSaleSearchBarEnabledUseCase") &&
+        endsWith("observeIsEnabled\$1;")
 
 private fun String.isBannersUiWrapperClass() =
     startsWith("Lru/wildberries/mainpage/") &&
@@ -122,6 +154,19 @@ private fun String.isMainPageBannerRenderClass() =
     startsWith("Lru/wildberries/mainpage/") &&
         contains("/presentation/compose/") &&
         (endsWith("MainPageBannersCarouselKt;") || endsWith("MainPageGridBannersKt;"))
+
+// The profile ("personal page") screen renders its own banner section, separate
+// from the main-page banner path above. `PersonalPageBanners` is the whole
+// section: when the user has real banners it shows them, otherwise it falls back
+// to a hardcoded `banner_default_placeholder_*` promo ("There is everything you
+// need"). Emptying the banner list therefore does NOT hide it — it pins the
+// placeholder. Neutralising the section composable to `return-void` (before it
+// opens its restart group) reproduces the app's own no-banners state: the caller's
+// `BannersBlock` else-branch already renders nothing, so there is no layout gap.
+private fun String.isPersonalPageBannerRenderClass() =
+    startsWith("Lru/wildberries/personalpage/") &&
+        contains("/presentation/compose/") &&
+        endsWith("PersonalPageBannersKt;")
 
 private fun String.isBigLotteryDelegateClass() =
     startsWith("Lru/wildberries/mainpage/") &&
@@ -168,7 +213,7 @@ private fun String.isRaffleItemComposableClass() =
 @Suppress("unused")
 val removeWildberriesAdsPatch = bytecodePatch(
     name = "Remove Wildberries ads",
-    description = "Removes Wildberries home banners, grid banners, promo headers, product recommendations, and lottery popups.",
+    description = "Removes Wildberries home banners, grid banners, profile banners, promo headers, product recommendations, and lottery popups.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_WILDBERRIES)
@@ -196,6 +241,7 @@ val removeWildberriesAdsPatch = bytecodePatch(
         var patchedMainBannerListGetters = 0
         var patchedMainBannerStateMethods = 0
         var patchedBannerRenderMethods = 0
+        var patchedProfileBannerRenderMethods = 0
         var patchedBannerDataMethods = 0
         var patchedBigSaleHeaderMethods = 0
         var patchedCartRecommendationMethods = 0
@@ -207,6 +253,43 @@ val removeWildberriesAdsPatch = bytecodePatch(
             val classType = classDef.type
 
             when {
+                classType.isBigSaleSearchBarUseCaseClass() -> {
+                    mutableClassDefBy(classDef).methods.forEach { method ->
+                        if (method.name == "invoke" &&
+                            method.returnType == "Z" &&
+                            method.parameterTypes.isEmpty() &&
+                            method.hasImplementation()
+                        ) {
+                            method.addInstructions(
+                                0,
+                                """
+                                    const/4 v0, 0x0
+                                    return v0
+                                """,
+                            )
+                            patchedBigSaleHeaderMethods++
+                        }
+                    }
+                }
+
+                classType.isBigSaleSearchBarObserveLambdaClass() -> {
+                    mutableClassDefBy(classDef).methods.forEach { method ->
+                        if (method.name == "invokeSuspend" &&
+                            method.returnType == "Ljava/lang/Object;" &&
+                            method.hasImplementation()
+                        ) {
+                            method.addInstructions(
+                                0,
+                                """
+                                    sget-object v0, Ljava/lang/Boolean;->FALSE:Ljava/lang/Boolean;
+                                    return-object v0
+                                """,
+                            )
+                            patchedBigSaleHeaderMethods++
+                        }
+                    }
+                }
+
                 classType.isBannersUiWrapperClass() -> {
                     mutableClassDefBy(classDef).methods.forEach { method ->
                         when {
@@ -294,14 +377,41 @@ val removeWildberriesAdsPatch = bytecodePatch(
                     }
                 }
 
+                classType.isPersonalPageBannerRenderClass() -> {
+                    mutableClassDefBy(classDef).methods.forEach { method ->
+                        if (method.isVoidMethod("PersonalPageBanners")) {
+                            method.addInstructions(
+                                0,
+                                """
+                                    return-void
+                                """,
+                            )
+                            patchedProfileBannerRenderMethods++
+                        }
+                    }
+                }
+
                 classType.isBannerMapperClass() -> {
                     mutableClassDefBy(classDef).methods.forEach { method ->
+                        // `toDomainBanners` returned `List` up to 7.6.x but was tightened
+                        // to `ArrayList` on 7.7.2001 — match either so the mapper isn't
+                        // silently skipped after the return type narrows.
                         if (method.isListReturnMethod("toDomainBanners")) {
                             method.addInstructions(
                                 0,
                                 """
                                     invoke-static {}, Ljava/util/Collections;->emptyList()Ljava/util/List;
                                     move-result-object v0
+                                    return-object v0
+                                """,
+                            )
+                            patchedBannerDataMethods++
+                        } else if (method.isArrayListReturnMethod("toDomainBanners")) {
+                            method.addInstructions(
+                                0,
+                                """
+                                    new-instance v0, Ljava/util/ArrayList;
+                                    invoke-direct {v0}, Ljava/util/ArrayList;-><init>()V
                                     return-object v0
                                 """,
                             )
@@ -344,7 +454,11 @@ val removeWildberriesAdsPatch = bytecodePatch(
                 classType.isCartRecommendationsViewModelClass() -> if (shouldHideRecommendationGrids) {
                     mutableClassDefBy(classDef).methods.forEach { method ->
                         when {
-                            method.isBooleanMethod("access\$shouldRecommendationsBeVisible") -> {
+                            // Up to 7.6.x this was the synthetic `access$shouldRecommendationsBeVisible`;
+                            // 7.7.2001 dropped the `access$` wrapper, exposing the direct
+                            // `shouldRecommendationsBeVisible()Z`. Match either.
+                            method.isBooleanMethod("access\$shouldRecommendationsBeVisible") ||
+                                method.isBooleanMethod("shouldRecommendationsBeVisible") -> {
                                 method.addInstructions(
                                     0,
                                     """
@@ -355,6 +469,8 @@ val removeWildberriesAdsPatch = bytecodePatch(
                                 patchedCartRecommendationMethods++
                             }
 
+                            // `loadMoreProducts()V` existed up to 7.6.x; on 7.7.2001 it was
+                            // folded into `loadRecommendations(Z)V` (matched below via name+void).
                             method.isVoidMethod("loadMoreProducts") -> {
                                 method.addInstructions(
                                     0,
@@ -393,6 +509,10 @@ val removeWildberriesAdsPatch = bytecodePatch(
                 }
 
                 classType.isBigLotteryMapperClass() -> {
+                    // NOTE: on 7.7.2001 R8 reduced BigLotteryMapper to an empty singleton
+                    // and inlined `map()` into BigLotteryDelegate, so this matches 0 there
+                    // (kept for 7.6.x). The lottery popup stays suppressed via the delegate
+                    // suspend methods + isBigLotteryAvailable gate below — do not chase it.
                     mutableClassDefBy(classDef).methods.forEach { method ->
                         if (method.isListReturnMethod("map")) {
                             method.addInstructions(
@@ -443,7 +563,11 @@ val removeWildberriesAdsPatch = bytecodePatch(
                                 patchedBigLotteryMethods++
                             }
 
-                            method.name == "access\$isBigLotteryEnabled" &&
+                            // 7.6.x exposed a synthetic `access$isBigLotteryEnabled`;
+                            // 7.7.2001 dropped the `access$` wrapper for the direct
+                            // instance method `isBigLotteryEnabled(User)Z`. Match either.
+                            (method.name == "access\$isBigLotteryEnabled" ||
+                                method.name == "isBigLotteryEnabled") &&
                                 method.returnType == "Z" &&
                                 method.hasImplementation() -> {
                                 method.addInstructions(
@@ -460,6 +584,9 @@ val removeWildberriesAdsPatch = bytecodePatch(
                 }
 
                 classType.isRandomTicketSpawnsUseCaseClass() -> {
+                    // NOTE: on 7.7.2001 R8 inlined `invoke(Z)Z` into its call sites and
+                    // stripped the interface, so this matches 0 there (kept for 7.6.x).
+                    // Random-ticket spawns ride the same lottery gates above — do not chase it.
                     mutableClassDefBy(classDef).methods.forEach { method ->
                         if (
                             method.name == "invoke" &&
@@ -553,6 +680,7 @@ val removeWildberriesAdsPatch = bytecodePatch(
             patchedMainBannerListGetters == 0 &&
             patchedMainBannerStateMethods == 0 &&
             patchedBannerRenderMethods == 0 &&
+            patchedProfileBannerRenderMethods == 0 &&
             patchedBannerDataMethods == 0 &&
             patchedBigSaleHeaderMethods == 0 &&
             patchedCartRecommendationMethods == 0 &&
@@ -568,6 +696,7 @@ val removeWildberriesAdsPatch = bytecodePatch(
                 // Wrapper/model getters are older implementations and can legitimately
                 // be absent. The render + data pair is the complete current banner path.
                 if (patchedBannerRenderMethods == 0) add("banner rendering")
+                if (patchedProfileBannerRenderMethods == 0) add("profile banners")
                 if (patchedBannerDataMethods == 0) add("banner data")
                 if (shouldHideRecommendationGrids) {
                     if (patchedCartRecommendationMethods == 0) add("cart recommendations")
@@ -592,6 +721,7 @@ val removeWildberriesAdsPatch = bytecodePatch(
                 "$patchedMainBannerListGetters main banner list getters, " +
                 "$patchedMainBannerStateMethods main banner state methods, " +
                 "$patchedBannerRenderMethods banner render methods, " +
+                "$patchedProfileBannerRenderMethods profile banner render methods, " +
                 "$patchedBannerDataMethods banner data methods, " +
                 "$patchedBigSaleHeaderMethods promo header methods, and " +
                 "$patchedCartRecommendationMethods cart recommendation methods, " +
