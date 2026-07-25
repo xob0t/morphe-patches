@@ -1,5 +1,5 @@
 {
-  "version": "1.9.0",
+  "version": "1.10.0-dev.1",
   "patches": [
     {
       "name": "AMOLED dark theme",
@@ -638,7 +638,7 @@
     },
     {
       "name": "Remove Wildberries ads",
-      "description": "Removes Wildberries home banners, grid banners, promo headers, product recommendations, and lottery popups.",
+      "description": "Removes Wildberries home banners, grid banners, profile banners, promo headers, product recommendations, and lottery popups.",
       "default": true,
       "dependencies": [],
       "compatiblePackages": [
