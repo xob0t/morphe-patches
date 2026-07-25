@@ -1,3 +1,9 @@
+## [1.10.0](https://github.com/xob0t/morphe-patches/compare/v1.9.0...v1.10.0) (2026-07-25)
+
+### ✨ New Features
+
+* **wildberries:** remove profile + big-sale banners, fix 7.7.2001 matcher drift ([75fc6b8](https://github.com/xob0t/morphe-patches/commit/75fc6b88721f7c71048b035762c8522c4a3ff3be))
+
 ## [1.10.0-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.9.0...v1.10.0-dev.1) (2026-07-25)
 
 ### ✨ New Features
