@@ -1,3 +1,9 @@
+## [1.10.1](https://github.com/xob0t/morphe-patches/compare/v1.10.0...v1.10.1) (2026-07-26)
+
+### 🐛 Bug Fixes
+
+* **avito:** hide referral widget on Profile Pro ([6ceb544](https://github.com/xob0t/morphe-patches/commit/6ceb544dce28a1f2184804c2ece712277eaa2b31))
+
 ## [1.10.1-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.10.0...v1.10.1-dev.1) (2026-07-26)
 
 ### 🐛 Bug Fixes
