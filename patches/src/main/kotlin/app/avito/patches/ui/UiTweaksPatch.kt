@@ -434,10 +434,12 @@ val uiTweaksPatch = bytecodePatch(
             )
         }
 
-        // --- Hide the "Портал призов" raffle promo on the profile page ----------
+        // --- Hide Profile Pro promo widgets on the profile page ----------------
         // Profile Pro builds the promo into two independently converted widget
         // groups. Filter their returned lists through a live setting gate so the
-        // stock promo comes back as soon as the toggle is disabled.
+        // stock promo comes back as soon as its toggle is disabled. This path
+        // includes the current referral widget (stable stringId "referral");
+        // UserProfileResult below only covers the legacy profile screen.
         var profilePromoConvertersPatched = 0
         val profileOutputItemTypesPatched = mutableSetOf<String>()
         classDefForEach { classDef ->
@@ -487,7 +489,7 @@ val uiTweaksPatch = bytecodePatch(
         }
         val missingProfileOutputItemTypes = PROFILE_PRO_OUTPUT_ITEM_TYPES - profileOutputItemTypesPatched
         if (profilePromoConvertersPatched == 0) {
-            println("UI tweaks: profile promo converters not found; raffle and Avito Pro toggles skipped")
+            println("UI tweaks: profile promo converters not found; Profile Pro promo hooks skipped")
         } else {
             MorpheSettingsRegistry.addSwitch(
                 key = "avito_hide_profile_raffle",
