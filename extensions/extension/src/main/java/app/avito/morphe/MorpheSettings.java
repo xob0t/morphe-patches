@@ -178,8 +178,8 @@ public final class MorpheSettings {
     /**
      * Removes configured promo rows from the profile's Pro widget groups. The
      * converter returns a mutable ArrayList, so filtering it in place avoids
-     * leaving empty profile rows. Disabling either toggle restores the matching
-     * stock row on the next profile load.
+     * leaving empty profile rows. Disabling a toggle restores the matching stock
+     * row on the next profile load.
      */
     public static java.util.ArrayList<?> withoutProfilePromoWidgets(java.util.ArrayList<?> items) {
         if (items == null || items.isEmpty()) {
@@ -187,18 +187,23 @@ public final class MorpheSettings {
         }
         try {
             boolean hideRaffle = isEnabled("avito_hide_profile_raffle", true);
+            boolean hideReferrals = isEnabled("avito_hide_profile_referrals", true);
             boolean hideAvitoPro = isEnabled("avito_hide_profile_avito_pro", true);
-            if (!hideRaffle && !hideAvitoPro) {
+            if (!hideRaffle && !hideReferrals && !hideAvitoPro) {
                 return items;
             }
             java.util.Iterator<?> iterator = items.iterator();
             while (iterator.hasNext()) {
                 Object item = iterator.next();
                 boolean hiddenRaffle = hideRaffle && containsStringValue(item, "Портал призов");
+                boolean hiddenReferral = hideReferrals
+                        && "com.avito.android.profile.pro.impl.screen.item.widget_group.widget.ProfileProWidgetItem"
+                        .equals(item != null ? item.getClass().getName() : "")
+                        && hasStringValue(item, "referral");
                 boolean hiddenAvitoPro = hideAvitoPro
                         && (containsStringValue(item, "Работайте как профи")
                         || containsStringValue(item, "Авито Pro"));
-                if (hiddenRaffle || hiddenAvitoPro) {
+                if (hiddenRaffle || hiddenReferral || hiddenAvitoPro) {
                     iterator.remove();
                 }
             }
@@ -708,6 +713,18 @@ public final class MorpheSettings {
         }
         for (String value : stringValues(target)) {
             if (value != null && value.contains(marker)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasStringValue(Object target, String expected) {
+        if (expected == null) {
+            return false;
+        }
+        for (String value : stringValues(target)) {
+            if (expected.equals(value)) {
                 return true;
             }
         }
