@@ -43,6 +43,9 @@ val hideProfessionalSellersPatch = bytecodePatch(
                 if (instruction.opcode == Opcode.RETURN_OBJECT) index else null
             }
             .reversed()
+        if (returnIndices.isEmpty()) {
+            throw PatchException("SERP elements converter has no object return")
+        }
         for (returnIndex in returnIndices) {
             val itemsRegister =
                 (converter.instructionsOrNull!!.toList()[returnIndex] as OneRegisterInstruction)
@@ -54,7 +57,7 @@ val hideProfessionalSellersPatch = bytecodePatch(
             )
         }
 
-        var installedUiHooks = 0
+        var widgetFiltersHooks = 0
         WidgetFiltersActivityOnCreateFingerprint.methodOrNull?.let { filtersOnCreate ->
             val returnIndices = filtersOnCreate.instructionsOrNull
                 ?.toList().orEmpty()
@@ -66,12 +69,13 @@ val hideProfessionalSellersPatch = bytecodePatch(
                 filtersOnCreate.addInstructions(
                     returnIndex,
                     "invoke-static/range {p0 .. p0}, " +
-                        "$SELLER_FILTER_CLASS->attachToFilterActivity(Landroid/app/Activity;)V",
+                    "$SELLER_FILTER_CLASS->attachToFilterActivity(Landroid/app/Activity;)V",
                 )
             }
-            installedUiHooks += returnIndices.size
+            widgetFiltersHooks = returnIndices.size
         }
 
+        var homeActivityHooks = 0
         HomeActivityOnCreateFingerprint.methodOrNull?.let { homeOnCreate ->
             val returnIndices = homeOnCreate.instructionsOrNull
                 ?.toList().orEmpty()
@@ -83,18 +87,26 @@ val hideProfessionalSellersPatch = bytecodePatch(
                 homeOnCreate.addInstructions(
                     returnIndex,
                     "invoke-static/range {p0 .. p0}, " +
-                        "$SELLER_FILTER_CLASS->observeHostActivity(Landroid/app/Activity;)V",
+                    "$SELLER_FILTER_CLASS->observeHostActivity(Landroid/app/Activity;)V",
                 )
             }
-            installedUiHooks += returnIndices.size
+            homeActivityHooks = returnIndices.size
         }
-        if (installedUiHooks == 0) {
-            throw PatchException("No Avito Filters UI host was found")
+        val missingUiHosts = buildList {
+            if (widgetFiltersHooks == 0) add("WidgetFiltersActivity")
+            if (homeActivityHooks == 0) add("HomeActivity")
+        }
+        if (missingUiHosts.isNotEmpty()) {
+            throw PatchException(
+                "Hide professional sellers: required Filters UI host hook(s) not found: " +
+                    missingUiHosts.joinToString(),
+            )
         }
 
         println(
             "Hide professional sellers: installed SERP filter, tint binder, and native controls " +
-                "(${returnIndices.size} converter returns, $installedUiHooks activity returns)",
+                "(${returnIndices.size} converter returns, $widgetFiltersHooks WidgetFiltersActivity returns, " +
+                "$homeActivityHooks HomeActivity returns)",
         )
     }
 }

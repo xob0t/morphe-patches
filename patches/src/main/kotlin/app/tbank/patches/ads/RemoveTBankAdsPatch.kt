@@ -5,7 +5,6 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
-import app.morphe.patcher.patch.option
 import app.tbank.patches.shared.Constants.COMPATIBILITY_TBANK
 import org.w3c.dom.Element
 import java.io.FileNotFoundException
@@ -240,16 +239,11 @@ private val removeTBankAdResourcesPatch = resourcePatch {
             missingLayouts = missing.toSet(),
         )
 
-        val resourceStatus = if (missing.isEmpty()) {
-            "."
-        } else {
-            "; ${missing.size} layout(s) absent, continuing in best-effort mode."
-        }
         println(
             "Remove TBank ads: hid $hiddenStoryViews story views, " +
                 "collapsed $collapsedStoryAppBars story app bars, " +
                 "hid $hiddenOfferViews offer views, " +
-                "hid $hiddenProductViews product stream views$resourceStatus",
+                "hid $hiddenProductViews product stream views.",
         )
     }
 }
@@ -262,13 +256,6 @@ val removeTBankAdsPatch = bytecodePatch(
 ) {
     compatibleWith(COMPATIBILITY_TBANK)
     dependsOn(removeTBankAdResourcesPatch)
-
-    val strictTargets by option<Boolean>(
-        key = "strictTargets",
-        title = "Require all current targets",
-        description = "Fails when a current promotional surface no longer matches. Intended for automated builds.",
-        default = false,
-    )
 
     execute {
         var disabledFeatureToggles = 0
@@ -309,28 +296,25 @@ val removeTBankAdsPatch = bytecodePatch(
             }
         }
 
-        if (strictTargets == true) {
-            val missingTargets = buildList {
-                patchedResourceTargets.missingLayouts.forEach { add("resource layout $it") }
-                (storyViewIds - patchedResourceTargets.storyViewIds).forEach { add("story view $it") }
-                (storyAppBarIds - patchedResourceTargets.storyAppBarIds).forEach { add("story app bar $it") }
-                (offerLayoutFiles - patchedResourceTargets.offerLayouts).forEach { add("offer content in $it") }
-                (productStreamLayoutFiles - patchedResourceTargets.productLayouts).forEach {
-                    add("product stream layout $it")
-                }
-                (sphereFeatureToggleClasses - foundFeatureToggleClasses).forEach { add("feature toggle class $it") }
-                (foundFeatureToggleClasses - patchedFeatureToggleIdClasses).forEach { add("feature toggle getId in $it") }
-                (foundFeatureToggleClasses - patchedFeatureToggleDefaultClasses).forEach {
-                    add("feature toggle getDefaultValue in $it")
-                }
+        val missingTargets = buildList {
+            patchedResourceTargets.missingLayouts.forEach { add("resource layout $it") }
+            (storyViewIds - patchedResourceTargets.storyViewIds).forEach { add("story view $it") }
+            (storyAppBarIds - patchedResourceTargets.storyAppBarIds).forEach { add("story app bar $it") }
+            (offerLayoutFiles - patchedResourceTargets.offerLayouts).forEach { add("offer content in $it") }
+            (productStreamLayoutFiles - patchedResourceTargets.productLayouts).forEach {
+                add("product stream layout $it")
             }
-
-            if (missingTargets.isNotEmpty()) {
-                throw PatchException(
-                    "Remove TBank ads strict validation failed; missing current target(s): " +
-                        missingTargets.joinToString(", "),
-                )
+            (sphereFeatureToggleClasses - foundFeatureToggleClasses).forEach { add("feature toggle class $it") }
+            (foundFeatureToggleClasses - patchedFeatureToggleIdClasses).forEach { add("feature toggle getId in $it") }
+            (foundFeatureToggleClasses - patchedFeatureToggleDefaultClasses).forEach {
+                add("feature toggle getDefaultValue in $it")
             }
+        }
+        if (missingTargets.isNotEmpty()) {
+            throw PatchException(
+                "Remove TBank ads validation failed; missing target(s): " +
+                    missingTargets.joinToString(", "),
+            )
         }
 
         println("Remove TBank ads: disabled $disabledFeatureToggles promotional sphere feature toggles.")

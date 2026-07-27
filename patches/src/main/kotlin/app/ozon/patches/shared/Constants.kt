@@ -18,26 +18,6 @@ internal object Constants {
                 versionCode = 2697,
                 minSdk = 26,
             ),
-            AppTarget(
-                version = "19.22.0",
-                versionCode = 2687,
-                minSdk = 26,
-            ),
-            AppTarget(
-                version = "19.16.0",
-                versionCode = 2677,
-                minSdk = 26,
-            ),
-            AppTarget(
-                version = "18.37.0",
-                versionCode = 2613,
-                minSdk = 26,
-            ),
-            AppTarget(
-                version = null,
-                isExperimental = true,
-                minSdk = 26,
-            ),
         ),
     )
 }
