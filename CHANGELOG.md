@@ -1,3 +1,9 @@
+## [1.10.2-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.10.1...v1.10.2-dev.1) (2026-07-27)
+
+### 🐛 Bug Fixes
+
+* enforce latest-target patch validation ([16a9aa3](https://github.com/xob0t/morphe-patches/commit/16a9aa352a29a407dd3732184ac7b7b6c18dbf1c))
+
 ## [1.10.1](https://github.com/xob0t/morphe-patches/compare/v1.10.0...v1.10.1) (2026-07-26)
 
 ### 🐛 Bug Fixes

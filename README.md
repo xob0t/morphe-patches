@@ -10,26 +10,26 @@ Personal Morphe patches for Android apps.
 ## Patches
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.10.1](https://github.com/xob0t/morphe-patches/releases/tag/v1.10.1)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;25 patches total
+> **[v1.10.2-dev.1](https://github.com/xob0t/morphe-patches/releases/tag/v1.10.2-dev.1)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;25 patches total
 <details open>
 <summary>📦 Avito&nbsp;&nbsp;•&nbsp;&nbsp;8 patches</summary>
 <br>
 
 **🎯 Supported versions:**
 
-| 229.1 | 228.0 | 227.0 | 226.5 | 225.5 | 224.6 |
-| :---: | :---: | :---: | :---: | :---: | :---: |
+| 229.1 |
+| :---: |
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
 | [AMOLED dark theme](#amoled-dark-theme) | Makes dark-theme page, app navigation and system bars pure black (AMOLED) while keeping elevated cards, sheets and controls gray so their boundaries remain visible. |  |
 | [Block listings](#block-listings) | Hides Avito offers from blacklisted adverts or sellers and adds a blacklist manager (import/export compatible with the Ave Blacklist extension). |  |
-| [Disable telemetry](#disable-telemetry) | Disables Avito first-party clickstream analytics and Avito's direct Adjust telemetry wrapper. | • Strict telemetry target validation |
+| [Disable telemetry](#disable-telemetry) | Disables Avito first-party clickstream analytics and Avito's direct Adjust telemetry wrapper. |  |
 | [Disable update prompts](#disable-update-prompts) | Prevents Avito's force-update screen opener from launching update screens. Toggleable in Настройки Morphe. |  |
 | [Hide professional sellers](#hide-professional-sellers) | Adds a maximum seller review count to Avito search filters and hides or dims offers from sellers above that limit. |  |
-| [Morphe settings](#morphe-settings) | Adds a "Настройки Morphe" entry to Avito's settings that hosts the configuration for the other Morphe patches. | • Strict settings hook validation |
+| [Morphe settings](#morphe-settings) | Adds a "Настройки Morphe" entry to Avito's settings that hosts the configuration for the other Morphe patches. |  |
 | [Remove ads](#remove-ads) | Disables Avito ads by removing ad SDK entry points and short-circuiting commercial banner loading. |  |
-| [UI tweaks](#ui-tweaks) | Optional interface tweaks, each toggleable in Настройки Morphe: single-row home categories, hide the "Подписки" tab in Избранное, hide installments (Рассрочка) and the "Спросите у продавца" block on offers, expand descriptions by default (no "Читать далее"), hide offer recommendations, hide profile raffle, referral and Avito Pro promos, and hide the Avi assistant tab in the bottom navigation. | • Strict Favorites tab validation |
+| [UI tweaks](#ui-tweaks) | Optional interface tweaks, each toggleable in Настройки Morphe: single-row home categories, hide the "Подписки" tab in Избранное, hide installments (Рассрочка) and the "Спросите у продавца" block on offers, expand descriptions by default (no "Читать далее"), hide offer recommendations, hide profile raffle, referral and Avito Pro promos, and hide the Avi assistant tab in the bottom navigation. |  |
 
 </details>
 
@@ -39,13 +39,13 @@ Personal Morphe patches for Android apps.
 
 **🎯 Supported versions:**
 
-| 7.40.0 | 7.36.0 |
-| :---: | :---: |
+| 7.40.0 |
+| :---: |
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
-| [Bypass anti-tamper](#bypass-anti-tamper) | Stubs TBank's native RASP executor calls and neutralizes tamper flag reporting. | • Require all current targets |
-| [Remove TBank ads](#remove-tbank-ads) | Removes TBank stories and promotional surfaces. | • Require all current targets |
+| [Bypass anti-tamper](#bypass-anti-tamper) | Stubs TBank's native RASP executor calls and neutralizes tamper flag reporting. |  |
+| [Remove TBank ads](#remove-tbank-ads) | Removes TBank stories and promotional surfaces. |  |
 
 </details>
 
@@ -55,12 +55,12 @@ Personal Morphe patches for Android apps.
 
 **🎯 Supported versions:**
 
-| 19.27.0 | 19.22.0 | 19.16.0 | 18.37.0 |
-| :---: | :---: | :---: | :---: |
+| 19.27.0 |
+| :---: |
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
-| [Remove Ozon ads](#remove-ozon-ads) | Removes Ozon ad widgets, banner carousels, video ads, and PDP promo blocks. | • Hide recommendation grids<br>• Require all current targets |
+| [Remove Ozon ads](#remove-ozon-ads) | Removes Ozon ad widgets, banner carousels, video ads, and PDP promo blocks. | • Hide recommendation grids |
 
 </details>
 
@@ -70,12 +70,12 @@ Personal Morphe patches for Android apps.
 
 **🎯 Supported versions:**
 
-| 7.7.2001-rustore | 7.6.8001 | 7.6.1000-rustore | 7.0.6000 |
-| :---: | :---: | :---: | :---: |
+| 7.7.2001-rustore |
+| :---: |
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
-| [Remove Wildberries ads](#remove-wildberries-ads) | Removes Wildberries home banners, grid banners, profile banners, promo headers, product recommendations, and lottery popups. | • Hide recommendation grids<br>• Require all current targets |
+| [Remove Wildberries ads](#remove-wildberries-ads) | Removes Wildberries home banners, grid banners, profile banners, promo headers, product recommendations, and lottery popups. | • Hide recommendation grids |
 
 </details>
 
