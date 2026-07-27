@@ -1,3 +1,9 @@
+## [1.10.3](https://github.com/xob0t/morphe-patches/compare/v1.10.2...v1.10.3) (2026-07-27)
+
+### 🐛 Bug Fixes
+
+* **tbank:** target RuStore version 7.39.0 ([043f15a](https://github.com/xob0t/morphe-patches/commit/043f15adfb82a80878bf91fc1b6e259af47ab14b))
+
 ## [1.10.3-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.10.2...v1.10.3-dev.1) (2026-07-27)
 
 ### 🐛 Bug Fixes
