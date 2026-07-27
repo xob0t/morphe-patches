@@ -1,3 +1,9 @@
+## [1.11.0](https://github.com/xob0t/morphe-patches/compare/v1.10.3...v1.11.0) (2026-07-27)
+
+### ✨ New Features
+
+* **automation:** promote qualified app targets ([0c0e410](https://github.com/xob0t/morphe-patches/commit/0c0e4105bad72c0a4e1a7a7ae1c2e500072affc2))
+
 ## [1.11.0-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.10.3...v1.11.0-dev.1) (2026-07-27)
 
 ### ✨ New Features
