@@ -9,7 +9,6 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLa
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.patch.PatchException
-import app.morphe.patcher.patch.booleanOption
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.smali.ExternalLabel
 import com.android.tools.smali.dexlib2.AccessFlags
@@ -164,10 +163,8 @@ private fun Method.profileProOutputItemTypes(): Set<String> {
  *  - **Hide the referral-program entry point** on the profile page.
  *  - **Hide the Avito Pro entry point** on the profile page.
  *
- * Most tweaks are applied independently and degrade gracefully if an optional
- * surface is absent. Auto-builds enable strict Favorites-tab validation so a
- * missing hook aborts there instead of publishing an APK that silently leaves
- * those tabs visible.
+ * Every advertised tweak is required on the supported app target. A missing hook
+ * aborts patching so an incomplete build cannot be published.
  */
 @Suppress("unused")
 val uiTweaksPatch = bytecodePatch(
@@ -180,13 +177,6 @@ val uiTweaksPatch = bytecodePatch(
 ) {
     compatibleWith(COMPATIBILITY_AVITO)
     dependsOn(morpheSettingsPatch)
-
-    val strictFavoritesTabs by booleanOption(
-        key = "strictFavoritesTabs",
-        default = false,
-        title = "Strict Favorites tab validation",
-        description = "Fail patching when the Favorites-tab filtering hook cannot be applied.",
-    )
 
     execute {
         // --- Force the home-screen categories into a single row -----------------
@@ -219,7 +209,7 @@ val uiTweaksPatch = bytecodePatch(
             rubricatorElement.methods.firstOrNull { method -> method.getterForField(field) }
         }
         if (rubricatorElement == null || getRowLine == null) {
-            println("UI tweaks: rubricator getRowLine() not found; single-row categories skipped")
+            throw PatchException("UI tweaks: rubricator getRowLine() not found")
         } else {
             val rowLineMethod = mutableClassDefBy(rubricatorElement).methods
                 .single { it.name == getRowLine.name && it.parameterTypes == getRowLine.parameterTypes }
@@ -359,14 +349,7 @@ val uiTweaksPatch = bytecodePatch(
                     val message =
                         "Favorites tabs control mapper was not found in " +
                             "${FavoritesTabsConsumerFingerprint.originalClassDef.type}->${tabConsumer.name}"
-                    if (strictFavoritesTabs == true) throw PatchException(message)
-
-                    if (favoritesTabViewHooks > 0) {
-                        registerFavoritesTabToggles()
-                        println("UI tweaks: $message; gated $favoritesTabViewHooks legacy renderer(s) only")
-                    } else {
-                        println("UI tweaks: $message; Favorites tabs skipped")
-                    }
+                    throw PatchException(message)
                 }
             }
 
@@ -380,9 +363,7 @@ val uiTweaksPatch = bytecodePatch(
             }
 
             else -> {
-                val message = "Favorites tab consumer and changes constructor were not found"
-                if (strictFavoritesTabs == true) throw PatchException(message)
-                println("UI tweaks: $message; Favorites tabs skipped")
+                throw PatchException("Favorites tab consumer and changes constructor were not found")
             }
         }
 
@@ -393,7 +374,7 @@ val uiTweaksPatch = bytecodePatch(
         // removed without leaving a blank RecyclerView row.
         val kindnessSerpConverter = SerpElementsConverterFingerprint.methodOrNull
         if (kindnessSerpConverter == null) {
-            println("UI tweaks: SERP converter not found; kindness banners skipped")
+            throw PatchException("UI tweaks: SERP converter not found for kindness banners")
         } else {
             kindnessSerpConverter.addInstructions(
                 0,
@@ -408,6 +389,9 @@ val uiTweaksPatch = bytecodePatch(
                     if (instruction.opcode == Opcode.RETURN_OBJECT) index else null
                 }
                 .reversed()
+            if (kindnessReturnIndices.isEmpty()) {
+                throw PatchException("UI tweaks: SERP converter has no object return for kindness banners")
+            }
             for (returnIndex in kindnessReturnIndices) {
                 val register =
                     (kindnessSerpConverter.instructionsOrNull!!.toList()[returnIndex] as OneRegisterInstruction).registerA
@@ -463,6 +447,9 @@ val uiTweaksPatch = bytecodePatch(
                     }
                 }
                 .reversed()
+            if (returnTargets.isEmpty()) {
+                throw PatchException("UI tweaks: profile promo converter ${classDef.type} has no object return")
+            }
             returnTargets.forEach { (returnIndex, register) ->
                 method.addInstructions(
                     returnIndex,
@@ -488,8 +475,14 @@ val uiTweaksPatch = bytecodePatch(
             profileOutputItemTypesPatched += outputItemTypes
         }
         val missingProfileOutputItemTypes = PROFILE_PRO_OUTPUT_ITEM_TYPES - profileOutputItemTypesPatched
+        if (missingProfileOutputItemTypes.isNotEmpty()) {
+            throw PatchException(
+                "UI tweaks: profile promo output type(s) not found: " +
+                    missingProfileOutputItemTypes.joinToString(),
+            )
+        }
         if (profilePromoConvertersPatched == 0) {
-            println("UI tweaks: profile promo converters not found; Profile Pro promo hooks skipped")
+            throw PatchException("UI tweaks: profile promo converters not found")
         } else {
             MorpheSettingsRegistry.addSwitch(
                 key = "avito_hide_profile_raffle",
@@ -529,7 +522,7 @@ val uiTweaksPatch = bytecodePatch(
                     method.implementation != null
             }
         if (profileItemsGetter == null) {
-            println("UI tweaks: UserProfileResult.getItems not found; referrals toggle skipped")
+            throw PatchException("UI tweaks: UserProfileResult.getItems not found")
         } else {
             val method = mutableClassDefBy(USER_PROFILE_RESULT).methods.first {
                 it.name == profileItemsGetter.name && it.parameterTypes == profileItemsGetter.parameterTypes
@@ -544,6 +537,9 @@ val uiTweaksPatch = bytecodePatch(
                     }
                 }
                 .reversed()
+            if (returnTargets.isEmpty()) {
+                throw PatchException("UI tweaks: UserProfileResult.getItems has no object return")
+            }
             returnTargets.forEach { (returnIndex, register) ->
                 method.addInstructions(
                     returnIndex,
@@ -578,7 +574,7 @@ val uiTweaksPatch = bytecodePatch(
                     method.implementation != null
             }
         if (onboardingDialogFactory == null) {
-            println("UI tweaks: onboarding dialog factory not found; launch drawers skipped")
+            throw PatchException("UI tweaks: onboarding dialog factory not found")
         } else {
             val method = mutableClassDefBy(ONBOARDING_DIALOG_FRAGMENT).methods.first {
                 it.name == onboardingDialogFactory.name &&
@@ -590,6 +586,9 @@ val uiTweaksPatch = bytecodePatch(
                     if (instruction.opcode == Opcode.RETURN_OBJECT) index else null
                 }
                 .reversed()
+            if (returnIndices.isEmpty()) {
+                throw PatchException("UI tweaks: onboarding dialog factory has no object return")
+            }
             for (returnIndex in returnIndices) {
                 val register =
                     (method.instructionsOrNull!!.toList()[returnIndex] as OneRegisterInstruction).registerA
@@ -634,8 +633,7 @@ val uiTweaksPatch = bytecodePatch(
                 it.name == getterName && it.parameterTypes.isEmpty()
             }
             if (advertDetailsClass == null || getter == null) {
-                println("UI tweaks: AdvertDetails.$getterName not found; $key skipped")
-                return
+                throw PatchException("UI tweaks: AdvertDetails.$getterName not found")
             }
             val method = mutableClassDefBy(advertDetailsClass).methods.first {
                 it.name == getterName && it.parameterTypes.isEmpty()
@@ -646,6 +644,9 @@ val uiTweaksPatch = bytecodePatch(
                     if (instruction.opcode == Opcode.RETURN_OBJECT) index else null
                 }
                 .reversed()
+            if (returnIndices.isEmpty()) {
+                throw PatchException("UI tweaks: AdvertDetails.$getterName has no object return")
+            }
             for (returnIndex in returnIndices) {
                 val register =
                     (method.instructionsOrNull!!.toList()[returnIndex] as OneRegisterInstruction).registerA
@@ -699,7 +700,7 @@ val uiTweaksPatch = bytecodePatch(
         // read-more handle stays hidden. Re-evaluated on each (re)bind — no restart.
         val collapsedLinesSetter = ExpandablePanelCollapsedLinesFingerprint.methodOrNull
         if (collapsedLinesSetter == null) {
-            println("UI tweaks: ExpandablePanelLayout.setCollapsedLineCount not found; expand description skipped")
+            throw PatchException("UI tweaks: ExpandablePanelLayout.setCollapsedLineCount not found")
         } else {
             collapsedLinesSetter.addInstructions(
                 0,
@@ -726,7 +727,7 @@ val uiTweaksPatch = bytecodePatch(
         // without a blank section or unnecessary network work.
         val recommendationsLoader = OfferRecommendationsLoadFingerprint.methodOrNull
         if (recommendationsLoader == null) {
-            println("UI tweaks: offer recommendations loader not found; recommendations toggle skipped")
+            throw PatchException("UI tweaks: offer recommendations loader not found")
         } else {
             recommendationsLoader.addInstructionsWithLabels(
                 0,
@@ -750,9 +751,8 @@ val uiTweaksPatch = bytecodePatch(
         }
 
         // --- Hide the Avi assistant tab in the bottom navigation ----------------
-        // The Avi tab doesn't exist on every release (e.g. 227.0); when absent the
-        // tweak and its toggle are skipped. Route the tab's field loads through
-        // aviTabOrNull so the toggle controls whether it's dropped (null) or kept.
+        // Route the Avi tab's field loads through aviTabOrNull so the toggle
+        // controls whether it is dropped (null) or kept.
         val navigationTabClass = classDefByOrNull(NAVIGATION_TAB)
         val aiTabFields = navigationTabClass?.methods
             ?.firstOrNull { it.name == "<clinit>" }
@@ -780,8 +780,7 @@ val uiTweaksPatch = bytecodePatch(
             .orEmpty()
 
         if (aiTabFields.isEmpty()) {
-            println("UI tweaks: no Avi tab on this version; Avi tab skipped")
-            return@execute
+            throw PatchException("UI tweaks: Avi navigation tab fields not found")
         }
 
         var patchedReferences = 0
@@ -833,8 +832,7 @@ val uiTweaksPatch = bytecodePatch(
         }
 
         if (patchedReferences == 0) {
-            println("UI tweaks: no bottom-nav references on this version; Avi tab skipped")
-            return@execute
+            throw PatchException("UI tweaks: Avi bottom-navigation references not found")
         }
 
         // Restart-required: the bottom nav is assembled once at startup.

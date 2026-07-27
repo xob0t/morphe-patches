@@ -225,16 +225,8 @@ val removeWildberriesAdsPatch = bytecodePatch(
         default = true,
     )
 
-    val strictTargets by option<Boolean>(
-        key = "strictTargets",
-        title = "Require all current targets",
-        description = "Fails when a current banner or recommendation surface no longer matches. Intended for automated builds.",
-        default = false,
-    )
-
     execute {
         val shouldHideRecommendationGrids = hideRecommendationGrids != false
-        val shouldRequireAllTargets = strictTargets == true
 
         var patchedBannerWrapperNullableGetters = 0
         var patchedBannerWrapperListGetters = 0
@@ -691,27 +683,24 @@ val removeWildberriesAdsPatch = bytecodePatch(
             throw PatchException("No Wildberries banner, promo header, recommendation, or lottery methods were found")
         }
 
-        if (shouldRequireAllTargets) {
-            val missingTargets = buildList {
-                // Wrapper/model getters are older implementations and can legitimately
-                // be absent. The render + data pair is the complete current banner path.
-                if (patchedBannerRenderMethods == 0) add("banner rendering")
-                if (patchedProfileBannerRenderMethods == 0) add("profile banners")
-                if (patchedBannerDataMethods == 0) add("banner data")
-                if (shouldHideRecommendationGrids) {
-                    if (patchedCartRecommendationMethods == 0) add("cart recommendations")
-                    if (patchedProductRecommendationMethods == 0) add("product recommendations")
-                }
-                if (patchedBigLotteryMethods == 0) add("lottery")
-                if (patchedRaffleMethods == 0) add("raffle")
+        val missingTargets = buildList {
+            // Wrapper/model getters are older implementations and can legitimately
+            // be absent. The render + data pair is the complete current banner path.
+            if (patchedBannerRenderMethods == 0) add("banner rendering")
+            if (patchedProfileBannerRenderMethods == 0) add("profile banners")
+            if (patchedBannerDataMethods == 0) add("banner data")
+            if (shouldHideRecommendationGrids) {
+                if (patchedCartRecommendationMethods == 0) add("cart recommendations")
+                if (patchedProductRecommendationMethods == 0) add("product recommendations")
             }
-
-            if (missingTargets.isNotEmpty()) {
-                throw PatchException(
-                    "Remove Wildberries ads strict validation failed; missing current target(s): " +
-                        missingTargets.joinToString(", "),
-                )
-            }
+            if (patchedBigLotteryMethods == 0) add("lottery")
+            if (patchedRaffleMethods == 0) add("raffle")
+        }
+        if (missingTargets.isNotEmpty()) {
+            throw PatchException(
+                "Remove Wildberries ads validation failed; missing target(s): " +
+                    missingTargets.joinToString(", "),
+            )
         }
 
         println(

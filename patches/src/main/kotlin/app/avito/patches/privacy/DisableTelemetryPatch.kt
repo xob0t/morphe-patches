@@ -3,7 +3,6 @@ package app.avito.patches.privacy
 import app.avito.patches.shared.Constants.COMPATIBILITY_AVITO
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.PatchException
-import app.morphe.patcher.patch.booleanOption
 import app.morphe.patcher.patch.bytecodePatch
 
 @Suppress("unused")
@@ -14,17 +13,9 @@ val disableTelemetryPatch = bytecodePatch(
 ) {
     compatibleWith(COMPATIBILITY_AVITO)
 
-    val strictTargets by booleanOption(
-        key = "strictTargets",
-        default = false,
-        title = "Strict telemetry target validation",
-        description = "Fail patching when a known Avito telemetry entry point cannot be found.",
-    )
-
     execute {
-        // Each telemetry entry point is patched independently. Normal user builds
-        // tolerate absent SDK integrations; automated builds opt into strictTargets
-        // so fingerprint drift cannot silently ship enabled telemetry.
+        // Each telemetry entry point is required on the supported app target.
+        // Any missing integration means the patch has drifted and must fail.
         //
         // Clickstream targets 227.0+ first (the ClickStreamEventTracker.c(event)
         // method) and falls back to the older dedicated enqueue runnable. On 227 R8
@@ -52,15 +43,12 @@ val disableTelemetryPatch = bytecodePatch(
             }
         }
 
-        if (strictTargets == true && skipped.isNotEmpty()) {
+        if (skipped.isNotEmpty()) {
             throw PatchException(
                 "Avito privacy: telemetry entry point(s) not found: ${skipped.joinToString()}.",
             )
         }
 
-        println(
-            "Avito privacy: disabled $disabled telemetry entry point(s)" +
-                if (skipped.isEmpty()) "." else "; skipped (absent on this build): ${skipped.joinToString()}.",
-        )
+        println("Avito privacy: disabled $disabled telemetry entry point(s).")
     }
 }

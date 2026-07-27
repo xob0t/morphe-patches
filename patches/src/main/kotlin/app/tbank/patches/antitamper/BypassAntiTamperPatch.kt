@@ -4,7 +4,6 @@ import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
-import app.morphe.patcher.patch.option
 import app.tbank.patches.shared.Constants.COMPATIBILITY_TBANK
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
@@ -126,13 +125,6 @@ val bypassAntiTamperPatch = bytecodePatch(
 ) {
     compatibleWith(COMPATIBILITY_TBANK)
 
-    val strictTargets by option<Boolean>(
-        key = "strictTargets",
-        title = "Require all current targets",
-        description = "Fails when a current integrity-check target no longer matches. Intended for automated builds.",
-        default = false,
-    )
-
     execute {
         var patchedRaspExecCalls = 0
         var fullyStubbedRaspExecCalls = 0
@@ -222,23 +214,20 @@ val bypassAntiTamperPatch = bytecodePatch(
             }
         }
 
-        if (strictTargets == true) {
-            val missingTargets = buildList {
-                if (patchedRaspExecCalls == 0) add("Executor.exec")
-                if (fullyStubbedRaspExecCalls != patchedRaspExecCalls) {
-                    add("Executor.exec result handling (${patchedRaspExecCalls - fullyStubbedRaspExecCalls} unresolved)")
-                }
-                if (patchedRaspVoidExecCalls == 0) add("Executor.execN(boolean)")
-                (RASP_NATIVE_LIBS - blockedNativeLibraries).forEach { add("native library $it") }
-                (TAMPER_FLAG_NAMES - neutralizedTamperFlagNames).forEach { add("tamper flag $it") }
+        val missingTargets = buildList {
+            if (patchedRaspExecCalls == 0) add("Executor.exec")
+            if (fullyStubbedRaspExecCalls != patchedRaspExecCalls) {
+                add("Executor.exec result handling (${patchedRaspExecCalls - fullyStubbedRaspExecCalls} unresolved)")
             }
-
-            if (missingTargets.isNotEmpty()) {
-                throw PatchException(
-                    "Bypass anti-tamper strict validation failed; missing current target(s): " +
-                        missingTargets.joinToString(", "),
-                )
-            }
+            if (patchedRaspVoidExecCalls == 0) add("Executor.execN(boolean)")
+            (RASP_NATIVE_LIBS - blockedNativeLibraries).forEach { add("native library $it") }
+            (TAMPER_FLAG_NAMES - neutralizedTamperFlagNames).forEach { add("tamper flag $it") }
+        }
+        if (missingTargets.isNotEmpty()) {
+            throw PatchException(
+                "Bypass anti-tamper validation failed; missing target(s): " +
+                    missingTargets.joinToString(", "),
+            )
         }
 
         println(

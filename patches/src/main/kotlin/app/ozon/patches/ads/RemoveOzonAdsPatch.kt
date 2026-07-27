@@ -229,7 +229,7 @@ private val removeOzonAdResourcesPatch = resourcePatch {
         } catch (_: FileNotFoundException) {
             println(
                 "Remove Ozon ads resources: expected layout absent ($OZON_OBJECT_GRID_ONE_LAYOUT); " +
-                    "continuing in best-effort mode.",
+                    "target validation will fail.",
             )
         }
 
@@ -255,16 +255,8 @@ val removeOzonAdsPatch = bytecodePatch(
         default = true,
     )
 
-    val strictTargets by option<Boolean>(
-        key = "strictTargets",
-        title = "Require all current targets",
-        description = "Fails when a current ad surface no longer matches. Intended for automated builds.",
-        default = false,
-    )
-
     execute {
         val shouldHideRecommendationGrids = hideRecommendationGrids != false
-        val shouldRequireAllTargets = strictTargets == true
 
         var patchedAdCanMapMethods = 0
         var patchedAdListMapMethods = 0
@@ -905,58 +897,55 @@ val removeOzonAdsPatch = bytecodePatch(
             throw PatchException("No Ozon ad, installment, or recommendation widget methods were found")
         }
 
-        if (shouldRequireAllTargets) {
-            val missingTargets = buildList {
-                if (!patchedObjectGridOneLayout) add("object grid1 resource layout")
-                if (patchedAdCanMapMethods == 0) add("ad canMap")
-                if (patchedAdListMapMethods == 0) add("ad list mapper")
-                if (patchedAdBindMethods == 0) add("ad view binding")
-                if (patchedInstallmentCanMapMethods == 0) add("installment canMap")
-                if (patchedInstallmentListMapMethods == 0) add("installment list mapper")
-                if (patchedInstallmentBindMethods == 0) add("installment view binding")
-                if (patchedInstallmentV4ParserMethods == 0) add("installment V4 parser")
-                if (shouldHideRecommendationGrids) {
-                    // Some releases do not have a dedicated rec-shelf canMap method.
-                    // The list, bind, and request stages are the stable current path.
-                    if (patchedRecShelfListMapMethods == 0) add("recommendation list mapper")
-                    if (patchedRecShelfBindMethods == 0) add("recommendation view binding")
-                    if (patchedRecShelfRequestMethods == 0) add("recommendation request")
-                }
-                if (patchedCrossSaleListMapMethods == 0) add("cross-sale list mapper")
-                if (patchedCrossSaleBindMethods == 0) add("cross-sale view binding")
-                if (patchedCmsBannerListMapMethods == 0) add("CMS banner list mapper")
-                if (patchedCmsBannerBindMethods == 0) add("CMS banner view binding")
-                if (patchedBigPromoNavbarLayoutMethods == 0) add("big promo navbar layout")
-                if (patchedBigPromoNavbarMeasureMethods == 0) add("big promo navbar measure")
-                if (patchedShellNavbarBgMethods == 0) add("shell navbar background")
-                if (patchedTileScrollListMapMethods == 0) add("tile scroll list mapper")
-                if (patchedTileScrollBindMethods == 0) add("tile scroll view binding")
-                if (patchedTileGrid2BannerCanMapMethods == 0) add("tile grid2 banner canMap")
-                if (patchedInfiniteTileGrid2ParseMethods == 0) add("tile grid2 parser")
-                if (patchedTileGrid3CanMapMethods == 0) add("tile grid3 canMap")
-                if (patchedTileGrid3ListMapMethods == 0) add("tile grid3 list mapper")
-                if (patchedTileGrid3BindMethods == 0) add("tile grid3 view binding")
-                if (patchedTileGrid3ParseMethods == 0) add("tile grid3 parser")
-                if (patchedObjectGridOneBannerCanMapMethods == 0) add("object grid1 banner canMap")
-                if (patchedSearchExpandableCanMapMethods == 0) add("search expandable canMap")
-                if (patchedSearchExpandableListMapMethods == 0) add("search expandable list mapper")
-                if (patchedSearchExpandableBindMethods == 0) add("search expandable view binding")
-                if (patchedSearchWarlockRequestMethods == 0) add("search Warlock request")
-                if (patchedSearchWarlockDesignSystemAtomMapperMethods == 0) {
-                    add("search Warlock design-system atom mapper")
-                }
-                if (patchedSearchWarlockCellListV2MapperMethods == 0) add("search Warlock cell-list mapper")
-                if (patchedOzonSelectCellV2BindMethods == 0) add("Ozon Select cell binding")
-                if (patchedOzonSelectCommonCellV2BindMethods == 0) add("Ozon Select common-cell binding")
-                if (patchedOzonSelectImageCellBindMethods == 0) add("Ozon Select image-cell binding")
+        val missingTargets = buildList {
+            if (!patchedObjectGridOneLayout) add("object grid1 resource layout")
+            if (patchedAdCanMapMethods == 0) add("ad canMap")
+            if (patchedAdListMapMethods == 0) add("ad list mapper")
+            if (patchedAdBindMethods == 0) add("ad view binding")
+            if (patchedInstallmentCanMapMethods == 0) add("installment canMap")
+            if (patchedInstallmentListMapMethods == 0) add("installment list mapper")
+            if (patchedInstallmentBindMethods == 0) add("installment view binding")
+            if (patchedInstallmentV4ParserMethods == 0) add("installment V4 parser")
+            if (shouldHideRecommendationGrids) {
+                // Some releases do not have a dedicated rec-shelf canMap method.
+                // The list, bind, and request stages are the stable current path.
+                if (patchedRecShelfListMapMethods == 0) add("recommendation list mapper")
+                if (patchedRecShelfBindMethods == 0) add("recommendation view binding")
+                if (patchedRecShelfRequestMethods == 0) add("recommendation request")
             }
-
-            if (missingTargets.isNotEmpty()) {
-                throw PatchException(
-                    "Remove Ozon ads strict validation failed; missing current target(s): " +
-                        missingTargets.joinToString(", "),
-                )
+            if (patchedCrossSaleListMapMethods == 0) add("cross-sale list mapper")
+            if (patchedCrossSaleBindMethods == 0) add("cross-sale view binding")
+            if (patchedCmsBannerListMapMethods == 0) add("CMS banner list mapper")
+            if (patchedCmsBannerBindMethods == 0) add("CMS banner view binding")
+            if (patchedBigPromoNavbarLayoutMethods == 0) add("big promo navbar layout")
+            if (patchedBigPromoNavbarMeasureMethods == 0) add("big promo navbar measure")
+            if (patchedShellNavbarBgMethods == 0) add("shell navbar background")
+            if (patchedTileScrollListMapMethods == 0) add("tile scroll list mapper")
+            if (patchedTileScrollBindMethods == 0) add("tile scroll view binding")
+            if (patchedTileGrid2BannerCanMapMethods == 0) add("tile grid2 banner canMap")
+            if (patchedInfiniteTileGrid2ParseMethods == 0) add("tile grid2 parser")
+            if (patchedTileGrid3CanMapMethods == 0) add("tile grid3 canMap")
+            if (patchedTileGrid3ListMapMethods == 0) add("tile grid3 list mapper")
+            if (patchedTileGrid3BindMethods == 0) add("tile grid3 view binding")
+            if (patchedTileGrid3ParseMethods == 0) add("tile grid3 parser")
+            if (patchedObjectGridOneBannerCanMapMethods == 0) add("object grid1 banner canMap")
+            if (patchedSearchExpandableCanMapMethods == 0) add("search expandable canMap")
+            if (patchedSearchExpandableListMapMethods == 0) add("search expandable list mapper")
+            if (patchedSearchExpandableBindMethods == 0) add("search expandable view binding")
+            if (patchedSearchWarlockRequestMethods == 0) add("search Warlock request")
+            if (patchedSearchWarlockDesignSystemAtomMapperMethods == 0) {
+                add("search Warlock design-system atom mapper")
             }
+            if (patchedSearchWarlockCellListV2MapperMethods == 0) add("search Warlock cell-list mapper")
+            if (patchedOzonSelectCellV2BindMethods == 0) add("Ozon Select cell binding")
+            if (patchedOzonSelectCommonCellV2BindMethods == 0) add("Ozon Select common-cell binding")
+            if (patchedOzonSelectImageCellBindMethods == 0) add("Ozon Select image-cell binding")
+        }
+        if (missingTargets.isNotEmpty()) {
+            throw PatchException(
+                "Remove Ozon ads validation failed; missing target(s): " +
+                    missingTargets.joinToString(", "),
+            )
         }
 
         println(

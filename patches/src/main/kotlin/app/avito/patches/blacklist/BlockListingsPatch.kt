@@ -97,6 +97,9 @@ val blockListingsPatch = bytecodePatch(
                 if (instruction.opcode == Opcode.RETURN_OBJECT) index else null
             }
             .reversed()
+        if (returnIndices.isEmpty()) {
+            throw PatchException("Block listings: SERP elements converter has no object return")
+        }
         for (returnIndex in returnIndices) {
             val itemsRegister =
                 (converter.instructionsOrNull!!.toList()[returnIndex] as OneRegisterInstruction).registerA
@@ -113,8 +116,7 @@ val blockListingsPatch = bytecodePatch(
 
         // Add block-offer / block-seller actions to the advert-detail toolbar. The
         // presenter setup method gets the AdvertDetails and builds the toolbar, so we
-        // pass it (p2) and the presenter (p0) to the extension. Optional: skip if the
-        // method isn't present on this build instead of aborting.
+        // pass it (p2) and the presenter (p0) to the extension.
         val toolbar = AdvertDetailsToolbarMenuFingerprint.methodOrNull
         if (toolbar != null) {
             toolbar.addInstructions(
@@ -124,12 +126,12 @@ val blockListingsPatch = bytecodePatch(
             )
             println("Block listings: added block actions to the advert toolbar")
         } else {
-            println("Block listings: advert toolbar presenter not found on this build; skipped detail buttons")
+            throw PatchException("Block listings: advert toolbar presenter not found")
         }
 
         // Add a "block seller" action to the seller-profile toolbar. The profile
         // header converter receives the deep-link strings (one is the userKey) and
-        // the ExtendedProfile model; pass p1..p3 to the extension. Optional.
+        // the ExtendedProfile model; pass p1..p3 to the extension.
         val sellerConverter = SellerProfileConverterFingerprint.methodOrNull
         if (sellerConverter != null) {
             sellerConverter.addInstructions(
@@ -139,7 +141,7 @@ val blockListingsPatch = bytecodePatch(
             )
             println("Block listings: added block action to the seller profile toolbar")
         } else {
-            println("Block listings: seller profile converter not found on this build; skipped seller button")
+            throw PatchException("Block listings: seller profile converter not found")
         }
 
         // Register the blacklist manager as a sub-screen of Настройки Morphe.

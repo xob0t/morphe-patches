@@ -4,7 +4,6 @@ import app.avito.patches.shared.Constants.COMPATIBILITY_AVITO
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.patch.PatchException
-import app.morphe.patcher.patch.booleanOption
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
 import app.shared.childrenNamed
@@ -99,13 +98,6 @@ val morpheSettingsPatch = bytecodePatch(
     dependsOn(registerMorpheSettingsActivityPatch)
     extendWith("extensions/extension.mpe")
 
-    val strictHooks by booleanOption(
-        key = "strictHooks",
-        default = false,
-        title = "Strict settings hook validation",
-        description = "Fail patching when the Avito settings entry or Konveyor bind hook cannot be applied.",
-    )
-
     execute {
         // Start from a clean registry so a reused Gradle daemon never carries
         // entries between builds. Feature patches (which dependsOn this) add their
@@ -126,14 +118,10 @@ val morpheSettingsPatch = bytecodePatch(
                 )
                 println("Morphe settings: added entry to Avito Settings")
             } else {
-                val message = "Morphe settings: settings list builder has no object return"
-                if (strictHooks == true) throw PatchException(message)
-                println("$message; entry skipped")
+                throw PatchException("Morphe settings: settings list builder has no object return")
             }
         } else {
-            val message = "Morphe settings: settings list builder not found"
-            if (strictHooks == true) throw PatchException(message)
-            println("$message; entry skipped")
+            throw PatchException("Morphe settings: settings list builder not found")
         }
 
         // Konveyor adapter-presenter bind hook → MorpheSettings.onBind, which wires
@@ -180,7 +168,7 @@ val morpheSettingsPatch = bytecodePatch(
                 )
             bindHooks++
         }
-        if (bindHooks == 0 && strictHooks == true) {
+        if (bindHooks == 0) {
             throw PatchException("Morphe settings: Konveyor presenter bind hook not found")
         }
         println("Morphe settings: installed bind hook in $bindHooks adapter presenter(s)")
@@ -193,40 +181,35 @@ val morpheSettingsPatch = bytecodePatch(
         val json = MorpheSettingsRegistry.toJson()
         val smaliJson = json.replace("\\", "\\\\").replace("\"", "\\\"")
         val settingsClass = classDefByOrNull(MORPHE_SETTINGS_CLASS)
-        val config = settingsClass?.methods
-            ?.firstOrNull { it.name == "config" && it.parameterTypes.isEmpty() }
-        if (config != null) {
-            mutableClassDefBy(settingsClass).methods
-                .first { it.name == "config" && it.parameterTypes.isEmpty() }
-                .addInstructions(
-                    0,
-                    """
-                        const-string v0, "$smaliJson"
-                        return-object v0
-                    """,
-                )
-            println("Morphe settings: baked config $json")
-        } else {
-            println("Morphe settings: MorpheSettings.config() not found; config not baked")
-        }
+            ?: throw PatchException("Morphe settings: extension settings class not found")
+        val config = settingsClass.methods
+            .firstOrNull { it.name == "config" && it.parameterTypes.isEmpty() }
+            ?: throw PatchException("Morphe settings: MorpheSettings.config() not found")
+        mutableClassDefBy(settingsClass).methods
+            .first { it.name == config.name && it.parameterTypes == config.parameterTypes }
+            .addInstructions(
+                0,
+                """
+                    const-string v0, "$smaliJson"
+                    return-object v0
+                """,
+            )
+        println("Morphe settings: baked config $json")
 
         val version = patchBundleVersion()
         val smaliVersion = version.replace("\\", "\\\\").replace("\"", "\\\"")
-        val versionMethod = settingsClass?.methods
-            ?.firstOrNull { it.name == "patchVersion" && it.parameterTypes.isEmpty() }
-        if (versionMethod != null) {
-            mutableClassDefBy(settingsClass).methods
-                .first { it.name == "patchVersion" && it.parameterTypes.isEmpty() }
-                .addInstructions(
-                    0,
-                    """
-                        const-string v0, "$smaliVersion"
-                        return-object v0
-                    """,
-                )
-            println("Morphe settings: baked patch bundle version $version")
-        } else {
-            println("Morphe settings: MorpheSettings.patchVersion() not found; version not baked")
-        }
+        val versionMethod = settingsClass.methods
+            .firstOrNull { it.name == "patchVersion" && it.parameterTypes.isEmpty() }
+            ?: throw PatchException("Morphe settings: MorpheSettings.patchVersion() not found")
+        mutableClassDefBy(settingsClass).methods
+            .first { it.name == versionMethod.name && it.parameterTypes == versionMethod.parameterTypes }
+            .addInstructions(
+                0,
+                """
+                    const-string v0, "$smaliVersion"
+                    return-object v0
+                """,
+            )
+        println("Morphe settings: baked patch bundle version $version")
     }
 }

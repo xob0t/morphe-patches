@@ -1,6 +1,7 @@
 package app.avito.patches.ui
 
 import app.avito.patches.shared.Constants.COMPATIBILITY_AVITO
+import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.resourcePatch
 import org.w3c.dom.Document
 import org.w3c.dom.Element
@@ -131,7 +132,8 @@ val amoledDarkThemePatch = resourcePatch(
     compatibleWith(COMPATIBILITY_AVITO)
 
     execute {
-        var changed = 0
+        var colorChanges = 0
+        val missingColorFiles = mutableListOf<String>()
 
         DARK_COLOR_FILES.forEach { path ->
             try {
@@ -144,22 +146,38 @@ val amoledDarkThemePatch = resourcePatch(
                         if (!isAmoledSurfaceColorName(node.getAttribute("name"))) continue
 
                         node.textContent = AMOLED_PURE_BLACK
-                        changed++
+                        colorChanges++
                     }
                 }
             } catch (_: FileNotFoundException) {
-                // This colour file doesn't exist on this build; skip it.
+                missingColorFiles += path
             }
         }
+        if (missingColorFiles.isNotEmpty()) {
+            throw PatchException(
+                "AMOLED dark theme: expected color resource file(s) not found: " +
+                    missingColorFiles.joinToString(),
+            )
+        }
+        if (colorChanges == 0) {
+            throw PatchException("AMOLED dark theme: no page or navigation background colors were changed")
+        }
 
+        var systemBarChanges = 0
         try {
             document("res/values-night/styles.xml").use { document ->
-                changed += document.setAmoledSystemBars()
+                systemBarChanges = document.setAmoledSystemBars()
             }
         } catch (_: FileNotFoundException) {
-            // Avito currently ships this file on every supported build.
+            throw PatchException("AMOLED dark theme: res/values-night/styles.xml not found")
+        }
+        if (systemBarChanges == 0) {
+            throw PatchException("AMOLED dark theme: no system-bar styles were changed")
         }
 
-        println("AMOLED dark theme: blackened $changed dark-mode page/navigation/system-bar colour(s).")
+        println(
+            "AMOLED dark theme: blackened $colorChanges page/navigation color(s) and " +
+                "$systemBarChanges system-bar style value(s).",
+        )
     }
 }
