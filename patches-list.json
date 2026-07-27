@@ -1,5 +1,5 @@
 {
-  "version": "1.10.3",
+  "version": "1.11.0-dev.1",
   "patches": [
     {
       "name": "AMOLED dark theme",
@@ -17,6 +17,7 @@
           "targets": [
             {
               "version": "229.1",
+              "versionCode": 3444,
               "isExperimental": false,
               "minSdk": 28,
               "description": null
@@ -45,6 +46,7 @@
           "targets": [
             {
               "version": "229.1",
+              "versionCode": 3444,
               "isExperimental": false,
               "minSdk": 28,
               "description": null
@@ -70,6 +72,7 @@
           "targets": [
             {
               "version": "7.39.0",
+              "versionCode": 12782,
               "isExperimental": false,
               "minSdk": 28,
               "description": null
@@ -169,6 +172,7 @@
           "targets": [
             {
               "version": "229.1",
+              "versionCode": 3444,
               "isExperimental": false,
               "minSdk": 28,
               "description": null
@@ -196,6 +200,7 @@
           "targets": [
             {
               "version": "229.1",
+              "versionCode": 3444,
               "isExperimental": false,
               "minSdk": 28,
               "description": null
@@ -223,6 +228,7 @@
           "targets": [
             {
               "version": "229.1",
+              "versionCode": 3444,
               "isExperimental": false,
               "minSdk": 28,
               "description": null
@@ -250,6 +256,7 @@
           "targets": [
             {
               "version": "229.1",
+              "versionCode": 3444,
               "isExperimental": false,
               "minSdk": 28,
               "description": null
@@ -277,6 +284,7 @@
           "targets": [
             {
               "version": "19.27.0",
+              "versionCode": 2697,
               "isExperimental": false,
               "minSdk": 26,
               "description": null
@@ -314,6 +322,7 @@
           "targets": [
             {
               "version": "7.39.0",
+              "versionCode": 12782,
               "isExperimental": false,
               "minSdk": 28,
               "description": null
@@ -339,6 +348,7 @@
           "targets": [
             {
               "version": "7.7.2001-rustore",
+              "versionCode": 61050,
               "isExperimental": false,
               "minSdk": 26,
               "description": null
@@ -376,6 +386,7 @@
           "targets": [
             {
               "version": "229.1",
+              "versionCode": 3444,
               "isExperimental": false,
               "minSdk": 28,
               "description": null
@@ -435,6 +446,7 @@
           "targets": [
             {
               "version": "229.1",
+              "versionCode": 3444,
               "isExperimental": false,
               "minSdk": 28,
               "description": null
