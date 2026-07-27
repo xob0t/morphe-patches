@@ -60,6 +60,7 @@ private fun generatePatchList(version: String, patches: Set<Patch<*>>) {
                     targets = compat.targets.map { target ->
                         JsonCompatibility.Target(
                             version = target.version,
+                            versionCode = target.versionCodes?.values?.distinct()?.singleOrNull(),
                             isExperimental = target.isExperimental,
                             minSdk = target.minSdk,
                             description = target.description,
@@ -135,6 +136,7 @@ private class JsonCompatibility(
 ) {
     class Target(
         val version: String?,
+        val versionCode: Int?,
         val isExperimental: Boolean,
         /** Minimum device SDK version. Null means any SDK version. */
         val minSdk: Int?,

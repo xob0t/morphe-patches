@@ -5,6 +5,11 @@ on:
   pull_request:
     branches:
       - dev
+      - main
+
+permissions:
+  contents: read
+  attestations: read
 
 jobs:
   release:
@@ -13,15 +18,46 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Cache Gradle
         uses: burrunan/gradle-cache-action@v3
+
+      - name: Verify promotion identity
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'autobuild/target-')
+        env:
+          ACTUAL_LOGIN: ${{ github.event.pull_request.user.login }}
+          EXPECTED_LOGIN: ${{ vars.PROMOTION_BOT_LOGIN }}
+        run: |
+          if [ -z "$EXPECTED_LOGIN" ] || [ "$ACTUAL_LOGIN" != "$EXPECTED_LOGIN" ]; then
+            echo "::error::Untrusted promotion author '$ACTUAL_LOGIN' (expected '$EXPECTED_LOGIN')."
+            exit 1
+          fi
+
+      - name: Extract qualification evidence
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'autobuild/target-')
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: python3 .github/scripts/extract_qualification_evidence.py --output qualification-evidence.json
+
+      - name: Verify qualification attestation
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'autobuild/target-')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh attestation verify qualification-evidence.json --repo xob0t/morphe-autobuilds
+
+      - name: Validate append-only target promotion
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'autobuild/target-')
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 .github/scripts/validate_target_promotion.py --base "$BASE_SHA" --evidence qualification-evidence.json
 
       - name: Build
         env:
