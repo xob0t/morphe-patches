@@ -14,6 +14,11 @@ internal object Constants {
         appIconColor = 0xA73AFD,
         targets = listOf(
             AppTarget(
+                version = "7.7.3001-rustore",
+                versionCode = 61052,
+                minSdk = 26,
+            ),
+            AppTarget(
                 version = "7.7.2001-rustore",
                 versionCode = 61050,
                 minSdk = 26,
