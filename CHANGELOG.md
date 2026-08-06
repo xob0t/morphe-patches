@@ -1,3 +1,9 @@
+## [1.11.6](https://github.com/xob0t/morphe-patches/compare/v1.11.5...v1.11.6) (2026-08-06)
+
+### 🐛 Bug Fixes
+
+* **ozon:** preserve navbar background ([2c2697d](https://github.com/xob0t/morphe-patches/commit/2c2697d3b62e3c997b01c5dea82c2d61a730fc73))
+
 ## [1.11.6-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.11.5...v1.11.6-dev.1) (2026-08-06)
 
 ### 🐛 Bug Fixes
