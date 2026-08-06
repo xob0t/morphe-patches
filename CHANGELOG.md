@@ -1,8 +1,8 @@
-## [1.11.5-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.11.4...v1.11.5-dev.1) (2026-08-06)
+## [1.11.5](https://github.com/xob0t/morphe-patches/compare/v1.11.4...v1.11.5) (2026-08-06)
 
 ### 🐛 Bug Fixes
 
-* **ozon:** preserve navbar background ([2c2697d](https://github.com/xob0t/morphe-patches/commit/2c2697d3b62e3c997b01c5dea82c2d61a730fc73))
+* **wildberries:** support version 7.7.4003-rustore ([96e9bff](https://github.com/xob0t/morphe-patches/commit/96e9bff9917f4e353d28eefcbaaafb644b55a6b1))
 
 ## [1.11.4](https://github.com/xob0t/morphe-patches/compare/v1.11.3...v1.11.4) (2026-08-04)
 
