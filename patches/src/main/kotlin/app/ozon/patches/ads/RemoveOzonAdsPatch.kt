@@ -26,6 +26,7 @@ private const val OZON_BIG_PROMO_NAVBAR_VIEW =
     "Lru/ozon/app/android/marketing/widgets/bigPromoNavbar/presentation/BigPromoNavbarView;"
 private const val OZON_SHELL_NAVBAR_BG_VIEW =
     "Lru/ozon/app/android/storefront/widgets/navbarv2/presentation/views/ShellNavBarBgView;"
+private const val OZON_NAVBAR_BACKGROUND_COLOR = -0xffa401 // #FF005BFF
 private const val OZON_TILE_SCROLL_PREFIX =
     "Lru/ozon/app/android/universalwidgets/widgets/uw/sku/tilescroll/"
 private const val OZON_TILE_GRID2_BANNER_VIEW_MAPPER =
@@ -208,6 +209,14 @@ private fun Method.isShellNavbarBgSetBackground(classType: String) =
         parameterTypes[0].toString() == "Landroid/graphics/drawable/Drawable;" &&
         hasImplementation()
 
+private fun Method.isShellNavbarBgSetBackgroundColor(classType: String) =
+    classType == OZON_SHELL_NAVBAR_BG_VIEW &&
+        name == "setBackgroundColor" &&
+        returnType == "V" &&
+        parameterTypes.size == 1 &&
+        parameterTypes[0].toString() == "I" &&
+        hasImplementation()
+
 private fun Element.hideWidgetRoot() {
     setAttribute("android:layout_width", "0dp")
     setAttribute("android:layout_height", "0dp")
@@ -276,6 +285,7 @@ val removeOzonAdsPatch = bytecodePatch(
         var patchedBigPromoNavbarLayoutMethods = 0
         var patchedBigPromoNavbarMeasureMethods = 0
         var patchedShellNavbarBgMethods = 0
+        var patchedShellNavbarBgColorMethods = 0
         var patchedTileScrollListMapMethods = 0
         var patchedTileScrollBindMethods = 0
         var patchedTileGrid2BannerCanMapMethods = 0
@@ -655,9 +665,16 @@ val removeOzonAdsPatch = bytecodePatch(
 
                 classType == OZON_SHELL_NAVBAR_BG_VIEW -> {
                     mutableClassDefBy(classDef).methods.forEach { method ->
-                        if (method.isShellNavbarBgSetBackground(classType)) {
-                            method.addInstructions(0, "return-void")
-                            patchedShellNavbarBgMethods++
+                        when {
+                            method.isShellNavbarBgSetBackground(classType) -> {
+                                method.addInstructions(0, "return-void")
+                                patchedShellNavbarBgMethods++
+                            }
+
+                            method.isShellNavbarBgSetBackgroundColor(classType) -> {
+                                method.addInstructions(0, "const p1, $OZON_NAVBAR_BACKGROUND_COLOR")
+                                patchedShellNavbarBgColorMethods++
+                            }
                         }
                     }
                 }
@@ -875,6 +892,7 @@ val removeOzonAdsPatch = bytecodePatch(
             patchedBigPromoNavbarLayoutMethods == 0 &&
             patchedBigPromoNavbarMeasureMethods == 0 &&
             patchedShellNavbarBgMethods == 0 &&
+            patchedShellNavbarBgColorMethods == 0 &&
             patchedTileScrollListMapMethods == 0 &&
             patchedTileScrollBindMethods == 0 &&
             patchedTileGrid2BannerCanMapMethods == 0 &&
@@ -920,6 +938,7 @@ val removeOzonAdsPatch = bytecodePatch(
             if (patchedBigPromoNavbarLayoutMethods == 0) add("big promo navbar layout")
             if (patchedBigPromoNavbarMeasureMethods == 0) add("big promo navbar measure")
             if (patchedShellNavbarBgMethods == 0) add("shell navbar background")
+            if (patchedShellNavbarBgColorMethods == 0) add("shell navbar background color")
             if (patchedTileScrollListMapMethods == 0) add("tile scroll list mapper")
             if (patchedTileScrollBindMethods == 0) add("tile scroll view binding")
             if (patchedTileGrid2BannerCanMapMethods == 0) add("tile grid2 banner canMap")
@@ -968,6 +987,7 @@ val removeOzonAdsPatch = bytecodePatch(
                 "$patchedBigPromoNavbarLayoutMethods big promo navbar layout methods, " +
                 "$patchedBigPromoNavbarMeasureMethods big promo navbar measure methods, " +
                 "$patchedShellNavbarBgMethods shell navbar background methods, " +
+                "$patchedShellNavbarBgColorMethods shell navbar background color methods, " +
                 "$patchedTileScrollListMapMethods tile scroll list map methods, and " +
                 "$patchedTileScrollBindMethods tile scroll bind methods, " +
                 "$patchedTileGrid2BannerCanMapMethods tile grid2 banner canMap methods, " +
