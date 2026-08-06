@@ -38,9 +38,9 @@ val disableFreeRaspPatch = bytecodePatch(
     execute {
         var patchedStartCalls = 0
 
-        classDefForEach { classDef ->
+        getAllClassesWithString("start").forEach { classDef ->
             if (classDef.methods.none { it.hasFreeRaspStartContext() }) {
-                return@classDefForEach
+                return@forEach
             }
 
             mutableClassDefBy(classDef).methods.forEach { method ->

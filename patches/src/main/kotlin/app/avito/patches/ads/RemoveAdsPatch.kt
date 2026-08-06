@@ -16,7 +16,6 @@ import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import org.w3c.dom.Element
-import java.io.FileNotFoundException
 
 private val adPermissions = setOf(
     "com.google.android.gms.permission.AD_ID",
@@ -170,52 +169,53 @@ private val removeAdResourcesPatch = resourcePatch {
         var hiddenLayouts = 0
 
         (hiddenRewardLayouts + hiddenAdLayouts).forEach { path ->
-            try {
-                document(path).use { document ->
-                    document.documentElement.hideView()
-                }
-                hiddenLayouts++
-            } catch (_: FileNotFoundException) {
+            if (!this[path].isFile) {
                 missing += path
+                return@forEach
             }
+            document(path).use { document ->
+                document.documentElement.hideView()
+            }
+            hiddenLayouts++
         }
 
         var hiddenHomeBannerLayoutsCount = 0
         hiddenHomeBannerLayouts.forEach { path ->
-            try {
-                document(path).use { document ->
-                    val root = document.documentElement
-                    val hidden = if (root.nodeName == "merge") {
-                        val banners = root.childrenNamed(
-                            "androidx.constraintlayout.widget.ConstraintLayout",
-                            "com.google.android.material.appbar.CollapsingToolbarLayout",
-                        )
-                        banners.forEach(Element::hideView)
-                        banners.isNotEmpty()
-                    } else {
-                        root.hideView()
-                        true
-                    }
-                    if (hidden) hiddenHomeBannerLayoutsCount++ else missing += "$path (no banner view)"
-                }
-            } catch (_: FileNotFoundException) {
+            if (!this[path].isFile) {
                 missing += path
+                return@forEach
+            }
+            document(path).use { document ->
+                val root = document.documentElement
+                val hidden = if (root.nodeName == "merge") {
+                    val banners = root.childrenNamed(
+                        "androidx.constraintlayout.widget.ConstraintLayout",
+                        "com.google.android.material.appbar.CollapsingToolbarLayout",
+                    )
+                    banners.forEach(Element::hideView)
+                    banners.isNotEmpty()
+                } else {
+                    root.hideView()
+                    true
+                }
+                if (hidden) hiddenHomeBannerLayoutsCount++ else missing += "$path (no banner view)"
             }
         }
 
-        try {
-            document("res/layout/bx_content_fragment.xml").use { document ->
+        val heroBannerPath = "res/layout/bx_content_fragment.xml"
+        if (this[heroBannerPath].isFile) {
+            document(heroBannerPath).use { document ->
                 val shadows = document.documentElement.childrenNamed("FrameLayout")
                     .filter { it.getAttribute("android:id") == "@id/hero_banner_shadow" }
                 shadows.forEach(Element::hideView)
                 if (shadows.isNotEmpty()) {
                     hiddenHomeBannerLayoutsCount++
                 } else {
-                    missing += "res/layout/bx_content_fragment.xml (@id/hero_banner_shadow)"
+                    missing += "$heroBannerPath (@id/hero_banner_shadow)"
                 }
             }
-        } catch (_: FileNotFoundException) {
-            missing += "res/layout/bx_content_fragment.xml"
+        } else {
+            missing += heroBannerPath
         }
 
         if (missing.isNotEmpty()) {

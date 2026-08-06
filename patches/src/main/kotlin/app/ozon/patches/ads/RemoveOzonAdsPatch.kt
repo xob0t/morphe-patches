@@ -2,14 +2,13 @@ package app.ozon.patches.ads
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.PatchException
+import app.morphe.patcher.patch.booleanOption
 import app.morphe.patcher.patch.bytecodePatch
-import app.morphe.patcher.patch.option
 import app.morphe.patcher.patch.resourcePatch
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
 import app.ozon.patches.shared.Constants.COMPATIBILITY_OZON
 import com.android.tools.smali.dexlib2.iface.Method
 import org.w3c.dom.Element
-import java.io.FileNotFoundException
 
 private const val OZON_AD_WIDGETS_PREFIX = "Lru/ozon/app/android/ads/widgets/"
 private const val OZON_INSTALLMENT_WIDGETS_PREFIX = "Lru/ozon/app/android/pdp/widgets/installmentPurchase/"
@@ -212,12 +211,12 @@ private val removeOzonAdResourcesPatch = resourcePatch {
 
     execute {
         patchedObjectGridOneLayout = false
-        try {
+        if (this[OZON_OBJECT_GRID_ONE_LAYOUT].isFile) {
             document(OZON_OBJECT_GRID_ONE_LAYOUT).use { document ->
                 document.documentElement.hideWidgetRoot()
                 patchedObjectGridOneLayout = true
             }
-        } catch (_: FileNotFoundException) {
+        } else {
             println(
                 "Remove Ozon ads resources: expected layout absent ($OZON_OBJECT_GRID_ONE_LAYOUT); " +
                     "target validation will fail.",
@@ -239,7 +238,7 @@ val removeOzonAdsPatch = bytecodePatch(
     compatibleWith(COMPATIBILITY_OZON)
     dependsOn(removeOzonAdResourcesPatch)
 
-    val hideRecommendationGrids by option<Boolean>(
+    val hideRecommendationGrids by booleanOption(
         key = "hideRecommendationGrids",
         title = "Hide recommendation grids",
         description = "Removes recommendation grids from product, cart, profile, and favorites screens.",

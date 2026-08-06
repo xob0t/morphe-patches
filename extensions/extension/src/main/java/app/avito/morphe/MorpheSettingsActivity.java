@@ -318,10 +318,22 @@ public final class MorpheSettingsActivity extends Activity {
             android.content.pm.PackageInfo info =
                     getPackageManager().getPackageInfo(getPackageName(), 0);
             String name = info.versionName == null ? "—" : info.versionName;
-            return name + " · сборка " + info.versionCode;
+            return name + " · сборка " + appVersionCode(info);
         } catch (Throwable ignored) {
             return "—";
         }
+    }
+
+    private static long appVersionCode(android.content.pm.PackageInfo info) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            return info.getLongVersionCode();
+        }
+        return legacyVersionCode(info);
+    }
+
+    @SuppressWarnings("deprecation")
+    private static long legacyVersionCode(android.content.pm.PackageInfo info) {
+        return info.versionCode;
     }
 
     private View buildPatchVersionRow() {

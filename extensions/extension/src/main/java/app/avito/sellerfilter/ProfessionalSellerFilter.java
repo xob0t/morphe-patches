@@ -4,7 +4,6 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.graphics.Rect;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.Typeface;
@@ -590,147 +589,9 @@ public final class ProfessionalSellerFilter {
         }, delayMillis);
     }
 
-    private static void configureLegacyThresholdInput(final EditText input) {
-        int current = maximumReviews();
-        if (current > 0) {
-            input.setText(String.valueOf(current));
-            input.setSelection(input.length());
-        }
-        input.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(
-                    CharSequence text, int start, int count, int after) {
-            }
 
-            @Override
-            public void onTextChanged(
-                    CharSequence text, int start, int before, int count) {
-            }
 
-            @Override
-            public void afterTextChanged(Editable text) {
-                String value = text == null ? "" : text.toString().trim();
-                if (value.isEmpty() || "0".equals(value)) {
-                    setMaximumReviews(0);
-                    input.setError(null);
-                    return;
-                }
-                int maximum = parseThreshold(value);
-                if (maximum > 0) {
-                    setMaximumReviews(maximum);
-                    input.setError(null);
-                } else {
-                    input.setError("Введите корректное число");
-                }
-            }
-        });
-    }
 
-    /**
-     * Avito's current Filters screen is a RecyclerView inside a FrameLayout.
-     * The injected view therefore has to be overlaid, but is treated visually as
-     * adapter position -1: list padding reserves its space and this listener
-     * translates and clips it away as adapter position 0 scrolls off screen.
-     */
-    private static void makeSectionScrollWithList(
-            final View recycler,
-            final View row
-    ) {
-        row.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
-            private boolean configured;
-
-            @Override
-            public void onLayoutChange(
-                    View view,
-                    int left,
-                    int top,
-                    int right,
-                    int bottom,
-                    int oldLeft,
-                    int oldTop,
-                    int oldRight,
-                    int oldBottom
-            ) {
-                if (configured || bottom <= top) {
-                    return;
-                }
-                configured = true;
-                row.removeOnLayoutChangeListener(this);
-                final int rowHeight = bottom - top;
-                final int originalTopPadding = recycler.getPaddingTop();
-                recycler.setPadding(
-                        recycler.getPaddingLeft(),
-                        originalTopPadding + rowHeight,
-                        recycler.getPaddingRight(),
-                        recycler.getPaddingBottom());
-                observeHeaderScroll(
-                        recycler,
-                        row,
-                        originalTopPadding + rowHeight,
-                        rowHeight);
-            }
-        });
-    }
-
-    private static void observeHeaderScroll(
-            final View recycler,
-            final View row,
-            final int firstItemTopAtRest,
-            final int rowHeight
-    ) {
-        if (!(recycler instanceof ViewGroup)) {
-            return;
-        }
-        final ViewGroup list = (ViewGroup) recycler;
-        recycler.getViewTreeObserver().addOnPreDrawListener(
-                new ViewTreeObserver.OnPreDrawListener() {
-                    @Override
-                    public boolean onPreDraw() {
-                        try {
-                            View firstChild = null;
-                            for (int i = 0; i < list.getChildCount(); i++) {
-                                View child = list.getChildAt(i);
-                                if (firstChild == null
-                                        || child.getTop() < firstChild.getTop()) {
-                                    firstChild = child;
-                                }
-                            }
-                            int hidden = 0;
-                            if (firstChild != null) {
-                                int adapterPosition = childAdapterPosition(
-                                        recycler, firstChild);
-                                hidden = adapterPosition > 0
-                                        ? rowHeight
-                                        : Math.max(
-                                                0,
-                                                Math.min(
-                                                        rowHeight,
-                                                        firstItemTopAtRest
-                                                                - firstChild.getTop()));
-                            }
-                            row.setTranslationY(-hidden);
-                            row.setClipBounds(new Rect(
-                                    0,
-                                    hidden,
-                                    Math.max(1, row.getWidth()),
-                                    rowHeight));
-                        } catch (Throwable ignored) {
-                        }
-                        return true;
-                    }
-                });
-    }
-
-    private static int childAdapterPosition(View recycler, View child) {
-        try {
-            Object value = recycler.getClass()
-                    .getMethod("getChildAdapterPosition", View.class)
-                    .invoke(recycler, child);
-            return value instanceof Number ? ((Number) value).intValue() : 0;
-        } catch (Throwable ignored) {
-            return 0;
-        }
-    }
 
     private static void retry(final Activity activity, final int attempt) {
         if (attempt >= 20) {
@@ -964,21 +825,6 @@ public final class ProfessionalSellerFilter {
         return value instanceof ViewGroup ? (ViewGroup) value : null;
     }
 
-    private static int actionBarHeight(Activity activity, int fallback) {
-        try {
-            TypedValue value = new TypedValue();
-            if (activity.getTheme().resolveAttribute(
-                    android.R.attr.actionBarSize, value, true)) {
-                if (value.resourceId != 0) {
-                    return activity.getResources().getDimensionPixelSize(value.resourceId);
-                }
-                return TypedValue.complexToDimensionPixelSize(
-                        value.data, activity.getResources().getDisplayMetrics());
-            }
-        } catch (Throwable ignored) {
-        }
-        return fallback;
-    }
 
     private static void applyTextAppearance(
             Activity activity,
@@ -994,7 +840,7 @@ public final class ProfessionalSellerFilter {
             if (attributeId != 0
                     && activity.getTheme().resolveAttribute(attributeId, value, true)
                     && value.resourceId != 0) {
-                view.setTextAppearance(activity, value.resourceId);
+                view.setTextAppearance(value.resourceId);
                 return;
             }
         } catch (Throwable ignored) {

@@ -80,17 +80,6 @@ private fun Instruction.registers(): List<Int> = when (this) {
     else -> emptyList()
 }
 
-private fun Instruction.invokeRegisterListSmali(): String = when (this) {
-    is FiveRegisterInstruction -> registers().joinToString(prefix = "{", postfix = "}") { "v$it" }
-
-    is RegisterRangeInstruction -> {
-        val endRegister = startRegister + registerCount - 1
-        "{v$startRegister .. v$endRegister}"
-    }
-
-    else -> error("Instruction is not an invoke instruction: $this")
-}
-
 private fun Instruction.isConstLiteral(register: Int, literal: Int): Boolean = this is OneRegisterInstruction &&
     this is NarrowLiteralInstruction &&
     registerA == register &&

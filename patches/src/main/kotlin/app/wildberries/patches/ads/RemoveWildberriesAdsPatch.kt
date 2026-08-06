@@ -3,8 +3,8 @@ package app.wildberries.patches.ads
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.PatchException
+import app.morphe.patcher.patch.booleanOption
 import app.morphe.patcher.patch.bytecodePatch
-import app.morphe.patcher.patch.option
 import app.wildberries.patches.shared.Constants.COMPATIBILITY_WILDBERRIES
 import com.android.tools.smali.dexlib2.iface.Method
 
@@ -193,7 +193,7 @@ val removeWildberriesAdsPatch = bytecodePatch(
 ) {
     compatibleWith(COMPATIBILITY_WILDBERRIES)
 
-    val hideRecommendationGrids by option<Boolean>(
+    val hideRecommendationGrids by booleanOption(
         key = "hideRecommendationGrids",
         title = "Hide recommendation grids",
         description = "Removes recommendation grids from cart and product screens.",

@@ -764,13 +764,6 @@ public final class BlacklistActivity extends Activity {
         return userKey != null && userKey.startsWith(Blacklist.JOB_EMPLOYER_URI_PREFIX);
     }
 
-    private String jobEmployerSearchUrl(String userKey) {
-        String query = Blacklist.getSellerLabel(userKey);
-        if (query == null || query.trim().isEmpty()) {
-            query = userKey == null ? "" : userKey.substring(JOB_EMPLOYER_PREFIX.length());
-        }
-        return "https://www.avito.ru/all/vakansii?q=" + Uri.encode(query);
-    }
 
     /**
      * Reflectively builds an {@code ExtendedProfileArguments} for {@code userKey}.

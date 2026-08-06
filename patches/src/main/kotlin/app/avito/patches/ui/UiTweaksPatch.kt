@@ -4,10 +4,12 @@ import app.avito.patches.blacklist.SerpElementsConverterFingerprint
 import app.avito.patches.settings.MorpheSettingsRegistry
 import app.avito.patches.settings.morpheSettingsPatch
 import app.avito.patches.shared.Constants.COMPATIBILITY_AVITO
+import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
+import app.morphe.patcher.fieldAccess
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.smali.ExternalLabel
@@ -29,11 +31,8 @@ private const val CREDIT_BROKER_PRODUCT = "Lcom/avito/android/remote/model/credi
 private const val ICE_BREAKERS = "Lcom/avito/android/remote/model/IceBreakers;"
 private const val INTEGER = "Ljava/lang/Integer;"
 private const val FAVORITES_ADAPTER_PACKAGE = "Lcom/avito/android/user_favorites/adapter/"
-private const val FAVORITES_TABS_CONTROL_PACKAGE = "Lcom/avito/android/user_favorites/tabs_control/"
 private const val ONBOARDING_DIALOG_FRAGMENT = "Lcom/avito/android/onboarding/dialog/OnboardingDialogFragment;"
 private const val USER_PROFILE_RESULT = "Lcom/avito/android/remote/model/user_profile/UserProfileResult;"
-private const val VISUAL_RUBRICATOR_ITEM_MARKER = "VisualRubricatorWidgetElementItemImpl(stringId="
-private const val ROW_LINE_MARKER = ", rowLine="
 
 private val AVI_TAB_NAMES = setOf("AI_ASSISTANT", "AI_ASSISTANT_SELLER")
 private val PROFILE_PRO_OUTPUT_ITEM_TYPES = setOf(
@@ -47,61 +46,6 @@ private fun Method.hasFieldReference(fields: Set<String>): Boolean = instruction
     val reference = instruction.fieldReferenceOrNull() ?: return@any false
     reference.definingClass == NAVIGATION_TAB && reference.name in fields
 } == true
-
-private fun FieldReference.sameFieldAs(other: FieldReference) = definingClass == other.definingClass && name == other.name && type == other.type
-
-private fun Method.hasString(value: String) = instructionsOrNull?.any { instruction -> instruction.stringReferenceOrNull() == value } == true
-
-private fun Method.fieldAfterString(value: String, definingClass: String, type: String): FieldReference? {
-    val instructions = instructionsOrNull?.toList() ?: return null
-    val markerIndex = instructions.indexOfFirst { it.stringReferenceOrNull() == value }
-    if (markerIndex < 0) return null
-
-    return instructions
-        .drop(markerIndex + 1)
-        .firstNotNullOfOrNull { instruction ->
-            instruction.fieldReferenceOrNull()
-                ?.takeIf { field -> field.definingClass == definingClass && field.type == type }
-        }
-}
-
-private fun Method.getterForField(field: FieldReference) = parameterTypes.isEmpty() &&
-    returnType == field.type &&
-    implementation != null &&
-    instructionsOrNull?.any { instruction ->
-        instruction.fieldReferenceOrNull()?.sameFieldAs(field) == true
-    } == true
-
-private data class FavoritesTabsControlFilterTarget(
-    val index: Int,
-    val register: Int,
-    val stateType: String,
-)
-
-private fun Method.favoritesTabsControlFilterTarget(): FavoritesTabsControlFilterTarget? {
-    val instructions = instructionsOrNull?.toList() ?: return null
-    var stateType: String? = null
-    val mapperIndex = instructions.indexOfFirst { instruction ->
-        val reference = instruction.methodReferenceOrNull() ?: return@indexOfFirst false
-        val matches =
-            instruction.opcode in setOf(Opcode.INVOKE_STATIC, Opcode.INVOKE_STATIC_RANGE) &&
-                reference.definingClass.startsWith(FAVORITES_TABS_CONTROL_PACKAGE) &&
-                reference.returnType.startsWith(FAVORITES_TABS_CONTROL_PACKAGE) &&
-                reference.parameterTypes.map { it.toString() } == listOf("I", "Ljava/util/List;")
-        if (matches) stateType = reference.returnType
-        matches
-    }
-    if (mapperIndex < 0) return null
-
-    val moveResult = instructions.getOrNull(mapperIndex + 1) as? OneRegisterInstruction ?: return null
-    if (moveResult.opcode != Opcode.MOVE_RESULT_OBJECT) return null
-
-    return FavoritesTabsControlFilterTarget(
-        index = mapperIndex + 2,
-        register = moveResult.registerA,
-        stateType = stateType ?: return null,
-    )
-}
 
 private fun ClassDef.isFavoritesTabModel() = type.startsWith(FAVORITES_ADAPTER_PACKAGE) &&
     AccessFlags.ABSTRACT.isSet(accessFlags) &&
@@ -176,35 +120,23 @@ val uiTweaksPatch = bytecodePatch(
         // by its getRowLine(); when the toggle is on, make every tile report row 1
         // so the second row collapses and all categories land in one scrollable row.
         // The class/method keep their real names across 213–227.
-        var rubricatorElement: ClassDef? = null
-        classDefForEach { classDef ->
-            if (rubricatorElement != null) return@classDefForEach
-            if (
-                classDef.methods.any { method ->
-                    method.name == "toString" &&
-                        method.returnType == "Ljava/lang/String;" &&
-                        method.hasString(VISUAL_RUBRICATOR_ITEM_MARKER)
-                }
-            ) {
-                rubricatorElement = classDef
-            }
+        val rubricatorMatch = VisualRubricatorElementFingerprint.matchOrNull()
+        val rowLineMatch = rubricatorMatch?.let { match ->
+            VisualRubricatorRowLineFingerprint.matchOrNull(match.originalClassDef)
         }
-        val rowLineField = rubricatorElement
-            ?.methods
-            ?.firstOrNull { method ->
-                method.name == "toString" &&
-                    method.returnType == "Ljava/lang/String;" &&
-                    method.hasString(ROW_LINE_MARKER)
-            }
-            ?.fieldAfterString(ROW_LINE_MARKER, rubricatorElement.type, INTEGER)
-        val getRowLine = rowLineField?.let { field ->
-            rubricatorElement.methods.firstOrNull { method -> method.getterForField(field) }
+        val getRowLine = rowLineMatch?.let { match ->
+            val rowLineField = match.instructionMatches[1].instruction.fieldReferenceOrNull()
+                ?: return@let null
+            Fingerprint(
+                returnType = rowLineField.type,
+                parameters = emptyList(),
+                filters = listOf(fieldAccess(rowLineField)),
+            ).matchOrNull(match.originalClassDef)
         }
-        if (rubricatorElement == null || getRowLine == null) {
+        if (getRowLine == null) {
             throw PatchException("UI tweaks: rubricator getRowLine() not found")
         } else {
-            val rowLineMethod = mutableClassDefBy(rubricatorElement).methods
-                .single { it.name == getRowLine.name && it.parameterTypes == getRowLine.parameterTypes }
+            val rowLineMethod = getRowLine.method
             rowLineMethod.addInstructionsWithLabels(
                 0,
                 """
@@ -271,7 +203,7 @@ val uiTweaksPatch = bytecodePatch(
 
         val tabConsumer = FavoritesTabsConsumerFingerprint.methodOrNull
         val changesCtor = if (tabConsumer == null && FavoritesChangesFingerprint.methodOrNull != null) {
-            mutableClassDefBy(FavoritesChangesFingerprint.originalClassDef).methods.singleOrNull {
+            FavoritesChangesFingerprint.classDef.methods.singleOrNull {
                 it.name == "<init>" &&
                     it.parameterTypes.map { p -> p.toString() } == listOf("Ljava/util/List;", "Z")
             }
@@ -321,19 +253,25 @@ val uiTweaksPatch = bytecodePatch(
 
         when {
             tabConsumer != null -> {
-                val target = tabConsumer.favoritesTabsControlFilterTarget()
-                if (target != null) {
+                val mapperMatch = FavoritesTabsControlMapperFingerprint.matchOrNull(tabConsumer)
+                if (mapperMatch != null) {
+                    val mapperReference = mapperMatch.instructionMatches[0].instruction.methodReferenceOrNull()
+                        ?: throw PatchException("Favorites tabs control mapper reference not found")
+                    val moveResult = mapperMatch.instructionMatches[1]
+                        .getInstruction<OneRegisterInstruction>()
+                    val insertionIndex = mapperMatch.instructionMatches[1].index + 1
+                    val stateType = mapperReference.returnType
                     tabConsumer.addInstructions(
-                        target.index,
+                        insertionIndex,
                         """
-                            invoke-static/range {v${target.register} .. v${target.register}}, $MORPHE_SETTINGS_CLASS->withoutHiddenFavoritesTabsControlState(Ljava/lang/Object;)Ljava/lang/Object;
-                            move-result-object v${target.register}
-                            check-cast v${target.register}, ${target.stateType}
+                            invoke-static/range {v${moveResult.registerA} .. v${moveResult.registerA}}, $MORPHE_SETTINGS_CLASS->withoutHiddenFavoritesTabsControlState(Ljava/lang/Object;)Ljava/lang/Object;
+                            move-result-object v${moveResult.registerA}
+                            check-cast v${moveResult.registerA}, $stateType
                         """,
                     )
                     registerFavoritesTabToggles()
                     println(
-                        "UI tweaks: gated Favorites tabs control state ${target.stateType} and " +
+                        "UI tweaks: gated Favorites tabs control state $stateType and " +
                             "$favoritesTabViewHooks legacy renderer(s) in " +
                             "${FavoritesTabsConsumerFingerprint.originalClassDef.type}->${tabConsumer.name}",
                     )
@@ -508,7 +446,7 @@ val uiTweaksPatch = bytecodePatch(
         // sees a list without that exact model while the setting is enabled. The
         // same API-level gate covers the RewardsItem representation of the prize
         // portal used by the current profile screen.
-        val profileItemsGetter = classDefByOrNull(USER_PROFILE_RESULT)
+        val profileItemsGetter = mutableClassDefByOrNull(USER_PROFILE_RESULT)
             ?.methods
             ?.firstOrNull { method ->
                 method.name == "getItems" &&
@@ -519,9 +457,7 @@ val uiTweaksPatch = bytecodePatch(
         if (profileItemsGetter == null) {
             throw PatchException("UI tweaks: UserProfileResult.getItems not found")
         } else {
-            val method = mutableClassDefBy(USER_PROFILE_RESULT).methods.first {
-                it.name == profileItemsGetter.name && it.parameterTypes == profileItemsGetter.parameterTypes
-            }
+            val method = profileItemsGetter
             val returnTargets = method.instructionsOrNull
                 ?.toList().orEmpty()
                 .mapIndexedNotNull { index, instruction ->
@@ -560,7 +496,7 @@ val uiTweaksPatch = bytecodePatch(
         // carousel bottom sheet. Install an on-show dismiss gate on the dialog it
         // returns, which suppresses the drawer before the first rendered frame while
         // leaving unrelated bottom sheets untouched.
-        val onboardingDialogFactory = classDefByOrNull(ONBOARDING_DIALOG_FRAGMENT)
+        val onboardingDialogFactory = mutableClassDefByOrNull(ONBOARDING_DIALOG_FRAGMENT)
             ?.methods
             ?.firstOrNull { method ->
                 method.name == "onCreateDialog" &&
@@ -571,10 +507,7 @@ val uiTweaksPatch = bytecodePatch(
         if (onboardingDialogFactory == null) {
             throw PatchException("UI tweaks: onboarding dialog factory not found")
         } else {
-            val method = mutableClassDefBy(ONBOARDING_DIALOG_FRAGMENT).methods.first {
-                it.name == onboardingDialogFactory.name &&
-                    it.parameterTypes == onboardingDialogFactory.parameterTypes
-            }
+            val method = onboardingDialogFactory
             val returnIndices = method.instructionsOrNull
                 ?.toList().orEmpty()
                 .mapIndexedNotNull { index, instruction ->
@@ -614,7 +547,7 @@ val uiTweaksPatch = bytecodePatch(
         //
         // Local helper so the AdvertDetails class is resolved once and the
         // null-gate injection (before each return) isn't duplicated per block.
-        val advertDetailsClass = classDefByOrNull(ADVERT_DETAILS)
+        val advertDetailsClass = mutableClassDefByOrNull(ADVERT_DETAILS)
         fun gateAdvertDetailsGetter(
             getterName: String,
             returnType: String,
@@ -630,9 +563,7 @@ val uiTweaksPatch = bytecodePatch(
             if (advertDetailsClass == null || getter == null) {
                 throw PatchException("UI tweaks: AdvertDetails.$getterName not found")
             }
-            val method = mutableClassDefBy(advertDetailsClass).methods.first {
-                it.name == getterName && it.parameterTypes.isEmpty()
-            }
+            val method = getter
             val returnIndices = method.instructionsOrNull
                 ?.toList().orEmpty()
                 .mapIndexedNotNull { index, instruction ->

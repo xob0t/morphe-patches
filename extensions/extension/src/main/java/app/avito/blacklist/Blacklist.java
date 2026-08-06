@@ -49,7 +49,6 @@ public final class Blacklist {
     public static final String SUFFIX_SELLER = "_blacklist_user";
 
     private static final Object LOCK = new Object();
-    private static final String LOG_TAG = "AvitoBlacklist";
     private static volatile boolean loaded = false;
     private static Context appContext;
     private static final Set<String> blockedOffers = new LinkedHashSet<>();
@@ -74,8 +73,6 @@ public final class Blacklist {
             new java.util.HashMap<>();
     private static final java.util.Map<String, String> seenSellerAliasNames =
             new java.util.HashMap<>();
-    private static final Set<String> loggedSerpInputDiagnostics =
-            Collections.synchronizedSet(new LinkedHashSet<String>());
 
     private Blacklist() {
     }
@@ -1474,146 +1471,10 @@ public final class Blacklist {
         return null;
     }
 
-    private static void logSerpInputDiagnostics(List<?> elements) {
-        try {
-            int count = 0;
-            Iterator<?> it = elements.iterator();
-            while (it.hasNext() && count < 80) {
-                Object element = it.next();
-                count++;
-                if (element == null) {
-                    continue;
-                }
-                String text = String.valueOf(element);
-                String lower = text.toLowerCase(java.util.Locale.US);
-                if (!lower.contains("vacancy") && !lower.contains("работ") && !lower.contains("seller")
-                        && !lower.contains("userkey") && !lower.contains("profile")
-                        && !lower.contains("employer") && !lower.contains("brand")
-                        && !lower.contains("advert")) {
-                    continue;
-                }
-                String id = firstNonBlank(callString(element, "getId"), offerIdOf(element));
-                String signature = element.getClass().getName() + ":" + id + ":" + System.identityHashCode(element);
-                synchronized (loggedSerpInputDiagnostics) {
-                    if (loggedSerpInputDiagnostics.contains(signature)) {
-                        continue;
-                    }
-                    if (loggedSerpInputDiagnostics.size() > 160) {
-                        loggedSerpInputDiagnostics.clear();
-                    }
-                    loggedSerpInputDiagnostics.add(signature);
-                }
-                StringBuilder out = new StringBuilder(9000);
-                appendDiag(out, "stage", "serp-input");
-                appendDiag(out, "class", element.getClass().getName());
-                appendDiag(out, "id", id);
-                appendDiag(out, "toString", element);
-                appendDiag(out, "getId", callObject(element, "getId"));
-                appendDiag(out, "getStringId", callObject(element, "getStringId"));
-                appendDiag(out, "getTitle", callObject(element, "getTitle"));
-                appendDiag(out, "getDeepLink", callObject(element, "getDeepLink"));
-                appendDiag(out, "getSellerInfo", callObject(element, "getSellerInfo"));
-                appendDiag(out, "getSeller", callObject(element, "getSeller"));
-                appendDiag(out, "getShop", callObject(element, "getShop"));
-                appendDiag(out, "getEmployer", callObject(element, "getEmployer"));
-                appendDiag(out, "getBrand", callObject(element, "getBrand"));
-                appendDiag(out, "getProfile", callObject(element, "getProfile"));
-                appendDiag(out, "getOwner", callObject(element, "getOwner"));
-                appendDiag(out, "getUser", callObject(element, "getUser"));
-                appendDiag(out, "getAnalyticParams", callObject(element, "getAnalyticParams"));
-                appendDiag(out, "getAdditionalAnalyticsParams", callObject(element, "getAdditionalAnalyticsParams"));
-                appendDiagnosticFields(out, element, 0, Collections.newSetFromMap(new java.util.IdentityHashMap<Object, Boolean>()));
-                logDiagChunks(out.toString());
-            }
-        } catch (Throwable t) {
-            try {
-                android.util.Log.i(LOG_TAG, "serp-input diag failed " + t);
-            } catch (Throwable ignored) {
-            }
-        }
-    }
 
-    private static void appendDiagnosticFields(StringBuilder out, Object value, int depth, Set<Object> seen) {
-        if (value == null || depth > 2 || seen.contains(value)) {
-            return;
-        }
-        seen.add(value);
-        Class<?> cls = value.getClass();
-        if (cls.getName().startsWith("java.lang.") || cls.isEnum()) {
-            return;
-        }
-        if (value instanceof Iterable) {
-            int count = 0;
-            Iterator<?> it = ((Iterable<?>) value).iterator();
-            while (it.hasNext() && count < 20) {
-                appendDiagnosticFields(out, it.next(), depth + 1, seen);
-                count++;
-            }
-            return;
-        }
-        if (value instanceof java.util.Map) {
-            appendDiag(out, "diag.map.depth" + depth + "." + cls.getName(), value);
-            return;
-        }
-        try {
-            while (cls != null && cls != Object.class) {
-                java.lang.reflect.Field[] fields = cls.getDeclaredFields();
-                for (int i = 0; i < fields.length; i++) {
-                    java.lang.reflect.Field field = fields[i];
-                    field.setAccessible(true);
-                    Object fieldValue;
-                    try {
-                        fieldValue = field.get(value);
-                    } catch (Throwable t) {
-                        fieldValue = "<read failed " + t.getClass().getName() + ">";
-                    }
-                    String fieldText = String.valueOf(fieldValue);
-                    String haystack = (field.getName() + " " + field.getType().getName() + " " + fieldText)
-                            .toLowerCase(java.util.Locale.US);
-                    if (haystack.contains("userkey") || haystack.contains("seller")
-                            || haystack.contains("profile") || haystack.contains("employer")
-                            || haystack.contains("brand") || haystack.contains("shop")
-                            || haystack.contains("vacancy") || haystack.contains("работ")) {
-                        appendDiag(out, "diag.field.depth" + depth + "." + cls.getSimpleName()
-                                + "." + field.getName() + ":" + field.getType().getName(), fieldValue);
-                        appendDiagnosticFields(out, fieldValue, depth + 1, seen);
-                    }
-                }
-                cls = cls.getSuperclass();
-            }
-        } catch (Throwable ignored) {
-        }
-    }
 
-    private static void appendDiag(StringBuilder out, String name, Object value) {
-        out.append('\n').append(name).append('=').append(safeDiag(value));
-    }
 
-    private static String safeDiag(Object value) {
-        if (value == null) {
-            return "null";
-        }
-        try {
-            String s = String.valueOf(value);
-            if (s.length() > 3500) {
-                return s.substring(0, 3500) + "...<truncated " + s.length() + ">";
-            }
-            return s;
-        } catch (Throwable t) {
-            return "<toString failed " + t.getClass().getName() + ">";
-        }
-    }
 
-    private static void logDiagChunks(String text) {
-        if (text == null) {
-            return;
-        }
-        int max = 3500;
-        for (int start = 0, part = 1; start < text.length(); start += max, part++) {
-            int end = Math.min(text.length(), start + max);
-            android.util.Log.i(LOG_TAG, "serpinput[" + part + "] " + text.substring(start, end));
-        }
-    }
 
     private static Object sellerObjectOf(Object item) {
         Object seller = callObject(item, "getSellerInfo");
@@ -2005,15 +1866,6 @@ public final class Blacklist {
     private static void setFullSpan(android.view.ViewGroup.LayoutParams lp, boolean full) {
         try {
             lp.getClass().getMethod("setFullSpan", boolean.class).invoke(lp, full);
-        } catch (Throwable ignored) {
-        }
-    }
-
-    private static void toast(android.view.View anchor, String message, String iconName) {
-        try {
-            // Reuse the icon toast from the block-menu helper (these run on the main
-            // thread after a user tap, so touching that class here is safe).
-            app.avito.morphe.MorpheBlockMenu.toast(anchor.getContext(), message, iconName, true);
         } catch (Throwable ignored) {
         }
     }
