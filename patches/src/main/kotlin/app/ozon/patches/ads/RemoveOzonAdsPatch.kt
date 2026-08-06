@@ -74,22 +74,19 @@ private var patchedObjectGridOneLayout = false
 
 private fun Method.hasImplementation() = implementation != null
 
-private fun Method.isWidgetCanMapMethod() =
-    name == "canMap" &&
-        returnType == "Z" &&
-        parameterTypes.size == 1 &&
-        hasImplementation()
+private fun Method.isWidgetCanMapMethod() = name == "canMap" &&
+    returnType == "Z" &&
+    parameterTypes.size == 1 &&
+    hasImplementation()
 
-private fun Method.isListMapMethod() =
-    (name == "map" || name == "invoke") &&
-        returnType == "Ljava/util/List;" &&
-        hasImplementation()
+private fun Method.isListMapMethod() = (name == "map" || name == "invoke") &&
+    returnType == "Ljava/util/List;" &&
+    hasImplementation()
 
-private fun Method.isViewHolderBindMethod(classType: String) =
-    name == "bind" &&
-        returnType == "V" &&
-        hasImplementation() &&
-        (classType.contains("ViewHolder") || classType.endsWith("VH;"))
+private fun Method.isViewHolderBindMethod(classType: String) = name == "bind" &&
+    returnType == "V" &&
+    hasImplementation() &&
+    (classType.contains("ViewHolder") || classType.endsWith("VH;"))
 
 private fun MutableMethod.hideItemViewAtStart(classType: String) {
     addInstructions(
@@ -108,114 +105,99 @@ private fun MutableMethod.hideItemViewAtStart(classType: String) {
     )
 }
 
-private fun Method.isRecShelfRequestMethod(classType: String) =
-    classType == OZON_REC_SHELF_VIEW_MODEL &&
-        name == "requestRecs" &&
-        returnType == "V" &&
-        parameterTypes.size == 2 &&
-        hasImplementation()
+private fun Method.isRecShelfRequestMethod(classType: String) = classType == OZON_REC_SHELF_VIEW_MODEL &&
+    name == "requestRecs" &&
+    returnType == "V" &&
+    parameterTypes.size == 2 &&
+    hasImplementation()
 
-private fun Method.isInstallmentV4ParserMethod() =
+private fun Method.isInstallmentV4ParserMethod() = name == "invoke" &&
+    returnType == OZON_INSTALLMENT_V4_DTO &&
+    parameterTypes.size == 1 &&
+    hasImplementation()
+
+private fun Method.isTileGrid3ParseMethod(classType: String) = classType == OZON_TILE_GRID3_CONFIG &&
+    name == "parse" &&
+    returnType == "Ljava/util/List;" &&
+    parameterTypes.size == 1 &&
+    hasImplementation()
+
+private fun Method.isTileGrid2ParseMethod(classType: String) = classType == OZON_TILE_GRID2_CONFIG &&
+    name == "parse" &&
+    returnType == "Ljava/util/List;" &&
+    parameterTypes.size == 1 &&
+    hasImplementation()
+
+private fun Method.isObjectGridOneBannerCanMapMethod(classType: String) = classType == OZON_OBJECT_GRID_ONE_BANNER_VIEW_MAPPER &&
+    name == "canMap" &&
+    returnType == "Z" &&
+    parameterTypes.size == 1 &&
+    hasImplementation()
+
+private fun Method.isSearchWarlockRequestMethod(classType: String) = classType == OZON_SEARCH_WARLOCK_VIEW_MODEL &&
+    name == "getWarlockSection" &&
+    returnType == "V" &&
+    parameterTypes.size == 3 &&
+    hasImplementation()
+
+private fun Method.isDesignSystemAtomsMapperInvoke(classType: String) = classType == OZON_DS_ATOMS_MAPPER &&
     name == "invoke" &&
-        returnType == OZON_INSTALLMENT_V4_DTO &&
-        parameterTypes.size == 1 &&
-        hasImplementation()
+    returnType == "Ljava/util/List;" &&
+    parameterTypes.size == 2 &&
+    hasImplementation()
 
-private fun Method.isTileGrid3ParseMethod(classType: String) =
-    classType == OZON_TILE_GRID3_CONFIG &&
-        name == "parse" &&
-        returnType == "Ljava/util/List;" &&
-        parameterTypes.size == 1 &&
-        hasImplementation()
+private fun Method.isCellListV2MapperInvoke(classType: String) = classType == OZON_CELL_LIST_V2_MAPPER &&
+    name == "invoke" &&
+    returnType == "Ljava/util/List;" &&
+    parameterTypes.size == 2 &&
+    hasImplementation()
 
-private fun Method.isTileGrid2ParseMethod(classType: String) =
-    classType == OZON_TILE_GRID2_CONFIG &&
-        name == "parse" &&
-        returnType == "Ljava/util/List;" &&
-        parameterTypes.size == 1 &&
-        hasImplementation()
+private fun Method.isCellV2ViewHolderBind(classType: String) = classType == OZON_CELL_V2_VIEW_HOLDER &&
+    name == "bind" &&
+    returnType == "V" &&
+    parameterTypes.size == 2 &&
+    parameterTypes[0].toString() == OZON_CELL_V2_VIEW_OBJECT &&
+    hasImplementation()
 
-private fun Method.isObjectGridOneBannerCanMapMethod(classType: String) =
-    classType == OZON_OBJECT_GRID_ONE_BANNER_VIEW_MAPPER &&
-        name == "canMap" &&
-        returnType == "Z" &&
-        parameterTypes.size == 1 &&
-        hasImplementation()
+private fun Method.isCommonCellV2ViewHolderBind(classType: String) = classType == OZON_COMMON_CELL_V2_VIEW_HOLDER &&
+    name == "bind" &&
+    returnType == "V" &&
+    parameterTypes.size == 2 &&
+    parameterTypes[0].toString() == "Lru/ozon/app/android/common/cellList/v2/presentation/CellV2VO;" &&
+    hasImplementation()
 
-private fun Method.isSearchWarlockRequestMethod(classType: String) =
-    classType == OZON_SEARCH_WARLOCK_VIEW_MODEL &&
-        name == "getWarlockSection" &&
-        returnType == "V" &&
-        parameterTypes.size == 3 &&
-        hasImplementation()
+private fun Method.isImageTitleSubtitleCellV2Bind(classType: String) = classType.endsWith(OZON_IMAGE_TITLE_SUBTITLE_CELL_V2_HOLDER_SUFFIX) &&
+    name == "onBind" &&
+    returnType == "V" &&
+    parameterTypes.size == 1 &&
+    parameterTypes[0].toString().endsWith("/atoms/data/cell/ImageTitleSubtitleCellDTO;") &&
+    hasImplementation()
 
-private fun Method.isDesignSystemAtomsMapperInvoke(classType: String) =
-    classType == OZON_DS_ATOMS_MAPPER &&
-        name == "invoke" &&
-        returnType == "Ljava/util/List;" &&
-        parameterTypes.size == 2 &&
-        hasImplementation()
+private fun Method.isBigPromoNavbarLayoutMethod(classType: String) = classType == OZON_BIG_PROMO_NAVBAR_VIEW &&
+    name == "onLayout" &&
+    returnType == "V" &&
+    parameterTypes.size == 5 &&
+    hasImplementation()
 
-private fun Method.isCellListV2MapperInvoke(classType: String) =
-    classType == OZON_CELL_LIST_V2_MAPPER &&
-        name == "invoke" &&
-        returnType == "Ljava/util/List;" &&
-        parameterTypes.size == 2 &&
-        hasImplementation()
+private fun Method.isBigPromoNavbarMeasureMethod(classType: String) = classType == OZON_BIG_PROMO_NAVBAR_VIEW &&
+    name == "onMeasure" &&
+    returnType == "V" &&
+    parameterTypes.size == 2 &&
+    hasImplementation()
 
-private fun Method.isCellV2ViewHolderBind(classType: String) =
-    classType == OZON_CELL_V2_VIEW_HOLDER &&
-        name == "bind" &&
-        returnType == "V" &&
-        parameterTypes.size == 2 &&
-        parameterTypes[0].toString() == OZON_CELL_V2_VIEW_OBJECT &&
-        hasImplementation()
+private fun Method.isShellNavbarBgSetBackground(classType: String) = classType == OZON_SHELL_NAVBAR_BG_VIEW &&
+    name == "setBackground" &&
+    returnType == "V" &&
+    parameterTypes.size == 1 &&
+    parameterTypes[0].toString() == "Landroid/graphics/drawable/Drawable;" &&
+    hasImplementation()
 
-private fun Method.isCommonCellV2ViewHolderBind(classType: String) =
-    classType == OZON_COMMON_CELL_V2_VIEW_HOLDER &&
-        name == "bind" &&
-        returnType == "V" &&
-        parameterTypes.size == 2 &&
-        parameterTypes[0].toString() == "Lru/ozon/app/android/common/cellList/v2/presentation/CellV2VO;" &&
-        hasImplementation()
-
-private fun Method.isImageTitleSubtitleCellV2Bind(classType: String) =
-    classType.endsWith(OZON_IMAGE_TITLE_SUBTITLE_CELL_V2_HOLDER_SUFFIX) &&
-        name == "onBind" &&
-        returnType == "V" &&
-        parameterTypes.size == 1 &&
-        parameterTypes[0].toString().endsWith("/atoms/data/cell/ImageTitleSubtitleCellDTO;") &&
-        hasImplementation()
-
-private fun Method.isBigPromoNavbarLayoutMethod(classType: String) =
-    classType == OZON_BIG_PROMO_NAVBAR_VIEW &&
-        name == "onLayout" &&
-        returnType == "V" &&
-        parameterTypes.size == 5 &&
-        hasImplementation()
-
-private fun Method.isBigPromoNavbarMeasureMethod(classType: String) =
-    classType == OZON_BIG_PROMO_NAVBAR_VIEW &&
-        name == "onMeasure" &&
-        returnType == "V" &&
-        parameterTypes.size == 2 &&
-        hasImplementation()
-
-private fun Method.isShellNavbarBgSetBackground(classType: String) =
-    classType == OZON_SHELL_NAVBAR_BG_VIEW &&
-        name == "setBackground" &&
-        returnType == "V" &&
-        parameterTypes.size == 1 &&
-        parameterTypes[0].toString() == "Landroid/graphics/drawable/Drawable;" &&
-        hasImplementation()
-
-private fun Method.isShellNavbarBgSetBackgroundColor(classType: String) =
-    classType == OZON_SHELL_NAVBAR_BG_VIEW &&
-        name == "setBackgroundColor" &&
-        returnType == "V" &&
-        parameterTypes.size == 1 &&
-        parameterTypes[0].toString() == "I" &&
-        hasImplementation()
+private fun Method.isShellNavbarBgSetBackgroundColor(classType: String) = classType == OZON_SHELL_NAVBAR_BG_VIEW &&
+    name == "setBackgroundColor" &&
+    returnType == "V" &&
+    parameterTypes.size == 1 &&
+    parameterTypes[0].toString() == "I" &&
+    hasImplementation()
 
 private fun Element.hideWidgetRoot() {
     setAttribute("android:layout_width", "0dp")
@@ -351,9 +333,11 @@ val removeOzonAdsPatch = bytecodePatch(
                                 classType.startsWith("Lru/ozon/app/android/") -> {
                                     "Lru/ozon/app/android/atoms/v3/AtomV3;"
                                 }
+
                                 classType.startsWith("Lru/ozon/uni/") -> {
                                     "Lru/ozon/uni/atoms/v3/AtomV3;"
                                 }
+
                                 else -> return@forEach
                             }
 

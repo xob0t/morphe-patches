@@ -39,8 +39,8 @@ private fun amoledRgbOf(value: String): String {
 
 private fun isAmoledSurfaceColorName(name: String): Boolean {
     val n = name.lowercase()
-    return n.endsWith("white") ||                 // page background (white / *_white / common_white)
-        n.endsWith("old_background") ||           // legacy screen background
+    return n.endsWith("white") || // page background (white / *_white / common_white)
+        n.endsWith("old_background") || // legacy screen background
         n == "tab_bar_background" ||
         // Navigation chrome (#191919): the bottom nav/tab bar (ru_bg_elevation2),
         // bottom action panel, floating contact actions and the SERP filter toolbar.

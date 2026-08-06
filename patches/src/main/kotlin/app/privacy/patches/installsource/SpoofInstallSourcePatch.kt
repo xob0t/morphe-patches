@@ -14,8 +14,7 @@ private const val PLAY_STORE_PACKAGE = "com.android.vending"
 private const val PACKAGE_MANAGER = "Landroid/content/pm/PackageManager;"
 private const val INSTALL_SOURCE_INFO = "Landroid/content/pm/InstallSourceInfo;"
 
-private fun com.android.tools.smali.dexlib2.iface.instruction.Instruction.methodReferenceOrNull(): MethodReference? =
-    (this as? ReferenceInstruction)?.reference as? MethodReference
+private fun com.android.tools.smali.dexlib2.iface.instruction.Instruction.methodReferenceOrNull(): MethodReference? = (this as? ReferenceInstruction)?.reference as? MethodReference
 
 private fun Instruction.isInstallSourcePatchTarget(): Boolean {
     if (opcode !in setOf(Opcode.INVOKE_VIRTUAL, Opcode.INVOKE_VIRTUAL_RANGE)) return false
@@ -25,26 +24,23 @@ private fun Instruction.isInstallSourcePatchTarget(): Boolean {
         reference.isInstallSourceInfoPackageGetter()
 }
 
-private fun MethodReference.isPackageManagerGetInstallerPackageName() =
-    definingClass == PACKAGE_MANAGER &&
-        name == "getInstallerPackageName" &&
-        parameterTypes.size == 1 &&
-        parameterTypes[0].toString() == "Ljava/lang/String;" &&
-        returnType == "Ljava/lang/String;"
+private fun MethodReference.isPackageManagerGetInstallerPackageName() = definingClass == PACKAGE_MANAGER &&
+    name == "getInstallerPackageName" &&
+    parameterTypes.size == 1 &&
+    parameterTypes[0].toString() == "Ljava/lang/String;" &&
+    returnType == "Ljava/lang/String;"
 
-private fun MethodReference.isInstallSourceInfoPackageGetter() =
-    definingClass == INSTALL_SOURCE_INFO &&
-        name in setOf(
-            "getInitiatingPackageName",
-            "getInstallingPackageName",
-            "getOriginatingPackageName",
-            "getUpdateOwnerPackageName",
-        ) &&
-        parameterTypes.isEmpty() &&
-        returnType == "Ljava/lang/String;"
+private fun MethodReference.isInstallSourceInfoPackageGetter() = definingClass == INSTALL_SOURCE_INFO &&
+    name in setOf(
+        "getInitiatingPackageName",
+        "getInstallingPackageName",
+        "getOriginatingPackageName",
+        "getUpdateOwnerPackageName",
+    ) &&
+    parameterTypes.isEmpty() &&
+    returnType == "Ljava/lang/String;"
 
-private fun Method.hasInstallSourcePatchTarget(): Boolean =
-    instructionsOrNull?.any { it.isInstallSourcePatchTarget() } == true
+private fun Method.hasInstallSourcePatchTarget(): Boolean = instructionsOrNull?.any { it.isInstallSourcePatchTarget() } == true
 
 @Suppress("unused")
 val spoofInstallSourcePatch = bytecodePatch(

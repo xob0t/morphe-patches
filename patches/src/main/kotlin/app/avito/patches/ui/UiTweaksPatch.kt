@@ -11,6 +11,7 @@ import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.smali.ExternalLabel
+import app.shared.*
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.ClassDef
@@ -19,7 +20,6 @@ import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 import com.android.tools.smali.dexlib2.iface.reference.TypeReference
-import app.shared.*
 
 private const val NAVIGATION_TAB = "Lcom/avito/android/bottom_navigation/NavigationTab;"
 private const val BOTTOM_NAVIGATION_SPACE = "Lcom/avito/android/bottom_navigation/space/BottomNavigationSpace;"
@@ -41,20 +41,16 @@ private val PROFILE_PRO_OUTPUT_ITEM_TYPES = setOf(
     "Lcom/avito/android/profile/pro/impl/screen/item/widget_group/widget/ProfileProWidgetItem;",
 )
 
-private fun Method.usesBottomNavigationSpace() =
-    parameterTypes.any { it.toString() == BOTTOM_NAVIGATION_SPACE }
+private fun Method.usesBottomNavigationSpace() = parameterTypes.any { it.toString() == BOTTOM_NAVIGATION_SPACE }
 
-private fun Method.hasFieldReference(fields: Set<String>): Boolean =
-    instructionsOrNull?.any { instruction ->
-        val reference = instruction.fieldReferenceOrNull() ?: return@any false
-        reference.definingClass == NAVIGATION_TAB && reference.name in fields
-    } == true
+private fun Method.hasFieldReference(fields: Set<String>): Boolean = instructionsOrNull?.any { instruction ->
+    val reference = instruction.fieldReferenceOrNull() ?: return@any false
+    reference.definingClass == NAVIGATION_TAB && reference.name in fields
+} == true
 
-private fun FieldReference.sameFieldAs(other: FieldReference) =
-    definingClass == other.definingClass && name == other.name && type == other.type
+private fun FieldReference.sameFieldAs(other: FieldReference) = definingClass == other.definingClass && name == other.name && type == other.type
 
-private fun Method.hasString(value: String) =
-    instructionsOrNull?.any { instruction -> instruction.stringReferenceOrNull() == value } == true
+private fun Method.hasString(value: String) = instructionsOrNull?.any { instruction -> instruction.stringReferenceOrNull() == value } == true
 
 private fun Method.fieldAfterString(value: String, definingClass: String, type: String): FieldReference? {
     val instructions = instructionsOrNull?.toList() ?: return null
@@ -69,13 +65,12 @@ private fun Method.fieldAfterString(value: String, definingClass: String, type: 
         }
 }
 
-private fun Method.getterForField(field: FieldReference) =
-    parameterTypes.isEmpty() &&
-        returnType == field.type &&
-        implementation != null &&
-        instructionsOrNull?.any { instruction ->
-            instruction.fieldReferenceOrNull()?.sameFieldAs(field) == true
-        } == true
+private fun Method.getterForField(field: FieldReference) = parameterTypes.isEmpty() &&
+    returnType == field.type &&
+    implementation != null &&
+    instructionsOrNull?.any { instruction ->
+        instruction.fieldReferenceOrNull()?.sameFieldAs(field) == true
+    } == true
 
 private data class FavoritesTabsControlFilterTarget(
     val index: Int,
@@ -108,27 +103,24 @@ private fun Method.favoritesTabsControlFilterTarget(): FavoritesTabsControlFilte
     )
 }
 
-private fun ClassDef.isFavoritesTabModel() =
-    type.startsWith(FAVORITES_ADAPTER_PACKAGE) &&
-        AccessFlags.ABSTRACT.isSet(accessFlags) &&
-        interfaces.any { it.toString() == "Landroid/os/Parcelable;" } &&
-        fields.count { it.type == "I" } == 1 &&
-        fields.count { it.type == "Ljava/lang/String;" } == 2 &&
-        methods.count { method ->
-            method.implementation != null &&
-                method.parameterTypes.isEmpty() &&
-                method.returnType == "Ljava/lang/String;"
-        } >= 2
+private fun ClassDef.isFavoritesTabModel() = type.startsWith(FAVORITES_ADAPTER_PACKAGE) &&
+    AccessFlags.ABSTRACT.isSet(accessFlags) &&
+    interfaces.any { it.toString() == "Landroid/os/Parcelable;" } &&
+    fields.count { it.type == "I" } == 1 &&
+    fields.count { it.type == "Ljava/lang/String;" } == 2 &&
+    methods.count { method ->
+        method.implementation != null &&
+            method.parameterTypes.isEmpty() &&
+            method.returnType == "Ljava/lang/String;"
+    } >= 2
 
-private fun Method.isFavoritesTabViewBind(modelType: String) =
-    returnType == "V" &&
-        parameterTypes.map { it.toString() } == listOf(modelType) &&
-        implementation != null
+private fun Method.isFavoritesTabViewBind(modelType: String) = returnType == "V" &&
+    parameterTypes.map { it.toString() } == listOf(modelType) &&
+    implementation != null
 
-private fun Method.isFavoritesTabTitleBind() =
-    returnType == "V" &&
-        parameterTypes.map { it.toString() } == listOf("Ljava/lang/String;", "Ljava/lang/String;") &&
-        implementation != null
+private fun Method.isFavoritesTabTitleBind() = returnType == "V" &&
+    parameterTypes.map { it.toString() } == listOf("Ljava/lang/String;", "Ljava/lang/String;") &&
+    implementation != null
 
 private fun Method.profileProOutputItemTypes(): Set<String> {
     if (returnType != "Ljava/util/ArrayList;" || implementation == null || parameterTypes.size != 1) {
@@ -502,8 +494,11 @@ val uiTweaksPatch = bytecodePatch(
             )
             println(
                 "UI tweaks: gated $profilePromoConvertersPatched profile promo converter(s)" +
-                    if (missingProfileOutputItemTypes.isEmpty()) "." else
-                        "; missing ${missingProfileOutputItemTypes.joinToString()}.",
+                    if (missingProfileOutputItemTypes.isEmpty()) {
+                        "."
+                    } else {
+                        "; missing ${missingProfileOutputItemTypes.joinToString()}."
+                    },
             )
         }
 

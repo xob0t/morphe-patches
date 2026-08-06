@@ -50,48 +50,41 @@ private val bannerRenderMethods = setOf(
 
 private fun Method.hasImplementation() = implementation != null
 
-private fun Method.isListReturnMethod(name: String) =
-    this.name == name &&
-        returnType == "Ljava/util/List;" &&
-        hasImplementation()
+private fun Method.isListReturnMethod(name: String) = this.name == name &&
+    returnType == "Ljava/util/List;" &&
+    hasImplementation()
 
-private fun Method.isArrayListReturnMethod(name: String) =
-    this.name == name &&
-        returnType == "Ljava/util/ArrayList;" &&
-        hasImplementation()
+private fun Method.isArrayListReturnMethod(name: String) = this.name == name &&
+    returnType == "Ljava/util/ArrayList;" &&
+    hasImplementation()
 
-private fun Method.isBooleanMethod(name: String) =
-    this.name == name &&
-        returnType == "Z" &&
-        hasImplementation()
+private fun Method.isBooleanMethod(name: String) = this.name == name &&
+    returnType == "Z" &&
+    hasImplementation()
 
-private fun Method.isVoidMethod(name: String) =
-    this.name == name &&
-        returnType == "V" &&
-        hasImplementation()
+private fun Method.isVoidMethod(name: String) = this.name == name &&
+    returnType == "V" &&
+    hasImplementation()
 
 // A Kotlin `suspend` function lowers to a trailing `Continuation` param. R8 on
 // 7.7.2001 specializes many of these to the concrete `ContinuationImpl` subtype,
 // so an exact match on `Lkotlin/coroutines/Continuation;` silently misses them
 // (this alone dropped lottery `handleTicketCommand`/`emitDelegateEvent` and raffle
 // `observe`/`invalidate`). Accept either the interface or the specialized subtype.
-private fun Method.hasContinuationTail() =
-    parameterTypes.lastOrNull()?.toString().let {
-        it == "Lkotlin/coroutines/Continuation;" ||
-            it == "Lkotlin/coroutines/jvm/internal/ContinuationImpl;"
-    }
+private fun Method.hasContinuationTail() = parameterTypes.lastOrNull()?.toString().let {
+    it == "Lkotlin/coroutines/Continuation;" ||
+        it == "Lkotlin/coroutines/jvm/internal/ContinuationImpl;"
+}
 
-private fun Method.isSuspendUnitMethod(name: String) =
-    this.name == name &&
-        returnType == "Ljava/lang/Object;" &&
-        hasContinuationTail() &&
-        hasImplementation()
+private fun Method.isSuspendUnitMethod(name: String) = this.name == name &&
+    returnType == "Ljava/lang/Object;" &&
+    hasContinuationTail() &&
+    hasImplementation()
 
-private fun Method.isSuspendObjectMethod(name: String) =
-    this.name == name &&
-        returnType == "Ljava/lang/Object;" &&
-        hasContinuationTail() &&
-        hasImplementation()
+private fun Method.isSuspendObjectMethod(name: String) = this.name == name &&
+    returnType == "Ljava/lang/Object;" &&
+    hasContinuationTail() &&
+    hasImplementation()
 
 /**
  * Matches every `ru.wildberries.*` method named `isBigSaleSearchBarEnabled`
@@ -123,37 +116,30 @@ private object BigSaleSearchBarFingerprint : Fingerprint(
 // lambda `…$observeIsEnabled$1`). Forcing both to false reverts the header to the
 // app's own non-sale toolbar — MainPageComposeFragment selects the normal bar when
 // the flag is false.
-private fun String.isBigSaleSearchBarUseCaseClass() =
-    startsWith("Lru/wildberries/mainpage/") &&
-        endsWith("/IsBigSaleSearchBarEnabledUseCase;")
+private fun String.isBigSaleSearchBarUseCaseClass() = startsWith("Lru/wildberries/mainpage/") &&
+    endsWith("/IsBigSaleSearchBarEnabledUseCase;")
 
-private fun String.isBigSaleSearchBarObserveLambdaClass() =
-    startsWith("Lru/wildberries/mainpage/") &&
-        contains("IsBigSaleSearchBarEnabledUseCase") &&
-        endsWith("observeIsEnabled\$1;")
+private fun String.isBigSaleSearchBarObserveLambdaClass() = startsWith("Lru/wildberries/mainpage/") &&
+    contains("IsBigSaleSearchBarEnabledUseCase") &&
+    endsWith("observeIsEnabled\$1;")
 
-private fun String.isBannersUiWrapperClass() =
-    startsWith("Lru/wildberries/mainpage/") &&
-        endsWith("BannersUiWrapper;")
+private fun String.isBannersUiWrapperClass() = startsWith("Lru/wildberries/mainpage/") &&
+    endsWith("BannersUiWrapper;")
 
-private fun String.isMainBannersModelClass() =
-    startsWith("Lru/wildberries/banners/") &&
-        endsWith("MainBanners;")
+private fun String.isMainBannersModelClass() = startsWith("Lru/wildberries/banners/") &&
+    endsWith("MainBanners;")
 
-private fun String.isBannerMapperClass() =
-    startsWith("Lru/wildberries/banners/") &&
-        contains("/data/mapper/") &&
-        endsWith("BannersMapperImpl;")
+private fun String.isBannerMapperClass() = startsWith("Lru/wildberries/banners/") &&
+    contains("/data/mapper/") &&
+    endsWith("BannersMapperImpl;")
 
-private fun String.isBannerDataSourceClass() =
-    startsWith("Lru/wildberries/banners/") &&
-        contains("/data/source/") &&
-        endsWith("BannersDataSource;")
+private fun String.isBannerDataSourceClass() = startsWith("Lru/wildberries/banners/") &&
+    contains("/data/source/") &&
+    endsWith("BannersDataSource;")
 
-private fun String.isMainPageBannerRenderClass() =
-    startsWith("Lru/wildberries/mainpage/") &&
-        contains("/presentation/compose/") &&
-        (endsWith("MainPageBannersCarouselKt;") || endsWith("MainPageGridBannersKt;"))
+private fun String.isMainPageBannerRenderClass() = startsWith("Lru/wildberries/mainpage/") &&
+    contains("/presentation/compose/") &&
+    (endsWith("MainPageBannersCarouselKt;") || endsWith("MainPageGridBannersKt;"))
 
 // The profile ("personal page") screen renders its own banner section, separate
 // from the main-page banner path above. `PersonalPageBanners` is the whole
@@ -163,52 +149,41 @@ private fun String.isMainPageBannerRenderClass() =
 // placeholder. Neutralising the section composable to `return-void` (before it
 // opens its restart group) reproduces the app's own no-banners state: the caller's
 // `BannersBlock` else-branch already renders nothing, so there is no layout gap.
-private fun String.isPersonalPageBannerRenderClass() =
-    startsWith("Lru/wildberries/personalpage/") &&
-        contains("/presentation/compose/") &&
-        endsWith("PersonalPageBannersKt;")
+private fun String.isPersonalPageBannerRenderClass() = startsWith("Lru/wildberries/personalpage/") &&
+    contains("/presentation/compose/") &&
+    endsWith("PersonalPageBannersKt;")
 
-private fun String.isBigLotteryDelegateClass() =
-    startsWith("Lru/wildberries/mainpage/") &&
-        contains("/biglottery/") &&
-        endsWith("BigLotteryDelegate;")
+private fun String.isBigLotteryDelegateClass() = startsWith("Lru/wildberries/mainpage/") &&
+    contains("/biglottery/") &&
+    endsWith("BigLotteryDelegate;")
 
-private fun String.isBigLotteryMapperClass() =
-    startsWith("Lru/wildberries/mainpage/") &&
-        contains("/biglottery/").not() &&
-        endsWith("BigLotteryMapper;")
+private fun String.isBigLotteryMapperClass() = startsWith("Lru/wildberries/mainpage/") &&
+    contains("/biglottery/").not() &&
+    endsWith("BigLotteryMapper;")
 
-private fun String.isBigLotteryUseCaseClass() =
-    startsWith("Lru/wildberries/tickets/") &&
-        endsWith("BigLotteryUseCaseFacadeImpl;")
+private fun String.isBigLotteryUseCaseClass() = startsWith("Lru/wildberries/tickets/") &&
+    endsWith("BigLotteryUseCaseFacadeImpl;")
 
-private fun String.isRandomTicketSpawnsUseCaseClass() =
-    startsWith("Lru/wildberries/tickets/") &&
-        endsWith("IsRandomTicketSpawnsEnabledUseCaseImpl;")
+private fun String.isRandomTicketSpawnsUseCaseClass() = startsWith("Lru/wildberries/tickets/") &&
+    endsWith("IsRandomTicketSpawnsEnabledUseCaseImpl;")
 
-private fun String.isCartScreenStateClass() =
-    startsWith("Lru/wildberries/cart/") &&
-        endsWith("ProductCartUiState\$Screen;")
+private fun String.isCartScreenStateClass() = startsWith("Lru/wildberries/cart/") &&
+    endsWith("ProductCartUiState\$Screen;")
 
-private fun String.isCartRecommendationsViewModelClass() =
-    startsWith("Lru/wildberries/cart/") &&
-        endsWith("RecommendationsViewModel;")
+private fun String.isCartRecommendationsViewModelClass() = startsWith("Lru/wildberries/cart/") &&
+    endsWith("RecommendationsViewModel;")
 
-private fun String.isProductSellerRecommendationsControllerClass() =
-    startsWith("Lru/wildberries/productcard/") &&
-        endsWith("SellerRecommendationsBlockControllerKt;")
+private fun String.isProductSellerRecommendationsControllerClass() = startsWith("Lru/wildberries/productcard/") &&
+    endsWith("SellerRecommendationsBlockControllerKt;")
 
-private fun String.isRaffleRepositoryClass() =
-    startsWith("Lru/wildberries/raffle/") &&
-        endsWith("RaffleDataRepositoryImpl;")
+private fun String.isRaffleRepositoryClass() = startsWith("Lru/wildberries/raffle/") &&
+    endsWith("RaffleDataRepositoryImpl;")
 
-private fun String.isRaffleSharedComposableClass() =
-    startsWith("Lru/wildberries/raffle/") &&
-        endsWith("RaffleSharedComposableImpl;")
+private fun String.isRaffleSharedComposableClass() = startsWith("Lru/wildberries/raffle/") &&
+    endsWith("RaffleSharedComposableImpl;")
 
-private fun String.isRaffleItemComposableClass() =
-    startsWith("Lru/wildberries/raffle/") &&
-        endsWith("RaffleItemKt;")
+private fun String.isRaffleItemComposableClass() = startsWith("Lru/wildberries/raffle/") &&
+    endsWith("RaffleItemKt;")
 
 @Suppress("unused")
 val removeWildberriesAdsPatch = bytecodePatch(
@@ -558,8 +533,10 @@ val removeWildberriesAdsPatch = bytecodePatch(
                             // 7.6.x exposed a synthetic `access$isBigLotteryEnabled`;
                             // 7.7.2001 dropped the `access$` wrapper for the direct
                             // instance method `isBigLotteryEnabled(User)Z`. Match either.
-                            (method.name == "access\$isBigLotteryEnabled" ||
-                                method.name == "isBigLotteryEnabled") &&
+                            (
+                                method.name == "access\$isBigLotteryEnabled" ||
+                                    method.name == "isBigLotteryEnabled"
+                                ) &&
                                 method.returnType == "Z" &&
                                 method.hasImplementation() -> {
                                 method.addInstructions(

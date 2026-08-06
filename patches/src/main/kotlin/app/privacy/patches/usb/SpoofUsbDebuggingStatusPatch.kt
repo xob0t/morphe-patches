@@ -3,11 +3,11 @@ package app.privacy.patches.usb
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.patch.bytecodePatch
+import app.shared.*
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
-import app.shared.*
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.RegisterRangeInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
@@ -26,43 +26,39 @@ private const val SETTINGS_SECURE = "Landroid/provider/Settings\$Secure;"
 private const val SETTINGS_SYSTEM = "Landroid/provider/Settings\$System;"
 private const val DEBUG = "Landroid/os/Debug;"
 
-private fun zeroConstant(register: Int) =
-    if (register <= 15) {
-        "const/4 v$register, 0x0"
-    } else {
-        "const/16 v$register, 0x0"
-    }
+private fun zeroConstant(register: Int) = if (register <= 15) {
+    "const/4 v$register, 0x0"
+} else {
+    "const/16 v$register, 0x0"
+}
 
-private fun Instruction.registers(): List<Int> =
-    when (this) {
-        is FiveRegisterInstruction -> listOf(registerC, registerD, registerE, registerF, registerG)
-            .take(registerCount)
+private fun Instruction.registers(): List<Int> = when (this) {
+    is FiveRegisterInstruction -> listOf(registerC, registerD, registerE, registerF, registerG)
+        .take(registerCount)
 
-        is RegisterRangeInstruction -> (startRegister until startRegister + registerCount).toList()
-        else -> emptyList()
-    }
+    is RegisterRangeInstruction -> (startRegister until startRegister + registerCount).toList()
 
-private fun MethodReference.isSettingsGetInt() =
-    definingClass in setOf(SETTINGS_GLOBAL, SETTINGS_SECURE, SETTINGS_SYSTEM) &&
-        name == "getInt" &&
-        parameterTypes.size in 2..3 &&
-        parameterTypes[0].toString() == "Landroid/content/ContentResolver;" &&
-        parameterTypes[1].toString() == "Ljava/lang/String;" &&
-        returnType == "I"
+    else -> emptyList()
+}
 
-private fun MethodReference.isSettingsGetString() =
-    definingClass in setOf(SETTINGS_GLOBAL, SETTINGS_SECURE, SETTINGS_SYSTEM) &&
-        name == "getString" &&
-        parameterTypes.size == 2 &&
-        parameterTypes[0].toString() == "Landroid/content/ContentResolver;" &&
-        parameterTypes[1].toString() == "Ljava/lang/String;" &&
-        returnType == "Ljava/lang/String;"
+private fun MethodReference.isSettingsGetInt() = definingClass in setOf(SETTINGS_GLOBAL, SETTINGS_SECURE, SETTINGS_SYSTEM) &&
+    name == "getInt" &&
+    parameterTypes.size in 2..3 &&
+    parameterTypes[0].toString() == "Landroid/content/ContentResolver;" &&
+    parameterTypes[1].toString() == "Ljava/lang/String;" &&
+    returnType == "I"
 
-private fun MethodReference.isDebuggerStateRead() =
-    definingClass == DEBUG &&
-        name in setOf("isDebuggerConnected", "waitingForDebugger") &&
-        parameterTypes.isEmpty() &&
-        returnType == "Z"
+private fun MethodReference.isSettingsGetString() = definingClass in setOf(SETTINGS_GLOBAL, SETTINGS_SECURE, SETTINGS_SYSTEM) &&
+    name == "getString" &&
+    parameterTypes.size == 2 &&
+    parameterTypes[0].toString() == "Landroid/content/ContentResolver;" &&
+    parameterTypes[1].toString() == "Ljava/lang/String;" &&
+    returnType == "Ljava/lang/String;"
+
+private fun MethodReference.isDebuggerStateRead() = definingClass == DEBUG &&
+    name in setOf("isDebuggerConnected", "waitingForDebugger") &&
+    parameterTypes.isEmpty() &&
+    returnType == "Z"
 
 private fun List<Instruction>.constantStringForRegisterBefore(index: Int, register: Int): String? {
     for (candidateIndex in index - 1 downTo maxOf(0, index - 16)) {
@@ -108,34 +104,33 @@ private fun Instruction.writesRegister(register: Int): Boolean {
         Opcode.SGET_CHAR,
         Opcode.SGET_OBJECT,
         Opcode.SGET_SHORT,
-            -> true
+        -> true
 
         else -> false
     }
 }
 
-private fun List<Instruction>.hasUsbDebugPatchTarget(): Boolean =
-    withIndex().any { (index, instruction) ->
-        val reference = instruction.methodReferenceOrNull() ?: return@any false
-        val registers = instruction.registers()
-        val settingRegister = registers.getOrNull(1)
+private fun List<Instruction>.hasUsbDebugPatchTarget(): Boolean = withIndex().any { (index, instruction) ->
+    val reference = instruction.methodReferenceOrNull() ?: return@any false
+    val registers = instruction.registers()
+    val settingRegister = registers.getOrNull(1)
 
-        when {
-            reference.isDebuggerStateRead() -> true
-            reference.isSettingsGetInt() && settingRegister != null ->
-                constantStringForRegisterBefore(index, settingRegister)
-                    ?.let { it in USB_DEBUG_INTEGER_SETTINGS }
-                    ?: true
+    when {
+        reference.isDebuggerStateRead() -> true
 
-            reference.isSettingsGetString() && settingRegister != null ->
-                constantStringForRegisterBefore(index, settingRegister) in USB_DEBUG_STRING_SETTINGS
+        reference.isSettingsGetInt() && settingRegister != null ->
+            constantStringForRegisterBefore(index, settingRegister)
+                ?.let { it in USB_DEBUG_INTEGER_SETTINGS }
+                ?: true
 
-            else -> false
-        }
+        reference.isSettingsGetString() && settingRegister != null ->
+            constantStringForRegisterBefore(index, settingRegister) in USB_DEBUG_STRING_SETTINGS
+
+        else -> false
     }
+}
 
-private fun Method.hasUsbDebugPatchTarget(): Boolean =
-    instructionsOrNull?.toList()?.hasUsbDebugPatchTarget() == true
+private fun Method.hasUsbDebugPatchTarget(): Boolean = instructionsOrNull?.toList()?.hasUsbDebugPatchTarget() == true
 
 @Suppress("unused")
 val spoofUsbDebuggingStatusPatch = bytecodePatch(

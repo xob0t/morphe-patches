@@ -27,23 +27,22 @@ private fun patchBundleVersion(): String = runCatching {
     }
 }.getOrNull()?.takeIf { it.isNotBlank() } ?: "неизвестна"
 
-private fun Method.isKonveyorBind(definingClass: String, getItem: Method): Boolean =
-    implementation != null &&
-        returnType == "V" &&
-        parameterTypes.map { it.toString() }.let { params ->
-            params.size == 3 &&
-                params[0].startsWith("L") &&
-                params[1] == "I" &&
-                params[2] == "Ljava/util/List;"
-        } &&
-        instructionsOrNull?.any { it.stringReferenceOrNull() == KONVEYOR_BIND_MARKER } == true &&
-        instructionsOrNull?.any { instruction ->
-            val reference = instruction.methodReferenceOrNull() ?: return@any false
-            reference.definingClass == definingClass &&
-                reference.name == "getItem" &&
-                reference.parameterTypes.map { it.toString() } == listOf("I") &&
-                reference.returnType == getItem.returnType
-        } == true
+private fun Method.isKonveyorBind(definingClass: String, getItem: Method): Boolean = implementation != null &&
+    returnType == "V" &&
+    parameterTypes.map { it.toString() }.let { params ->
+        params.size == 3 &&
+            params[0].startsWith("L") &&
+            params[1] == "I" &&
+            params[2] == "Ljava/util/List;"
+    } &&
+    instructionsOrNull?.any { it.stringReferenceOrNull() == KONVEYOR_BIND_MARKER } == true &&
+    instructionsOrNull?.any { instruction ->
+        val reference = instruction.methodReferenceOrNull() ?: return@any false
+        reference.definingClass == definingClass &&
+            reference.name == "getItem" &&
+            reference.parameterTypes.map { it.toString() } == listOf("I") &&
+            reference.returnType == getItem.returnType
+    } == true
 
 /**
  * Registers the generic Morphe settings screen ([MORPHE_SETTINGS_ACTIVITY],

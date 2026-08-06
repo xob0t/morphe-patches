@@ -69,7 +69,7 @@ val hideProfessionalSellersPatch = bytecodePatch(
                 filtersOnCreate.addInstructions(
                     returnIndex,
                     "invoke-static/range {p0 .. p0}, " +
-                    "$SELLER_FILTER_CLASS->attachToFilterActivity(Landroid/app/Activity;)V",
+                        "$SELLER_FILTER_CLASS->attachToFilterActivity(Landroid/app/Activity;)V",
                 )
             }
             widgetFiltersHooks = returnIndices.size
@@ -87,7 +87,7 @@ val hideProfessionalSellersPatch = bytecodePatch(
                 homeOnCreate.addInstructions(
                     returnIndex,
                     "invoke-static/range {p0 .. p0}, " +
-                    "$SELLER_FILTER_CLASS->observeHostActivity(Landroid/app/Activity;)V",
+                        "$SELLER_FILTER_CLASS->observeHostActivity(Landroid/app/Activity;)V",
                 )
             }
             homeActivityHooks = returnIndices.size

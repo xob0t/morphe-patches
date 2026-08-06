@@ -10,8 +10,8 @@ import app.shared.childrenNamed
 import app.shared.getOrCreateApplicationMetaData
 import app.shared.methodReferenceOrNull
 import app.shared.removeChildren
-import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.AccessFlags
+import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
@@ -103,18 +103,16 @@ private fun Method.galleryTeaserParameterIndexes(): List<Int> {
     return listOf(galleryTeaserIndex) + extraTeaserListIndexes
 }
 
-private fun nullParametersInstructions(parameterIndexes: List<Int>) =
-    buildString {
-        appendLine("const/4 v0, 0x0")
-        parameterIndexes.forEach { index ->
-            appendLine("move-object/from16 p$index, v0")
-        }
+private fun nullParametersInstructions(parameterIndexes: List<Int>) = buildString {
+    appendLine("const/4 v0, 0x0")
+    parameterIndexes.forEach { index ->
+        appendLine("move-object/from16 p$index, v0")
     }
+}
 
-private fun MethodReference.isRxThrowableObservableFactory() =
-    definingClass == "Lio/reactivex/rxjava3/core/z;" &&
-        parameterTypes.map { it.toString() } == listOf("Ljava/lang/Throwable;") &&
-        returnType.startsWith("Lio/reactivex/rxjava3/")
+private fun MethodReference.isRxThrowableObservableFactory() = definingClass == "Lio/reactivex/rxjava3/core/z;" &&
+    parameterTypes.map { it.toString() } == listOf("Ljava/lang/Throwable;") &&
+    returnType.startsWith("Lio/reactivex/rxjava3/")
 
 private fun Element.hideView() {
     setAttribute("android:visibility", "gone")
@@ -140,12 +138,12 @@ private val removeAdResourcesPatch = resourcePatch {
 
             manifest.removeChildren(
                 manifest.childrenNamed("uses-permission")
-                    .filter { it.getAttribute("android:name") in adPermissions }
+                    .filter { it.getAttribute("android:name") in adPermissions },
             )
 
             application.removeChildren(
                 application.childrenNamed("property")
-                    .filter { it.getAttribute("android:name") in adProperties }
+                    .filter { it.getAttribute("android:name") in adProperties },
             )
 
             listOf("activity", "provider", "service", "receiver").forEach { tag ->

@@ -1,10 +1,10 @@
 package app.tbank.patches.ads
 
-import app.morphe.patcher.patch.resourcePatch
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
+import app.morphe.patcher.patch.resourcePatch
 import app.tbank.patches.shared.Constants.COMPATIBILITY_TBANK
 import org.w3c.dom.Element
 import java.io.FileNotFoundException
@@ -282,6 +282,7 @@ val removeTBankAdsPatch = bytecodePatch(
                         disabledFeatureToggles++
                         patchedFeatureToggleIdClasses += classDef.type
                     }
+
                     "getDefaultValue" -> {
                         method.addInstructions(
                             0,

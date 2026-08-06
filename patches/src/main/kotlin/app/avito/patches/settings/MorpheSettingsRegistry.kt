@@ -90,26 +90,27 @@ object MorpheSettingsRegistry {
     fun toJson(): String = entries.values
         .sortedWith(compareBy<Entry>({ it.section.order }, { it.order }, { it.title }))
         .joinToString(",", "[", "]") { entry ->
-        when (entry) {
-            is Switch -> buildString {
-                append("{\"type\":\"switch\",\"key\":").append(jsonString(entry.key))
-                append(",\"title\":").append(jsonString(entry.title))
-                if (entry.summary != null) append(",\"summary\":").append(jsonString(entry.summary))
-                append(",\"default\":").append(entry.default)
-                if (entry.restartRequired) append(",\"restart\":true")
-                append(",\"section\":").append(jsonString(entry.section.title))
-                append("}")
-            }
-            is Screen -> buildString {
-                append("{\"type\":\"screen\",\"key\":").append(jsonString(entry.key))
-                append(",\"title\":").append(jsonString(entry.title))
-                append(",\"activity\":").append(jsonString(entry.activity))
-                if (entry.summary != null) append(",\"summary\":").append(jsonString(entry.summary))
-                append(",\"section\":").append(jsonString(entry.section.title))
-                append("}")
+            when (entry) {
+                is Switch -> buildString {
+                    append("{\"type\":\"switch\",\"key\":").append(jsonString(entry.key))
+                    append(",\"title\":").append(jsonString(entry.title))
+                    if (entry.summary != null) append(",\"summary\":").append(jsonString(entry.summary))
+                    append(",\"default\":").append(entry.default)
+                    if (entry.restartRequired) append(",\"restart\":true")
+                    append(",\"section\":").append(jsonString(entry.section.title))
+                    append("}")
+                }
+
+                is Screen -> buildString {
+                    append("{\"type\":\"screen\",\"key\":").append(jsonString(entry.key))
+                    append(",\"title\":").append(jsonString(entry.title))
+                    append(",\"activity\":").append(jsonString(entry.activity))
+                    if (entry.summary != null) append(",\"summary\":").append(jsonString(entry.summary))
+                    append(",\"section\":").append(jsonString(entry.section.title))
+                    append("}")
+                }
             }
         }
-    }
 
     private fun jsonString(value: String): String = buildString {
         append('"')

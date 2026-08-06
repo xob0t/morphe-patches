@@ -4,10 +4,10 @@ import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
+import app.shared.*
 import app.tbank.patches.shared.Constants.COMPATIBILITY_TBANK
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
-import app.shared.*
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 
@@ -31,36 +31,32 @@ private val TAMPER_FLAG_NAMES = setOf(
 
 // Helpers.
 
-private fun MethodReference.isRaspExec() =
-    definingClass == RASP_EXECUTOR &&
-        name == "exec" &&
-        parameterTypes.size == 1 &&
-        parameterTypes[0].toString() == "J" &&
-        returnType == "Ljava/lang/String;"
+private fun MethodReference.isRaspExec() = definingClass == RASP_EXECUTOR &&
+    name == "exec" &&
+    parameterTypes.size == 1 &&
+    parameterTypes[0].toString() == "J" &&
+    returnType == "Ljava/lang/String;"
 
 // Matches every native void executor call: exec2, exec5, exec6, and any future
 // execN(boolean) the app adds. All share the RASP executor and a single boolean
 // parameter; 7.40.0 added exec5/exec6 alongside exec2, and an un-stubbed one hits
 // an unresolved JNI symbol (the native lib is blocked from loading) and crashes.
-private fun MethodReference.isRaspVoidExec() =
-    definingClass == RASP_EXECUTOR &&
-        name.startsWith("exec") &&
-        name.drop(4).all { it.isDigit() } &&
-        parameterTypes.size == 1 &&
-        parameterTypes[0].toString() == "Z" &&
-        returnType == "V"
+private fun MethodReference.isRaspVoidExec() = definingClass == RASP_EXECUTOR &&
+    name.startsWith("exec") &&
+    name.drop(4).all { it.isDigit() } &&
+    parameterTypes.size == 1 &&
+    parameterTypes[0].toString() == "Z" &&
+    returnType == "V"
 
-private fun MethodReference.isSystemLoadLibrary() =
-    definingClass == SYSTEM &&
-        name == "loadLibrary" &&
-        parameterTypes.size == 1 &&
-        parameterTypes[0].toString() == "Ljava/lang/String;" &&
-        returnType == "V"
+private fun MethodReference.isSystemLoadLibrary() = definingClass == SYSTEM &&
+    name == "loadLibrary" &&
+    parameterTypes.size == 1 &&
+    parameterTypes[0].toString() == "Ljava/lang/String;" &&
+    returnType == "V"
 
-private fun MethodReference.isTamperFlagConstructor() =
-    name == "<init>" &&
-        parameterTypes.map { it.toString() } == listOf("Ljava/lang/String;", "J") &&
-        returnType == "V"
+private fun MethodReference.isTamperFlagConstructor() = name == "<init>" &&
+    parameterTypes.map { it.toString() } == listOf("Ljava/lang/String;", "J") &&
+    returnType == "V"
 
 private fun List<Instruction>.tamperFlagProviderName(): String? {
     if (size != 5 ||

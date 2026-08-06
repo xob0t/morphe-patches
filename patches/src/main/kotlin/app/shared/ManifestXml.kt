@@ -70,8 +70,7 @@ internal fun Element.disableComponentsByName(vararg names: String): Int {
     return disableComponentsWhere { it in namesSet }
 }
 
-internal fun Element.disableComponentsByPrefix(vararg prefixes: String): Int =
-    disableComponentsWhere { name -> prefixes.any { prefix -> name.startsWith(prefix) } }
+internal fun Element.disableComponentsByPrefix(vararg prefixes: String): Int = disableComponentsWhere { name -> prefixes.any { prefix -> name.startsWith(prefix) } }
 
 internal fun Element.removeComponentDiscoveryRegistrarsWhere(predicate: (String) -> Boolean): Int {
     var removed = 0

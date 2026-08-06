@@ -3,10 +3,10 @@ package app.privacy.patches.security
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.patch.bytecodePatch
+import app.shared.*
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
-import app.shared.*
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 
 private const val CONTEXT = "Landroid/content/Context;"
@@ -22,13 +22,12 @@ private fun Method.hasFreeRaspStartContext(): Boolean {
     }
 }
 
-private fun MethodReference.isFreeRaspStartCandidate(): Boolean =
-    returnType == "V" &&
-        parameterTypes.size == 2 &&
-        parameterTypes[0].toString() == CONTEXT &&
-        parameterTypes[1].toString() != STRING &&
-        parameterTypes[1].toString() != "Z" &&
-        parameterTypes[1].toString() != "I"
+private fun MethodReference.isFreeRaspStartCandidate(): Boolean = returnType == "V" &&
+    parameterTypes.size == 2 &&
+    parameterTypes[0].toString() == CONTEXT &&
+    parameterTypes[1].toString() != STRING &&
+    parameterTypes[1].toString() != "Z" &&
+    parameterTypes[1].toString() != "I"
 
 @Suppress("unused")
 val disableFreeRaspPatch = bytecodePatch(
