@@ -1,9 +1,35 @@
 package app.avito.patches.ui
 
 import app.morphe.patcher.Fingerprint
+import app.morphe.patcher.InstructionLocation
 import app.morphe.patcher.fieldAccess
 import app.morphe.patcher.methodCall
+import app.morphe.patcher.opcode
 import app.morphe.patcher.string
+import com.android.tools.smali.dexlib2.Opcode
+
+internal const val VISUAL_RUBRICATOR_ITEM_MARKER = "VisualRubricatorWidgetElementItemImpl(stringId="
+internal const val ROW_LINE_MARKER = ", rowLine="
+
+object VisualRubricatorElementFingerprint : Fingerprint(
+    name = "toString",
+    returnType = "Ljava/lang/String;",
+    parameters = emptyList(),
+    filters = listOf(string(VISUAL_RUBRICATOR_ITEM_MARKER)),
+)
+
+object VisualRubricatorRowLineFingerprint : Fingerprint(
+    name = "toString",
+    returnType = "Ljava/lang/String;",
+    parameters = emptyList(),
+    filters = listOf(
+        string(ROW_LINE_MARKER),
+        fieldAccess(
+            definingClass = "this",
+            type = "Ljava/lang/Integer;",
+        ),
+    ),
+)
 
 /**
  * Matches the Favorites presenter method that consumes the assembled tab list and
@@ -24,6 +50,21 @@ object FavoritesTabsConsumerFingerprint : Fingerprint(
     // of that (non-obfuscated) type rather than scanning every instruction's reference.
     filters = listOf(
         fieldAccess(type = "Lcom/avito/android/user_favorites/UserFavoritesTabsRenderMode;"),
+    ),
+)
+
+object FavoritesTabsControlMapperFingerprint : Fingerprint(
+    filters = listOf(
+        methodCall(
+            definingClass = "Lcom/avito/android/user_favorites/tabs_control/",
+            parameters = listOf("I", "Ljava/util/List;"),
+            returnType = "Lcom/avito/android/user_favorites/tabs_control/",
+            opcodes = listOf(Opcode.INVOKE_STATIC, Opcode.INVOKE_STATIC_RANGE),
+        ),
+        opcode(
+            Opcode.MOVE_RESULT_OBJECT,
+            InstructionLocation.MatchAfterImmediately(),
+        ),
     ),
 )
 

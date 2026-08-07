@@ -2,14 +2,13 @@ package app.ozon.patches.ads
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.PatchException
+import app.morphe.patcher.patch.booleanOption
 import app.morphe.patcher.patch.bytecodePatch
-import app.morphe.patcher.patch.option
 import app.morphe.patcher.patch.resourcePatch
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
 import app.ozon.patches.shared.Constants.COMPATIBILITY_OZON
 import com.android.tools.smali.dexlib2.iface.Method
 import org.w3c.dom.Element
-import java.io.FileNotFoundException
 
 private const val OZON_AD_WIDGETS_PREFIX = "Lru/ozon/app/android/ads/widgets/"
 private const val OZON_INSTALLMENT_WIDGETS_PREFIX = "Lru/ozon/app/android/pdp/widgets/installmentPurchase/"
@@ -22,11 +21,10 @@ private const val OZON_REC_SHELF_VIEW_MODEL =
 private const val OZON_CROSS_SALE_PREFIX = "Lru/ozon/app/android/pdp/widgets/crosssale/"
 private const val OZON_CMS_BANNER_CAROUSEL_PREFIX =
     "Lru/ozon/app/android/storefront/widgets/cms/bannercarousel/"
-private const val OZON_BIG_PROMO_NAVBAR_VIEW =
-    "Lru/ozon/app/android/marketing/widgets/bigPromoNavbar/presentation/BigPromoNavbarView;"
-private const val OZON_SHELL_NAVBAR_BG_VIEW =
-    "Lru/ozon/app/android/storefront/widgets/navbarv2/presentation/views/ShellNavBarBgView;"
-private const val OZON_NAVBAR_BACKGROUND_COLOR = -0xffa401 // #FF005BFF
+private const val OZON_BIG_PROMO_NAVBAR_MAPPER =
+    "Lru/ozon/app/android/marketing/widgets/bigPromoNavbar/core/BigPromoNavbarMapper;"
+private const val OZON_SHELL_NAVBAR_VO =
+    "Lru/ozon/app/android/storefront/widgets/navbarv2/presentation/vo/ShellNavBarVO;"
 private const val OZON_TILE_SCROLL_PREFIX =
     "Lru/ozon/app/android/universalwidgets/widgets/uw/sku/tilescroll/"
 private const val OZON_TILE_GRID2_BANNER_VIEW_MAPPER =
@@ -74,22 +72,19 @@ private var patchedObjectGridOneLayout = false
 
 private fun Method.hasImplementation() = implementation != null
 
-private fun Method.isWidgetCanMapMethod() =
-    name == "canMap" &&
-        returnType == "Z" &&
-        parameterTypes.size == 1 &&
-        hasImplementation()
+private fun Method.isWidgetCanMapMethod() = name == "canMap" &&
+    returnType == "Z" &&
+    parameterTypes.size == 1 &&
+    hasImplementation()
 
-private fun Method.isListMapMethod() =
-    (name == "map" || name == "invoke") &&
-        returnType == "Ljava/util/List;" &&
-        hasImplementation()
+private fun Method.isListMapMethod() = (name == "map" || name == "invoke") &&
+    returnType == "Ljava/util/List;" &&
+    hasImplementation()
 
-private fun Method.isViewHolderBindMethod(classType: String) =
-    name == "bind" &&
-        returnType == "V" &&
-        hasImplementation() &&
-        (classType.contains("ViewHolder") || classType.endsWith("VH;"))
+private fun Method.isViewHolderBindMethod(classType: String) = name == "bind" &&
+    returnType == "V" &&
+    hasImplementation() &&
+    (classType.contains("ViewHolder") || classType.endsWith("VH;"))
 
 private fun MutableMethod.hideItemViewAtStart(classType: String) {
     addInstructions(
@@ -108,114 +103,85 @@ private fun MutableMethod.hideItemViewAtStart(classType: String) {
     )
 }
 
-private fun Method.isRecShelfRequestMethod(classType: String) =
-    classType == OZON_REC_SHELF_VIEW_MODEL &&
-        name == "requestRecs" &&
-        returnType == "V" &&
-        parameterTypes.size == 2 &&
-        hasImplementation()
+private fun Method.isRecShelfRequestMethod(classType: String) = classType == OZON_REC_SHELF_VIEW_MODEL &&
+    name == "requestRecs" &&
+    returnType == "V" &&
+    parameterTypes.size == 2 &&
+    hasImplementation()
 
-private fun Method.isInstallmentV4ParserMethod() =
+private fun Method.isInstallmentV4ParserMethod() = name == "invoke" &&
+    returnType == OZON_INSTALLMENT_V4_DTO &&
+    parameterTypes.size == 1 &&
+    hasImplementation()
+
+private fun Method.isTileGrid3ParseMethod(classType: String) = classType == OZON_TILE_GRID3_CONFIG &&
+    name == "parse" &&
+    returnType == "Ljava/util/List;" &&
+    parameterTypes.size == 1 &&
+    hasImplementation()
+
+private fun Method.isTileGrid2ParseMethod(classType: String) = classType == OZON_TILE_GRID2_CONFIG &&
+    name == "parse" &&
+    returnType == "Ljava/util/List;" &&
+    parameterTypes.size == 1 &&
+    hasImplementation()
+
+private fun Method.isObjectGridOneBannerCanMapMethod(classType: String) = classType == OZON_OBJECT_GRID_ONE_BANNER_VIEW_MAPPER &&
+    name == "canMap" &&
+    returnType == "Z" &&
+    parameterTypes.size == 1 &&
+    hasImplementation()
+
+private fun Method.isSearchWarlockRequestMethod(classType: String) = classType == OZON_SEARCH_WARLOCK_VIEW_MODEL &&
+    name == "getWarlockSection" &&
+    returnType == "V" &&
+    parameterTypes.size == 3 &&
+    hasImplementation()
+
+private fun Method.isDesignSystemAtomsMapperInvoke(classType: String) = classType == OZON_DS_ATOMS_MAPPER &&
     name == "invoke" &&
-        returnType == OZON_INSTALLMENT_V4_DTO &&
-        parameterTypes.size == 1 &&
-        hasImplementation()
+    returnType == "Ljava/util/List;" &&
+    parameterTypes.size == 2 &&
+    hasImplementation()
 
-private fun Method.isTileGrid3ParseMethod(classType: String) =
-    classType == OZON_TILE_GRID3_CONFIG &&
-        name == "parse" &&
-        returnType == "Ljava/util/List;" &&
-        parameterTypes.size == 1 &&
-        hasImplementation()
+private fun Method.isCellListV2MapperInvoke(classType: String) = classType == OZON_CELL_LIST_V2_MAPPER &&
+    name == "invoke" &&
+    returnType == "Ljava/util/List;" &&
+    parameterTypes.size == 2 &&
+    hasImplementation()
 
-private fun Method.isTileGrid2ParseMethod(classType: String) =
-    classType == OZON_TILE_GRID2_CONFIG &&
-        name == "parse" &&
-        returnType == "Ljava/util/List;" &&
-        parameterTypes.size == 1 &&
-        hasImplementation()
+private fun Method.isCellV2ViewHolderBind(classType: String) = classType == OZON_CELL_V2_VIEW_HOLDER &&
+    name == "bind" &&
+    returnType == "V" &&
+    parameterTypes.size == 2 &&
+    parameterTypes[0].toString() == OZON_CELL_V2_VIEW_OBJECT &&
+    hasImplementation()
 
-private fun Method.isObjectGridOneBannerCanMapMethod(classType: String) =
-    classType == OZON_OBJECT_GRID_ONE_BANNER_VIEW_MAPPER &&
-        name == "canMap" &&
-        returnType == "Z" &&
-        parameterTypes.size == 1 &&
-        hasImplementation()
+private fun Method.isCommonCellV2ViewHolderBind(classType: String) = classType == OZON_COMMON_CELL_V2_VIEW_HOLDER &&
+    name == "bind" &&
+    returnType == "V" &&
+    parameterTypes.size == 2 &&
+    parameterTypes[0].toString() == "Lru/ozon/app/android/common/cellList/v2/presentation/CellV2VO;" &&
+    hasImplementation()
 
-private fun Method.isSearchWarlockRequestMethod(classType: String) =
-    classType == OZON_SEARCH_WARLOCK_VIEW_MODEL &&
-        name == "getWarlockSection" &&
-        returnType == "V" &&
-        parameterTypes.size == 3 &&
-        hasImplementation()
+private fun Method.isImageTitleSubtitleCellV2Bind(classType: String) = classType.endsWith(OZON_IMAGE_TITLE_SUBTITLE_CELL_V2_HOLDER_SUFFIX) &&
+    name == "onBind" &&
+    returnType == "V" &&
+    parameterTypes.size == 1 &&
+    parameterTypes[0].toString().endsWith("/atoms/data/cell/ImageTitleSubtitleCellDTO;") &&
+    hasImplementation()
 
-private fun Method.isDesignSystemAtomsMapperInvoke(classType: String) =
-    classType == OZON_DS_ATOMS_MAPPER &&
-        name == "invoke" &&
-        returnType == "Ljava/util/List;" &&
-        parameterTypes.size == 2 &&
-        hasImplementation()
+private fun Method.isBigPromoNavbarMapperInvoke(classType: String) = classType == OZON_BIG_PROMO_NAVBAR_MAPPER &&
+    name == "invoke" &&
+    returnType == "Ljava/util/List;" &&
+    parameterTypes.size == 2 &&
+    hasImplementation()
 
-private fun Method.isCellListV2MapperInvoke(classType: String) =
-    classType == OZON_CELL_LIST_V2_MAPPER &&
-        name == "invoke" &&
-        returnType == "Ljava/util/List;" &&
-        parameterTypes.size == 2 &&
-        hasImplementation()
-
-private fun Method.isCellV2ViewHolderBind(classType: String) =
-    classType == OZON_CELL_V2_VIEW_HOLDER &&
-        name == "bind" &&
-        returnType == "V" &&
-        parameterTypes.size == 2 &&
-        parameterTypes[0].toString() == OZON_CELL_V2_VIEW_OBJECT &&
-        hasImplementation()
-
-private fun Method.isCommonCellV2ViewHolderBind(classType: String) =
-    classType == OZON_COMMON_CELL_V2_VIEW_HOLDER &&
-        name == "bind" &&
-        returnType == "V" &&
-        parameterTypes.size == 2 &&
-        parameterTypes[0].toString() == "Lru/ozon/app/android/common/cellList/v2/presentation/CellV2VO;" &&
-        hasImplementation()
-
-private fun Method.isImageTitleSubtitleCellV2Bind(classType: String) =
-    classType.endsWith(OZON_IMAGE_TITLE_SUBTITLE_CELL_V2_HOLDER_SUFFIX) &&
-        name == "onBind" &&
-        returnType == "V" &&
-        parameterTypes.size == 1 &&
-        parameterTypes[0].toString().endsWith("/atoms/data/cell/ImageTitleSubtitleCellDTO;") &&
-        hasImplementation()
-
-private fun Method.isBigPromoNavbarLayoutMethod(classType: String) =
-    classType == OZON_BIG_PROMO_NAVBAR_VIEW &&
-        name == "onLayout" &&
-        returnType == "V" &&
-        parameterTypes.size == 5 &&
-        hasImplementation()
-
-private fun Method.isBigPromoNavbarMeasureMethod(classType: String) =
-    classType == OZON_BIG_PROMO_NAVBAR_VIEW &&
-        name == "onMeasure" &&
-        returnType == "V" &&
-        parameterTypes.size == 2 &&
-        hasImplementation()
-
-private fun Method.isShellNavbarBgSetBackground(classType: String) =
-    classType == OZON_SHELL_NAVBAR_BG_VIEW &&
-        name == "setBackground" &&
-        returnType == "V" &&
-        parameterTypes.size == 1 &&
-        parameterTypes[0].toString() == "Landroid/graphics/drawable/Drawable;" &&
-        hasImplementation()
-
-private fun Method.isShellNavbarBgSetBackgroundColor(classType: String) =
-    classType == OZON_SHELL_NAVBAR_BG_VIEW &&
-        name == "setBackgroundColor" &&
-        returnType == "V" &&
-        parameterTypes.size == 1 &&
-        parameterTypes[0].toString() == "I" &&
-        hasImplementation()
+private fun Method.isShellNavbarPromoImageGetter(classType: String) = classType == OZON_SHELL_NAVBAR_VO &&
+    (name == "getBackgroundImage" || name == "getDarkBackgroundImage") &&
+    returnType == "Ljava/lang/String;" &&
+    parameterTypes.isEmpty() &&
+    hasImplementation()
 
 private fun Element.hideWidgetRoot() {
     setAttribute("android:layout_width", "0dp")
@@ -230,12 +196,12 @@ private val removeOzonAdResourcesPatch = resourcePatch {
 
     execute {
         patchedObjectGridOneLayout = false
-        try {
+        if (this[OZON_OBJECT_GRID_ONE_LAYOUT].isFile) {
             document(OZON_OBJECT_GRID_ONE_LAYOUT).use { document ->
                 document.documentElement.hideWidgetRoot()
                 patchedObjectGridOneLayout = true
             }
-        } catch (_: FileNotFoundException) {
+        } else {
             println(
                 "Remove Ozon ads resources: expected layout absent ($OZON_OBJECT_GRID_ONE_LAYOUT); " +
                     "target validation will fail.",
@@ -257,7 +223,7 @@ val removeOzonAdsPatch = bytecodePatch(
     compatibleWith(COMPATIBILITY_OZON)
     dependsOn(removeOzonAdResourcesPatch)
 
-    val hideRecommendationGrids by option<Boolean>(
+    val hideRecommendationGrids by booleanOption(
         key = "hideRecommendationGrids",
         title = "Hide recommendation grids",
         description = "Removes recommendation grids from product, cart, profile, and favorites screens.",
@@ -282,10 +248,8 @@ val removeOzonAdsPatch = bytecodePatch(
         var patchedCrossSaleBindMethods = 0
         var patchedCmsBannerListMapMethods = 0
         var patchedCmsBannerBindMethods = 0
-        var patchedBigPromoNavbarLayoutMethods = 0
-        var patchedBigPromoNavbarMeasureMethods = 0
-        var patchedShellNavbarBgMethods = 0
-        var patchedShellNavbarBgColorMethods = 0
+        var patchedBigPromoNavbarMapperMethods = 0
+        var patchedShellNavbarPromoImageGetters = 0
         var patchedTileScrollListMapMethods = 0
         var patchedTileScrollBindMethods = 0
         var patchedTileGrid2BannerCanMapMethods = 0
@@ -351,9 +315,11 @@ val removeOzonAdsPatch = bytecodePatch(
                                 classType.startsWith("Lru/ozon/app/android/") -> {
                                     "Lru/ozon/app/android/atoms/v3/AtomV3;"
                                 }
+
                                 classType.startsWith("Lru/ozon/uni/") -> {
                                     "Lru/ozon/uni/atoms/v3/AtomV3;"
                                 }
+
                                 else -> return@forEach
                             }
 
@@ -636,45 +602,33 @@ val removeOzonAdsPatch = bytecodePatch(
                     }
                 }
 
-                classType == OZON_BIG_PROMO_NAVBAR_VIEW -> {
+                classType == OZON_BIG_PROMO_NAVBAR_MAPPER -> {
                     mutableClassDefBy(classDef).methods.forEach { method ->
-                        when {
-                            method.isBigPromoNavbarLayoutMethod(classType) -> {
-                                method.addInstructions(0, "return-void")
-                                patchedBigPromoNavbarLayoutMethods++
-                            }
-
-                            method.isBigPromoNavbarMeasureMethod(classType) -> {
-                                method.addInstructions(
-                                    0,
-                                    """
-                                        move/from16 v0, p1
-                                        invoke-static {v0}, Landroid/view/View${'$'}MeasureSpec;->getSize(I)I
-                                        move-result v1
-                                        const/4 v2, 0x1
-                                        move-object/from16 v0, p0
-                                        invoke-virtual {v0, v1, v2}, Landroid/view/View;->setMeasuredDimension(II)V
-                                        return-void
-                                    """,
-                                )
-                                patchedBigPromoNavbarMeasureMethods++
-                            }
+                        if (method.isBigPromoNavbarMapperInvoke(classType)) {
+                            method.addInstructions(
+                                0,
+                                """
+                                    invoke-static {}, Ljava/util/Collections;->emptyList()Ljava/util/List;
+                                    move-result-object p0
+                                    return-object p0
+                                """,
+                            )
+                            patchedBigPromoNavbarMapperMethods++
                         }
                     }
                 }
 
-                classType == OZON_SHELL_NAVBAR_BG_VIEW -> {
+                classType == OZON_SHELL_NAVBAR_VO -> {
                     mutableClassDefBy(classDef).methods.forEach { method ->
-                        when {
-                            method.isShellNavbarBgSetBackground(classType) -> {
-                                method.addInstructions(0, "return-void")
-                                patchedShellNavbarBgMethods++
-                            }
-
-                            method.isShellNavbarBgSetBackgroundColor(classType) -> {
-                                method.addInstructions(0, "const p1, $OZON_NAVBAR_BACKGROUND_COLOR")
-                                patchedShellNavbarBgColorMethods++
-                            }
+                        if (method.isShellNavbarPromoImageGetter(classType)) {
+                            method.addInstructions(
+                                0,
+                                """
+                                    const/4 p0, 0x0
+                                    return-object p0
+                                """,
+                            )
+                            patchedShellNavbarPromoImageGetters++
                         }
                     }
                 }
@@ -889,10 +843,8 @@ val removeOzonAdsPatch = bytecodePatch(
             patchedCrossSaleBindMethods == 0 &&
             patchedCmsBannerListMapMethods == 0 &&
             patchedCmsBannerBindMethods == 0 &&
-            patchedBigPromoNavbarLayoutMethods == 0 &&
-            patchedBigPromoNavbarMeasureMethods == 0 &&
-            patchedShellNavbarBgMethods == 0 &&
-            patchedShellNavbarBgColorMethods == 0 &&
+            patchedBigPromoNavbarMapperMethods == 0 &&
+            patchedShellNavbarPromoImageGetters == 0 &&
             patchedTileScrollListMapMethods == 0 &&
             patchedTileScrollBindMethods == 0 &&
             patchedTileGrid2BannerCanMapMethods == 0 &&
@@ -935,10 +887,8 @@ val removeOzonAdsPatch = bytecodePatch(
             if (patchedCrossSaleBindMethods == 0) add("cross-sale view binding")
             if (patchedCmsBannerListMapMethods == 0) add("CMS banner list mapper")
             if (patchedCmsBannerBindMethods == 0) add("CMS banner view binding")
-            if (patchedBigPromoNavbarLayoutMethods == 0) add("big promo navbar layout")
-            if (patchedBigPromoNavbarMeasureMethods == 0) add("big promo navbar measure")
-            if (patchedShellNavbarBgMethods == 0) add("shell navbar background")
-            if (patchedShellNavbarBgColorMethods == 0) add("shell navbar background color")
+            if (patchedBigPromoNavbarMapperMethods == 0) add("big promo navbar mapper")
+            if (patchedShellNavbarPromoImageGetters != 2) add("shell navbar promo image getters")
             if (patchedTileScrollListMapMethods == 0) add("tile scroll list mapper")
             if (patchedTileScrollBindMethods == 0) add("tile scroll view binding")
             if (patchedTileGrid2BannerCanMapMethods == 0) add("tile grid2 banner canMap")
@@ -984,10 +934,8 @@ val removeOzonAdsPatch = bytecodePatch(
                 "$patchedCrossSaleBindMethods cross-sale bind methods, " +
                 "$patchedCmsBannerListMapMethods CMS banner list map methods, and " +
                 "$patchedCmsBannerBindMethods CMS banner bind methods, " +
-                "$patchedBigPromoNavbarLayoutMethods big promo navbar layout methods, " +
-                "$patchedBigPromoNavbarMeasureMethods big promo navbar measure methods, " +
-                "$patchedShellNavbarBgMethods shell navbar background methods, " +
-                "$patchedShellNavbarBgColorMethods shell navbar background color methods, " +
+                "$patchedBigPromoNavbarMapperMethods big promo navbar mapper methods, " +
+                "$patchedShellNavbarPromoImageGetters shell navbar promo image getters, " +
                 "$patchedTileScrollListMapMethods tile scroll list map methods, and " +
                 "$patchedTileScrollBindMethods tile scroll bind methods, " +
                 "$patchedTileGrid2BannerCanMapMethods tile grid2 banner canMap methods, " +

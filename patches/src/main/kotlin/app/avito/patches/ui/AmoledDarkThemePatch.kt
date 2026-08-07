@@ -5,7 +5,6 @@ import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.resourcePatch
 import org.w3c.dom.Document
 import org.w3c.dom.Element
-import java.io.FileNotFoundException
 
 private val DARK_COLOR_FILES = listOf(
     // Newer RUIKit screens reference dark_gray_white directly from the base
@@ -39,8 +38,8 @@ private fun amoledRgbOf(value: String): String {
 
 private fun isAmoledSurfaceColorName(name: String): Boolean {
     val n = name.lowercase()
-    return n.endsWith("white") ||                 // page background (white / *_white / common_white)
-        n.endsWith("old_background") ||           // legacy screen background
+    return n.endsWith("white") || // page background (white / *_white / common_white)
+        n.endsWith("old_background") || // legacy screen background
         n == "tab_bar_background" ||
         // Navigation chrome (#191919): the bottom nav/tab bar (ru_bg_elevation2),
         // bottom action panel, floating contact actions and the SERP filter toolbar.
@@ -136,21 +135,21 @@ val amoledDarkThemePatch = resourcePatch(
         val missingColorFiles = mutableListOf<String>()
 
         DARK_COLOR_FILES.forEach { path ->
-            try {
-                document(path).use { document ->
-                    val nodes = document.documentElement.childNodes
-                    for (i in 0 until nodes.length) {
-                        val node = nodes.item(i)
-                        if (node !is Element || node.nodeName != "color") continue
-                        if (amoledRgbOf(node.textContent) !in AMOLED_SURFACE_NIGHT_RGB) continue
-                        if (!isAmoledSurfaceColorName(node.getAttribute("name"))) continue
-
-                        node.textContent = AMOLED_PURE_BLACK
-                        colorChanges++
-                    }
-                }
-            } catch (_: FileNotFoundException) {
+            if (!this[path].isFile) {
                 missingColorFiles += path
+                return@forEach
+            }
+            document(path).use { document ->
+                val nodes = document.documentElement.childNodes
+                for (i in 0 until nodes.length) {
+                    val node = nodes.item(i)
+                    if (node !is Element || node.nodeName != "color") continue
+                    if (amoledRgbOf(node.textContent) !in AMOLED_SURFACE_NIGHT_RGB) continue
+                    if (!isAmoledSurfaceColorName(node.getAttribute("name"))) continue
+
+                    node.textContent = AMOLED_PURE_BLACK
+                    colorChanges++
+                }
             }
         }
         if (missingColorFiles.isNotEmpty()) {
@@ -164,12 +163,12 @@ val amoledDarkThemePatch = resourcePatch(
         }
 
         var systemBarChanges = 0
-        try {
-            document("res/values-night/styles.xml").use { document ->
-                systemBarChanges = document.setAmoledSystemBars()
-            }
-        } catch (_: FileNotFoundException) {
+        val stylesPath = "res/values-night/styles.xml"
+        if (!this[stylesPath].isFile) {
             throw PatchException("AMOLED dark theme: res/values-night/styles.xml not found")
+        }
+        document(stylesPath).use { document ->
+            systemBarChanges = document.setAmoledSystemBars()
         }
         if (systemBarChanges == 0) {
             throw PatchException("AMOLED dark theme: no system-bar styles were changed")

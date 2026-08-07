@@ -128,7 +128,7 @@ public final class MorpheTheme {
         bar.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
             @Override
             public android.view.WindowInsets onApplyWindowInsets(View v, android.view.WindowInsets insets) {
-                v.setPadding(v.getPaddingLeft(), base + insets.getSystemWindowInsetTop(),
+                v.setPadding(v.getPaddingLeft(), base + statusBarInsetTop(insets),
                         v.getPaddingRight(), v.getPaddingBottom());
                 return insets;
             }
@@ -147,6 +147,18 @@ public final class MorpheTheme {
                 }
             });
         }
+    }
+
+    private static int statusBarInsetTop(android.view.WindowInsets insets) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            return insets.getInsets(android.view.WindowInsets.Type.statusBars()).top;
+        }
+        return legacyStatusBarInsetTop(insets);
+    }
+
+    @SuppressWarnings("deprecation")
+    private static int legacyStatusBarInsetTop(android.view.WindowInsets insets) {
+        return insets.getSystemWindowInsetTop();
     }
 
     public View makeDivider() {

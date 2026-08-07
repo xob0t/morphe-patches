@@ -3,11 +3,11 @@ package app.privacy.patches.emulator
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.patch.bytecodePatch
+import app.shared.*
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
-import app.shared.*
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.RegisterRangeInstruction
 import com.android.tools.smali.dexlib2.iface.reference.FieldReference
@@ -97,14 +97,14 @@ private val EMULATOR_PACKAGE_NAMES = setOf(
     "com.vphone.launcher",
 )
 
-private fun Instruction.registers(): List<Int> =
-    when (this) {
-        is FiveRegisterInstruction -> listOf(registerC, registerD, registerE, registerF, registerG)
-            .take(registerCount)
+private fun Instruction.registers(): List<Int> = when (this) {
+    is FiveRegisterInstruction -> listOf(registerC, registerD, registerE, registerF, registerG)
+        .take(registerCount)
 
-        is RegisterRangeInstruction -> (startRegister until startRegister + registerCount).toList()
-        else -> emptyList()
-    }
+    is RegisterRangeInstruction -> (startRegister until startRegister + registerCount).toList()
+
+    else -> emptyList()
+}
 
 private fun Instruction.writesRegister(register: Int): Boolean {
     if (this !is OneRegisterInstruction || registerA != register) return false
@@ -133,7 +133,7 @@ private fun Instruction.writesRegister(register: Int): Boolean {
         Opcode.SGET_CHAR,
         Opcode.SGET_OBJECT,
         Opcode.SGET_SHORT,
-            -> true
+        -> true
 
         else -> false
     }
@@ -156,9 +156,8 @@ private fun List<Instruction>.constantStringForRegisterBefore(index: Int, regist
     return null
 }
 
-private fun String.hasEmulatorMarker(): Boolean =
-    this in EMULATOR_INDICATOR_STRINGS ||
-        EMULATOR_INDICATOR_SUBSTRINGS.any { marker -> contains(marker, ignoreCase = true) }
+private fun String.hasEmulatorMarker(): Boolean = this in EMULATOR_INDICATOR_STRINGS ||
+    EMULATOR_INDICATOR_SUBSTRINGS.any { marker -> contains(marker, ignoreCase = true) }
 
 private fun Iterable<Instruction>.hasEmulatorDetectionContext(): Boolean {
     if (any { instruction ->
@@ -176,50 +175,41 @@ private fun Iterable<Instruction>.hasEmulatorDetectionContext(): Boolean {
     return buildFieldReads >= 3
 }
 
-private fun Method.hasEmulatorDetectionContext(): Boolean =
-    instructionsOrNull?.hasEmulatorDetectionContext() == true
+private fun Method.hasEmulatorDetectionContext(): Boolean = instructionsOrNull?.hasEmulatorDetectionContext() == true
 
-private fun FieldReference.isBuildFieldToSpoof() =
-    definingClass == "Landroid/os/Build;" &&
-        type == "Ljava/lang/String;" &&
-        name in BUILD_FIELD_SPOOFS
+private fun FieldReference.isBuildFieldToSpoof() = definingClass == "Landroid/os/Build;" &&
+    type == "Ljava/lang/String;" &&
+    name in BUILD_FIELD_SPOOFS
 
-private fun MethodReference.isFileExists() =
-    definingClass == "Ljava/io/File;" &&
-        name == "exists" &&
-        parameterTypes.isEmpty() &&
-        returnType == "Z"
+private fun MethodReference.isFileExists() = definingClass == "Ljava/io/File;" &&
+    name == "exists" &&
+    parameterTypes.isEmpty() &&
+    returnType == "Z"
 
-private fun MethodReference.isFileCanRead() =
-    definingClass == "Ljava/io/File;" &&
-        name == "canRead" &&
-        parameterTypes.isEmpty() &&
-        returnType == "Z"
+private fun MethodReference.isFileCanRead() = definingClass == "Ljava/io/File;" &&
+    name == "canRead" &&
+    parameterTypes.isEmpty() &&
+    returnType == "Z"
 
-private fun MethodReference.isRuntimeExec() =
-    definingClass == "Ljava/lang/Runtime;" &&
-        name == "exec" &&
-        returnType == "Ljava/lang/Process;"
+private fun MethodReference.isRuntimeExec() = definingClass == "Ljava/lang/Runtime;" &&
+    name == "exec" &&
+    returnType == "Ljava/lang/Process;"
 
-private fun MethodReference.isProcessBuilderStart() =
-    definingClass == "Ljava/lang/ProcessBuilder;" &&
-        name == "start" &&
-        parameterTypes.isEmpty() &&
-        returnType == "Ljava/lang/Process;"
+private fun MethodReference.isProcessBuilderStart() = definingClass == "Ljava/lang/ProcessBuilder;" &&
+    name == "start" &&
+    parameterTypes.isEmpty() &&
+    returnType == "Ljava/lang/Process;"
 
-private fun MethodReference.isSystemGetProperty() =
-    (definingClass == "Ljava/lang/System;" && name == "getProperty") ||
-        (definingClass == "Landroid/os/SystemProperties;" && name == "get")
+private fun MethodReference.isSystemGetProperty() = (definingClass == "Ljava/lang/System;" && name == "getProperty") ||
+    (definingClass == "Landroid/os/SystemProperties;" && name == "get")
 
-private fun MethodReference.isPackageManagerGetPackageInfo() =
-    definingClass == "Landroid/content/pm/PackageManager;" &&
-        name == "getPackageInfo" &&
-        returnType == "Landroid/content/pm/PackageInfo;"
+private fun MethodReference.isPackageManagerGetPackageInfo() = definingClass == "Landroid/content/pm/PackageManager;" &&
+    name == "getPackageInfo" &&
+    returnType == "Landroid/content/pm/PackageInfo;"
 
-private fun MethodReference.isPackageManagerGetApplicationInfo() =
-    definingClass == "Landroid/content/pm/PackageManager;" &&
-        name == "getApplicationInfo" &&
-        returnType == "Landroid/content/pm/ApplicationInfo;"
+private fun MethodReference.isPackageManagerGetApplicationInfo() = definingClass == "Landroid/content/pm/PackageManager;" &&
+    name == "getApplicationInfo" &&
+    returnType == "Landroid/content/pm/ApplicationInfo;"
 
 @Suppress("unused")
 val spoofEmulatorStatusPatch = bytecodePatch(

@@ -14,11 +14,8 @@ import com.android.tools.smali.dexlib2.iface.reference.StringReference
  * these are that decode, kept here once instead of copied into each patch.
  */
 
-internal fun Instruction.methodReferenceOrNull(): MethodReference? =
-    (this as? ReferenceInstruction)?.reference as? MethodReference
+internal fun Instruction.methodReferenceOrNull(): MethodReference? = (this as? ReferenceInstruction)?.reference as? MethodReference
 
-internal fun Instruction.fieldReferenceOrNull(): FieldReference? =
-    (this as? ReferenceInstruction)?.reference as? FieldReference
+internal fun Instruction.fieldReferenceOrNull(): FieldReference? = (this as? ReferenceInstruction)?.reference as? FieldReference
 
-internal fun Instruction.stringReferenceOrNull(): String? =
-    ((this as? ReferenceInstruction)?.reference as? StringReference)?.string
+internal fun Instruction.stringReferenceOrNull(): String? = ((this as? ReferenceInstruction)?.reference as? StringReference)?.string

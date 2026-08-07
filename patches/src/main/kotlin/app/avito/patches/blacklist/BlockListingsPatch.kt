@@ -14,7 +14,6 @@ import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import org.w3c.dom.Element
 
 private const val BLACKLIST_CLASS = "Lapp/avito/blacklist/Blacklist;"
-private const val BLOCK_MENU_CLASS = "Lapp/avito/morphe/MorpheBlockMenu;"
 private const val BLACKLIST_ACTIVITY = "app.avito.blacklist.BlacklistActivity"
 
 /**

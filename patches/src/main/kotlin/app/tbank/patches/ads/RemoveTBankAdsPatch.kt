@@ -1,13 +1,12 @@
 package app.tbank.patches.ads
 
-import app.morphe.patcher.patch.resourcePatch
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
+import app.morphe.patcher.patch.resourcePatch
 import app.tbank.patches.shared.Constants.COMPATIBILITY_TBANK
 import org.w3c.dom.Element
-import java.io.FileNotFoundException
 
 private val storyLayoutFiles = listOf(
     "res/layout/accounts_list_fragment.xml",
@@ -177,57 +176,57 @@ private val removeTBankAdResourcesPatch = resourcePatch {
         val missing = mutableListOf<String>()
 
         storyLayoutFiles.forEach { path ->
-            try {
-                document(path).use { document ->
-                    document.documentElement.walk()
-                        .filter { it.getAttribute("android:id") in storyViewIds }
-                        .forEach { view ->
-                            patchedStoryViewIds += view.getAttribute("android:id")
-                            view.hideView()
-                            if (view.getAttribute("android:id") == ACCOUNT_LIST_STORIES_WRAPPER_ID) {
-                                view.markInvisibleViewState()
-                            }
-                            hiddenStoryViews++
-                        }
-
-                    document.documentElement.walk()
-                        .filter { it.getAttribute("android:id") in storyAppBarIds }
-                        .forEach { view ->
-                            patchedStoryAppBarIds += view.getAttribute("android:id")
-                            view.setAttribute("app:scabw_shadow_height", "0dp")
-                            collapsedStoryAppBars++
-                        }
-                }
-            } catch (_: FileNotFoundException) {
+            if (!this[path].isFile) {
                 missing += path
+                return@forEach
+            }
+            document(path).use { document ->
+                document.documentElement.walk()
+                    .filter { it.getAttribute("android:id") in storyViewIds }
+                    .forEach { view ->
+                        patchedStoryViewIds += view.getAttribute("android:id")
+                        view.hideView()
+                        if (view.getAttribute("android:id") == ACCOUNT_LIST_STORIES_WRAPPER_ID) {
+                            view.markInvisibleViewState()
+                        }
+                        hiddenStoryViews++
+                    }
+
+                document.documentElement.walk()
+                    .filter { it.getAttribute("android:id") in storyAppBarIds }
+                    .forEach { view ->
+                        patchedStoryAppBarIds += view.getAttribute("android:id")
+                        view.setAttribute("app:scabw_shadow_height", "0dp")
+                        collapsedStoryAppBars++
+                    }
             }
         }
 
         offerLayoutFiles.forEach { path ->
-            try {
-                document(path).use { document ->
-                    document.documentElement.walk()
-                        .filter { it.getAttribute("android:id") == "@id/offerContent" }
-                        .forEach { view ->
-                            patchedOfferLayouts += path
-                            view.hideView()
-                            hiddenOfferViews++
-                        }
-                }
-            } catch (_: FileNotFoundException) {
+            if (!this[path].isFile) {
                 missing += path
+                return@forEach
+            }
+            document(path).use { document ->
+                document.documentElement.walk()
+                    .filter { it.getAttribute("android:id") == "@id/offerContent" }
+                    .forEach { view ->
+                        patchedOfferLayouts += path
+                        view.hideView()
+                        hiddenOfferViews++
+                    }
             }
         }
 
         productStreamLayoutFiles.forEach { path ->
-            try {
-                document(path).use { document ->
-                    document.documentElement.hideLayoutRoot()
-                    patchedProductLayouts += path
-                    hiddenProductViews++
-                }
-            } catch (_: FileNotFoundException) {
+            if (!this[path].isFile) {
                 missing += path
+                return@forEach
+            }
+            document(path).use { document ->
+                document.documentElement.hideLayoutRoot()
+                patchedProductLayouts += path
+                hiddenProductViews++
             }
         }
 
@@ -263,11 +262,11 @@ val removeTBankAdsPatch = bytecodePatch(
         val patchedFeatureToggleIdClasses = mutableSetOf<String>()
         val patchedFeatureToggleDefaultClasses = mutableSetOf<String>()
 
-        classDefForEach { classDef ->
-            if (classDef.type !in sphereFeatureToggleClasses) return@classDefForEach
+        sphereFeatureToggleClasses.forEach { classType ->
+            val classDef = mutableClassDefByOrNull(classType) ?: return@forEach
             foundFeatureToggleClasses += classDef.type
 
-            mutableClassDefBy(classDef).methods.forEach { method ->
+            classDef.methods.forEach { method ->
                 if (method.instructionsOrNull == null) return@forEach
 
                 when (method.name) {
@@ -282,6 +281,7 @@ val removeTBankAdsPatch = bytecodePatch(
                         disabledFeatureToggles++
                         patchedFeatureToggleIdClasses += classDef.type
                     }
+
                     "getDefaultValue" -> {
                         method.addInstructions(
                             0,

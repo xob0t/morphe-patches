@@ -365,7 +365,7 @@ public final class MorpheBlockMenu {
                             }
                         });
                     } else {
-                        toast(ctx, unblockedMsg, iconName, false);
+                        undoBar(ctx, unblockedMsg, iconName, false, null);
                     }
                     return true;
                 }
@@ -515,7 +515,7 @@ public final class MorpheBlockMenu {
                                 }
                             });
                         } else {
-                            toast(context, unblockedMsg, iconName, false);
+                            undoBar(context, unblockedMsg, iconName, false, null);
                         }
                     } catch (Throwable ignored) {
                     }
@@ -684,54 +684,6 @@ public final class MorpheBlockMenu {
         }
     }
 
-    /**
-     * A toast that looks like the standard dark pill but carries a leading Avito
-     * icon (text toasts can't be given an icon on API 11+, so we supply a custom
-     * view; it renders fine since these always fire while the app is foreground).
-     * {@code blocked} tints the icon red (blocked) or white (restored). Falls back
-     * to a plain text toast if anything goes wrong.
-     */
-    public static void toast(Context ctx, String message, String iconName, boolean blocked) {
-        try {
-            float d = ctx.getResources().getDisplayMetrics().density;
-            android.widget.LinearLayout row = new android.widget.LinearLayout(ctx);
-            row.setOrientation(android.widget.LinearLayout.HORIZONTAL);
-            row.setGravity(android.view.Gravity.CENTER_VERTICAL);
-            android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-            bg.setColor(0xFF2B2B2B);
-            bg.setCornerRadius(24f * d);
-            row.setBackground(bg);
-            row.setPadding((int) (20 * d), (int) (13 * d), (int) (20 * d), (int) (13 * d));
-
-            Drawable icon = drawableByName(ctx, iconName);
-            if (icon != null) {
-                android.widget.ImageView iv = new android.widget.ImageView(ctx);
-                iv.setImageDrawable(applyTint(icon, blocked, 0xFFFFFFFF));
-                int size = (int) (20 * d);
-                android.widget.LinearLayout.LayoutParams ip =
-                        new android.widget.LinearLayout.LayoutParams(size, size);
-                ip.rightMargin = (int) (12 * d);
-                row.addView(iv, ip);
-            }
-            android.widget.TextView tv = new android.widget.TextView(ctx);
-            tv.setText(message);
-            tv.setTextColor(0xFFFFFFFF);
-            tv.setTextSize(14f);
-            tv.setMaxWidth((int) (260 * d));
-            row.addView(tv);
-
-            android.widget.Toast t = new android.widget.Toast(ctx);
-            t.setView(row);
-            t.setDuration(android.widget.Toast.LENGTH_LONG);
-            t.show();
-        } catch (Throwable ignored) {
-            try {
-                android.widget.Toast.makeText(ctx, message, android.widget.Toast.LENGTH_LONG).show();
-            } catch (Throwable t2) {
-            }
-        }
-    }
-
     // ---------------------------------------------------------------------
     // Undo bar — a Snackbar-style transient bar (a real, touchable View added
     // to the Activity, unlike a Toast which can't carry a tappable button).
@@ -751,8 +703,8 @@ public final class MorpheBlockMenu {
     };
 
     /**
-     * Shows the same dark pill as {@link #toast} but as a real bottom-anchored
-     * View with a trailing "Отменить" action. Auto-dismisses after a few seconds.
+     * Shows a dark pill as a real bottom-anchored View with an optional action.
+     * Auto-dismisses after a few seconds.
      * Falls back to a plain toast (no undo) if no hosting Activity is reachable.
      */
     public static void undoBar(Context ctx, String message, String iconName,
@@ -762,7 +714,7 @@ public final class MorpheBlockMenu {
             android.view.ViewGroup content = activity == null
                     ? null : (android.view.ViewGroup) activity.findViewById(android.R.id.content);
             if (content == null) {
-                toast(ctx, message, iconName, blocked);
+                android.widget.Toast.makeText(ctx, message, android.widget.Toast.LENGTH_LONG).show();
                 return;
             }
             dismissUndoBar();
@@ -832,7 +784,7 @@ public final class MorpheBlockMenu {
             undoHandler.postDelayed(autoDismiss, UNDO_BAR_MS);
         } catch (Throwable ignored) {
             try {
-                toast(ctx, message, iconName, blocked);
+                android.widget.Toast.makeText(ctx, message, android.widget.Toast.LENGTH_LONG).show();
             } catch (Throwable t2) {
             }
         }

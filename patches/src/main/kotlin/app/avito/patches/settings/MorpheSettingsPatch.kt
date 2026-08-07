@@ -27,23 +27,22 @@ private fun patchBundleVersion(): String = runCatching {
     }
 }.getOrNull()?.takeIf { it.isNotBlank() } ?: "неизвестна"
 
-private fun Method.isKonveyorBind(definingClass: String, getItem: Method): Boolean =
-    implementation != null &&
-        returnType == "V" &&
-        parameterTypes.map { it.toString() }.let { params ->
-            params.size == 3 &&
-                params[0].startsWith("L") &&
-                params[1] == "I" &&
-                params[2] == "Ljava/util/List;"
-        } &&
-        instructionsOrNull?.any { it.stringReferenceOrNull() == KONVEYOR_BIND_MARKER } == true &&
-        instructionsOrNull?.any { instruction ->
-            val reference = instruction.methodReferenceOrNull() ?: return@any false
-            reference.definingClass == definingClass &&
-                reference.name == "getItem" &&
-                reference.parameterTypes.map { it.toString() } == listOf("I") &&
-                reference.returnType == getItem.returnType
-        } == true
+private fun Method.isKonveyorBind(definingClass: String, getItem: Method): Boolean = implementation != null &&
+    returnType == "V" &&
+    parameterTypes.map { it.toString() }.let { params ->
+        params.size == 3 &&
+            params[0].startsWith("L") &&
+            params[1] == "I" &&
+            params[2] == "Ljava/util/List;"
+    } &&
+    instructionsOrNull?.any { it.stringReferenceOrNull() == KONVEYOR_BIND_MARKER } == true &&
+    instructionsOrNull?.any { instruction ->
+        val reference = instruction.methodReferenceOrNull() ?: return@any false
+        reference.definingClass == definingClass &&
+            reference.name == "getItem" &&
+            reference.parameterTypes.map { it.toString() } == listOf("I") &&
+            reference.returnType == getItem.returnType
+    } == true
 
 /**
  * Registers the generic Morphe settings screen ([MORPHE_SETTINGS_ACTIVITY],
@@ -133,19 +132,19 @@ val morpheSettingsPatch = bytecodePatch(
         // class so no interface name is needed, and the bind method's obfuscated name
         // is read off the match rather than pinned (it was `e` on 226/227 but rolls).
         var bindHooks = 0
-        classDefForEach { classDef ->
+        getAllClassesWithString(KONVEYOR_BIND_MARKER).forEach { classDef ->
             val getItem = classDef.methods.firstOrNull { method ->
                 method.name == "getItem" &&
                     method.parameterTypes.map { it.toString() } == listOf("I") &&
                     method.returnType.startsWith("L")
-            } ?: return@classDefForEach
+            } ?: return@forEach
 
             // The payload bind carries a stable Konveyor trace marker and calls this
             // concrete presenter's getItem(int). Together those anchors distinguish
             // it from RecyclerView and unrelated adapter methods with the same shape.
             val bind = classDef.methods.firstOrNull { method ->
                 method.isKonveyorBind(classDef.type, getItem)
-            } ?: return@classDefForEach
+            } ?: return@forEach
 
             mutableClassDefBy(classDef).methods
                 .first { it.name == bind.name && it.parameterTypes == bind.parameterTypes }
@@ -180,12 +179,12 @@ val morpheSettingsPatch = bytecodePatch(
         // runtime info section.
         val json = MorpheSettingsRegistry.toJson()
         val smaliJson = json.replace("\\", "\\\\").replace("\"", "\\\"")
-        val settingsClass = classDefByOrNull(MORPHE_SETTINGS_CLASS)
+        val settingsClass = mutableClassDefByOrNull(MORPHE_SETTINGS_CLASS)
             ?: throw PatchException("Morphe settings: extension settings class not found")
         val config = settingsClass.methods
             .firstOrNull { it.name == "config" && it.parameterTypes.isEmpty() }
             ?: throw PatchException("Morphe settings: MorpheSettings.config() not found")
-        mutableClassDefBy(settingsClass).methods
+        settingsClass.methods
             .first { it.name == config.name && it.parameterTypes == config.parameterTypes }
             .addInstructions(
                 0,
@@ -201,7 +200,7 @@ val morpheSettingsPatch = bytecodePatch(
         val versionMethod = settingsClass.methods
             .firstOrNull { it.name == "patchVersion" && it.parameterTypes.isEmpty() }
             ?: throw PatchException("Morphe settings: MorpheSettings.patchVersion() not found")
-        mutableClassDefBy(settingsClass).methods
+        settingsClass.methods
             .first { it.name == versionMethod.name && it.parameterTypes == versionMethod.parameterTypes }
             .addInstructions(
                 0,

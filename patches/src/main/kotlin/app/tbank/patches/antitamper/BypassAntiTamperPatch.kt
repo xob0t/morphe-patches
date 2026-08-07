@@ -1,13 +1,19 @@
 package app.tbank.patches.antitamper
 
+import app.morphe.patcher.Fingerprint
+import app.morphe.patcher.InstructionLocation
+import app.morphe.patcher.anyInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
+import app.morphe.patcher.methodCall
+import app.morphe.patcher.opcode
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
+import app.morphe.patcher.string
+import app.shared.*
 import app.tbank.patches.shared.Constants.COMPATIBILITY_TBANK
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
-import app.shared.*
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 
@@ -29,68 +35,69 @@ private val TAMPER_FLAG_NAMES = setOf(
     "repackagedApk_flag",
 )
 
+private object TamperFlagProviderFingerprint : Fingerprint(
+    name = "<clinit>",
+    filters = listOf(
+        opcode(Opcode.NEW_INSTANCE, InstructionLocation.MatchFirst()),
+        anyInstruction(
+            *TAMPER_FLAG_NAMES.map(::string).toTypedArray(),
+            location = InstructionLocation.MatchAfterImmediately(),
+        ),
+        anyInstruction(
+            opcode(Opcode.CONST_WIDE_16),
+            opcode(Opcode.CONST_WIDE_32),
+            opcode(Opcode.CONST_WIDE),
+            location = InstructionLocation.MatchAfterImmediately(),
+        ),
+        methodCall(
+            name = "<init>",
+            parameters = listOf("Ljava/lang/String;", "J"),
+            returnType = "V",
+            opcode = Opcode.INVOKE_DIRECT,
+            location = InstructionLocation.MatchAfterImmediately(),
+        ),
+        opcode(Opcode.RETURN_VOID, InstructionLocation.MatchAfterImmediately()),
+    ),
+    custom = { method, _ -> method.instructionsOrNull?.count() == 5 },
+)
+
 // Helpers.
 
-private fun MethodReference.isRaspExec() =
-    definingClass == RASP_EXECUTOR &&
-        name == "exec" &&
-        parameterTypes.size == 1 &&
-        parameterTypes[0].toString() == "J" &&
-        returnType == "Ljava/lang/String;"
+private fun MethodReference.isRaspExec() = definingClass == RASP_EXECUTOR &&
+    name == "exec" &&
+    parameterTypes.size == 1 &&
+    parameterTypes[0].toString() == "J" &&
+    returnType == "Ljava/lang/String;"
 
 // Matches every native void executor call: exec2, exec5, exec6, and any future
 // execN(boolean) the app adds. All share the RASP executor and a single boolean
 // parameter; 7.40.0 added exec5/exec6 alongside exec2, and an un-stubbed one hits
 // an unresolved JNI symbol (the native lib is blocked from loading) and crashes.
-private fun MethodReference.isRaspVoidExec() =
-    definingClass == RASP_EXECUTOR &&
-        name.startsWith("exec") &&
-        name.drop(4).all { it.isDigit() } &&
-        parameterTypes.size == 1 &&
-        parameterTypes[0].toString() == "Z" &&
-        returnType == "V"
+private fun MethodReference.isRaspVoidExec() = definingClass == RASP_EXECUTOR &&
+    name.startsWith("exec") &&
+    name.drop(4).all { it.isDigit() } &&
+    parameterTypes.size == 1 &&
+    parameterTypes[0].toString() == "Z" &&
+    returnType == "V"
 
-private fun MethodReference.isSystemLoadLibrary() =
-    definingClass == SYSTEM &&
-        name == "loadLibrary" &&
-        parameterTypes.size == 1 &&
-        parameterTypes[0].toString() == "Ljava/lang/String;" &&
-        returnType == "V"
-
-private fun MethodReference.isTamperFlagConstructor() =
-    name == "<init>" &&
-        parameterTypes.map { it.toString() } == listOf("Ljava/lang/String;", "J") &&
-        returnType == "V"
-
-private fun List<Instruction>.tamperFlagProviderName(): String? {
-    if (size != 5 ||
-        this[0].opcode != Opcode.NEW_INSTANCE ||
-        this[1].opcode !in setOf(Opcode.CONST_STRING, Opcode.CONST_STRING_JUMBO) ||
-        this[2].opcode !in setOf(Opcode.CONST_WIDE_16, Opcode.CONST_WIDE_32, Opcode.CONST_WIDE) ||
-        this[3].opcode != Opcode.INVOKE_DIRECT ||
-        this[4].opcode != Opcode.RETURN_VOID ||
-        this[3].methodReferenceOrNull()?.isTamperFlagConstructor() != true
-    ) {
-        return null
-    }
-
-    return this[1].stringReferenceOrNull()?.takeIf { it in TAMPER_FLAG_NAMES }
-}
+private fun MethodReference.isSystemLoadLibrary() = definingClass == SYSTEM &&
+    name == "loadLibrary" &&
+    parameterTypes.size == 1 &&
+    parameterTypes[0].toString() == "Ljava/lang/String;" &&
+    returnType == "V"
 
 private data class AntiTamperTargets(
     val hasRaspCalls: Boolean,
     val hasLoadLibrary: Boolean,
-    val hasTamperFlag: Boolean,
 ) {
     val hasAnyTarget: Boolean
-        get() = hasRaspCalls || hasLoadLibrary || hasTamperFlag
+        get() = hasRaspCalls || hasLoadLibrary
 }
 
 private fun Iterable<Instruction>.antiTamperTargets(): AntiTamperTargets {
     var hasRaspCalls = false
     var hasSystemLoadLibrary = false
     var hasRaspNativeLib = false
-    var hasTamperFlag = false
 
     forEach { instruction ->
         val reference = instruction.methodReferenceOrNull()
@@ -105,15 +112,11 @@ private fun Iterable<Instruction>.antiTamperTargets(): AntiTamperTargets {
         if (string in RASP_NATIVE_LIBS) {
             hasRaspNativeLib = true
         }
-        if (string in TAMPER_FLAG_NAMES) {
-            hasTamperFlag = true
-        }
     }
 
     return AntiTamperTargets(
         hasRaspCalls = hasRaspCalls,
         hasLoadLibrary = hasSystemLoadLibrary && hasRaspNativeLib,
-        hasTamperFlag = hasTamperFlag,
     )
 }
 
@@ -134,14 +137,24 @@ val bypassAntiTamperPatch = bytecodePatch(
         val blockedNativeLibraries = mutableSetOf<String>()
         val neutralizedTamperFlagNames = mutableSetOf<String>()
 
+        TamperFlagProviderFingerprint.matchAllOrNull().orEmpty().forEach { match ->
+            val tamperFlagName = match.instructionMatches[1].instruction.stringReferenceOrNull()
+                ?: return@forEach
+            val method = match.method
+            for (index in 0..3) {
+                method.replaceInstruction(index, "nop")
+            }
+            patchedTamperFlags++
+            neutralizedTamperFlagNames += tamperFlagName
+        }
+
         classDefForEach { classDef ->
             val classTargets = classDef.methods
                 .mapNotNull { it.instructionsOrNull?.antiTamperTargets() }
-                .fold(AntiTamperTargets(false, false, false)) { current, methodTargets ->
+                .fold(AntiTamperTargets(false, false)) { current, methodTargets ->
                     AntiTamperTargets(
                         hasRaspCalls = current.hasRaspCalls || methodTargets.hasRaspCalls,
                         hasLoadLibrary = current.hasLoadLibrary || methodTargets.hasLoadLibrary,
-                        hasTamperFlag = current.hasTamperFlag || methodTargets.hasTamperFlag,
                     )
                 }
 
@@ -195,20 +208,6 @@ val bypassAntiTamperPatch = bytecodePatch(
                                 break
                             }
                         }
-                    }
-                }
-
-                // Real flag providers are tiny static initializers. The same strings
-                // also appear in a large enum initializer, so never rewrite a whole
-                // method merely because it contains a target string.
-                if (classTargets.hasTamperFlag) {
-                    val tamperFlagName = instructionList.tamperFlagProviderName()
-                    if (method.name == "<clinit>" && tamperFlagName != null) {
-                        for (index in 0..3) {
-                            method.replaceInstruction(index, "nop")
-                        }
-                        patchedTamperFlags++
-                        neutralizedTamperFlagNames += tamperFlagName
                     }
                 }
             }

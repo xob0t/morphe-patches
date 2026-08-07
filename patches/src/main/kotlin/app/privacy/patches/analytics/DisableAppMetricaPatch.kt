@@ -3,8 +3,8 @@ package app.privacy.patches.analytics
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
-import org.w3c.dom.Element
 import app.shared.*
+import org.w3c.dom.Element
 
 private val disableAppMetricaManifestPatch = resourcePatch {
     execute {
