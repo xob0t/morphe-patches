@@ -1,8 +1,8 @@
-## [1.11.7-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.11.6...v1.11.7-dev.1) (2026-08-06)
+## [1.11.7](https://github.com/xob0t/morphe-patches/compare/v1.11.6...v1.11.7) (2026-08-07)
 
 ### 🐛 Bug Fixes
 
-* **ozon:** scope promo navbar removal ([f3ae900](https://github.com/xob0t/morphe-patches/commit/f3ae900dfb644610d1ae283078bfb95fedb57c9b))
+* **ozon:** support version 19.29.0 ([729001e](https://github.com/xob0t/morphe-patches/commit/729001e2a173bb796fee2ca8ae4c62ed8beefbbf))
 
 ## [1.11.6](https://github.com/xob0t/morphe-patches/compare/v1.11.5...v1.11.6) (2026-08-06)
 
