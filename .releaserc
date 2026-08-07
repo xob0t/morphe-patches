@@ -77,7 +77,21 @@
     [
       "@cleyrop-org/semantic-release-backmerge",
       {
-        "backmergeBranches": [{"from": "main", "to": "dev"}],
+        "backmergeBranches": [
+          {
+            "from": "main",
+            "to": "dev",
+            "ignorePaths": [
+              "CHANGELOG.md",
+              "README.md",
+              "gradle.properties",
+              "patches-bundle.json",
+              "patches-list.json"
+            ]
+          }
+        ],
+        "backmergeStrategy": "merge",
+        "fastForwardMode": "no-ff",
         "clearWorkspace": true
       }
     ]
