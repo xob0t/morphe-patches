@@ -1,4 +1,4 @@
-## [1.11.8-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.11.7...v1.11.8-dev.1) (2026-08-07)
+## [1.11.8](https://github.com/xob0t/morphe-patches/compare/v1.11.7...v1.11.8) (2026-08-07)
 
 ### 🐛 Bug Fixes
 
