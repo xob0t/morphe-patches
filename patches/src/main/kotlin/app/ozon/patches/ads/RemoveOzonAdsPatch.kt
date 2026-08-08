@@ -23,8 +23,6 @@ private const val OZON_CMS_BANNER_CAROUSEL_PREFIX =
     "Lru/ozon/app/android/storefront/widgets/cms/bannercarousel/"
 private const val OZON_BIG_PROMO_NAVBAR_MAPPER =
     "Lru/ozon/app/android/marketing/widgets/bigPromoNavbar/core/BigPromoNavbarMapper;"
-private const val OZON_SHELL_NAVBAR_VO =
-    "Lru/ozon/app/android/storefront/widgets/navbarv2/presentation/vo/ShellNavBarVO;"
 private const val OZON_TILE_SCROLL_PREFIX =
     "Lru/ozon/app/android/universalwidgets/widgets/uw/sku/tilescroll/"
 private const val OZON_TILE_GRID2_BANNER_VIEW_MAPPER =
@@ -177,12 +175,6 @@ private fun Method.isBigPromoNavbarMapperInvoke(classType: String) = classType =
     parameterTypes.size == 2 &&
     hasImplementation()
 
-private fun Method.isShellNavbarPromoImageGetter(classType: String) = classType == OZON_SHELL_NAVBAR_VO &&
-    (name == "getBackgroundImage" || name == "getDarkBackgroundImage") &&
-    returnType == "Ljava/lang/String;" &&
-    parameterTypes.isEmpty() &&
-    hasImplementation()
-
 private fun Element.hideWidgetRoot() {
     setAttribute("android:layout_width", "0dp")
     setAttribute("android:layout_height", "0dp")
@@ -249,7 +241,6 @@ val removeOzonAdsPatch = bytecodePatch(
         var patchedCmsBannerListMapMethods = 0
         var patchedCmsBannerBindMethods = 0
         var patchedBigPromoNavbarMapperMethods = 0
-        var patchedShellNavbarPromoImageGetters = 0
         var patchedTileScrollListMapMethods = 0
         var patchedTileScrollBindMethods = 0
         var patchedTileGrid2BannerCanMapMethods = 0
@@ -618,21 +609,6 @@ val removeOzonAdsPatch = bytecodePatch(
                     }
                 }
 
-                classType == OZON_SHELL_NAVBAR_VO -> {
-                    mutableClassDefBy(classDef).methods.forEach { method ->
-                        if (method.isShellNavbarPromoImageGetter(classType)) {
-                            method.addInstructions(
-                                0,
-                                """
-                                    const/4 p0, 0x0
-                                    return-object p0
-                                """,
-                            )
-                            patchedShellNavbarPromoImageGetters++
-                        }
-                    }
-                }
-
                 classType.startsWith(OZON_TILE_SCROLL_PREFIX) -> {
                     mutableClassDefBy(classDef).methods.forEach { method ->
                         when {
@@ -844,7 +820,6 @@ val removeOzonAdsPatch = bytecodePatch(
             patchedCmsBannerListMapMethods == 0 &&
             patchedCmsBannerBindMethods == 0 &&
             patchedBigPromoNavbarMapperMethods == 0 &&
-            patchedShellNavbarPromoImageGetters == 0 &&
             patchedTileScrollListMapMethods == 0 &&
             patchedTileScrollBindMethods == 0 &&
             patchedTileGrid2BannerCanMapMethods == 0 &&
@@ -888,7 +863,6 @@ val removeOzonAdsPatch = bytecodePatch(
             if (patchedCmsBannerListMapMethods == 0) add("CMS banner list mapper")
             if (patchedCmsBannerBindMethods == 0) add("CMS banner view binding")
             if (patchedBigPromoNavbarMapperMethods == 0) add("big promo navbar mapper")
-            if (patchedShellNavbarPromoImageGetters != 2) add("shell navbar promo image getters")
             if (patchedTileScrollListMapMethods == 0) add("tile scroll list mapper")
             if (patchedTileScrollBindMethods == 0) add("tile scroll view binding")
             if (patchedTileGrid2BannerCanMapMethods == 0) add("tile grid2 banner canMap")
@@ -935,7 +909,6 @@ val removeOzonAdsPatch = bytecodePatch(
                 "$patchedCmsBannerListMapMethods CMS banner list map methods, and " +
                 "$patchedCmsBannerBindMethods CMS banner bind methods, " +
                 "$patchedBigPromoNavbarMapperMethods big promo navbar mapper methods, " +
-                "$patchedShellNavbarPromoImageGetters shell navbar promo image getters, " +
                 "$patchedTileScrollListMapMethods tile scroll list map methods, and " +
                 "$patchedTileScrollBindMethods tile scroll bind methods, " +
                 "$patchedTileGrid2BannerCanMapMethods tile grid2 banner canMap methods, " +
