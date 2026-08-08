@@ -1,3 +1,9 @@
+## [1.11.9](https://github.com/xob0t/morphe-patches/compare/v1.11.8...v1.11.9) (2026-08-08)
+
+### 🐛 Bug Fixes
+
+* **ozon:** preserve promo navbar background ([2d385f9](https://github.com/xob0t/morphe-patches/commit/2d385f956b82aba94aa19e76b92f3b6a1801b299))
+
 ## [1.11.9-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.11.8...v1.11.9-dev.1) (2026-08-08)
 
 ### 🐛 Bug Fixes
