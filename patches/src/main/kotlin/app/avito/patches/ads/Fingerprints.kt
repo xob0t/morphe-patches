@@ -5,6 +5,7 @@ import app.morphe.patcher.methodCall
 import app.morphe.patcher.string
 
 private const val HERO_BANNER_WIDGET = "Lcom/avito/android/remote/model/serp/HeroBannerWidget;"
+private const val ITEMS_CAROUSEL_WIDGET = "Lcom/avito/android/remote/model/inset/ItemsCarouselWidget;"
 
 object CommercialBannerLoaderErrorFingerprint : Fingerprint(
     definingClass = "Lcom/avito/android/advertising/loaders/",
@@ -36,6 +37,31 @@ object HeroBannerWidgetConverterFingerprint : Fingerprint(
         methodCall(
             definingClass = HERO_BANNER_WIDGET,
             name = "getToolbarConfig",
+        ),
+    ),
+    custom = { method, _ ->
+        method.implementation != null &&
+            method.returnType.startsWith("L")
+    },
+)
+
+/**
+ * Matches the SERP converter for item carousels. Promotional carousels use the
+ * model's background image to render a banner behind their header and listings;
+ * ordinary item carousels do not, so the patch can suppress only that surface.
+ */
+object ItemsCarouselWidgetConverterFingerprint : Fingerprint(
+    definingClass = "Lcom/avito/android/serp/adapter/carousel_widget/",
+    parameters = listOf(
+        ITEMS_CAROUSEL_WIDGET,
+        "Z",
+        "Z",
+        "I",
+    ),
+    filters = listOf(
+        methodCall(
+            definingClass = ITEMS_CAROUSEL_WIDGET,
+            name = "getBackgroundImage",
         ),
     ),
     custom = { method, _ ->

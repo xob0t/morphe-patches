@@ -257,6 +257,22 @@ val removeAdsPatch = bytecodePatch(
             """,
         )
 
+        // Promotional item carousels render a banner background behind a header
+        // and a horizontal listing feed. Suppress only carousels carrying that
+        // background, leaving ordinary item carousels intact.
+        ItemsCarouselWidgetConverterFingerprint.method.addInstructions(
+            0,
+            """
+                invoke-virtual/range {p1 .. p1}, Lcom/avito/android/remote/model/inset/ItemsCarouselWidget;->getBackgroundImage()Lcom/avito/android/remote/model/inset/ItemsCarouselWidget${'$'}BackgroundImage;
+                move-result-object v0
+                if-eqz v0, :show_carousel
+                const/4 v0, 0x0
+                return-object v0
+                :show_carousel
+                nop
+            """,
+        )
+
         // Hero banner toolbar config: return null so no banner toolbar is shown.
         HeroBannerToolbarConfigFingerprint.method.addInstructions(
             0,
@@ -317,7 +333,7 @@ val removeAdsPatch = bytecodePatch(
         )
 
         println(
-            "Remove ads: patched 3 banner surface(s), $galleryTeaserConvertersPatched gallery Beduin teaser " +
+            "Remove ads: patched 4 banner surface(s), $galleryTeaserConvertersPatched gallery Beduin teaser " +
                 "converter(s) (all required).",
         )
     }
