@@ -1,3 +1,11 @@
+## [1.11.11](https://github.com/xob0t/morphe-patches/compare/v1.11.10...v1.11.11) (2026-08-10)
+
+### 🐛 Bug Fixes
+
+* **avito:** hide promotional item carousels ([6ef91cd](https://github.com/xob0t/morphe-patches/commit/6ef91cdc80a66edaee60653a71f013b52136440e))
+* **avito:** support remove ads on 230.5 ([bf5dde2](https://github.com/xob0t/morphe-patches/commit/bf5dde2790909948d354f477286c1451c88e7331))
+* **wildberries:** support Google Play and hide infinite feed ([bd91066](https://github.com/xob0t/morphe-patches/commit/bd91066f55ebbab83a3f93389190a7f641a8e053))
+
 ## [1.11.11-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.11.10...v1.11.11-dev.1) (2026-08-10)
 
 ### 🐛 Bug Fixes
