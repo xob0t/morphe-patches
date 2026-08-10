@@ -1,7 +1,10 @@
 package app.avito.patches.ads
 
 import app.morphe.patcher.Fingerprint
+import app.morphe.patcher.methodCall
 import app.morphe.patcher.string
+
+private const val HERO_BANNER_WIDGET = "Lcom/avito/android/remote/model/serp/HeroBannerWidget;"
 
 object CommercialBannerLoaderErrorFingerprint : Fingerprint(
     definingClass = "Lcom/avito/android/advertising/loaders/",
@@ -16,19 +19,28 @@ object CommercialBannerLoaderErrorFingerprint : Fingerprint(
  * `HeroBannerWidget` model into the rendered widget item. Nulling it stops the
  * widget from ever building.
  *
- * Identified structurally so it survives per-release minification. Avito 228.0
- * minified `HeroBannerWidgetItem`, so the return type is constrained to the stable
- * widget package instead of the old readable class name.
+ * Identified by stable model calls so it survives per-release minification. Avito
+ * 230.5 obfuscated both the converter and its return type, while the input model and
+ * its getters remained stable. Requiring the getter calls also excludes the fake
+ * converter, which has the same signature but immediately returns null.
  */
 object HeroBannerWidgetConverterFingerprint : Fingerprint(
-    definingClass = "Lcom/avito/android/hero_banner/widget/",
     parameters = listOf(
-        "Lcom/avito/android/remote/model/serp/HeroBannerWidget;",
+        HERO_BANNER_WIDGET,
+    ),
+    filters = listOf(
+        methodCall(
+            definingClass = HERO_BANNER_WIDGET,
+            name = "getTitle",
+        ),
+        methodCall(
+            definingClass = HERO_BANNER_WIDGET,
+            name = "getToolbarConfig",
+        ),
     ),
     custom = { method, _ ->
         method.implementation != null &&
-            method.returnType.startsWith("Lcom/avito/android/hero_banner/widget/") &&
-            method.returnType != "V"
+            method.returnType.startsWith("L")
     },
 )
 
