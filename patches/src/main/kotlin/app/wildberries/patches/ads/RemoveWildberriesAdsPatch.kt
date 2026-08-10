@@ -176,6 +176,9 @@ private fun String.isCartRecommendationsViewModelClass() = startsWith("Lru/wildb
 private fun String.isProductSellerRecommendationsControllerClass() = startsWith("Lru/wildberries/productcard/") &&
     endsWith("SellerRecommendationsBlockControllerKt;")
 
+private fun String.isProductRecommendationsGridClass() = startsWith("Lru/wildberries/productcard/") &&
+    endsWith("/recommendations/grid/RecommendationsGridKt;")
+
 private fun String.isRaffleRepositoryClass() = startsWith("Lru/wildberries/raffle/") &&
     endsWith("RaffleDataRepositoryImpl;")
 
@@ -212,7 +215,8 @@ val removeWildberriesAdsPatch = bytecodePatch(
         var patchedBannerDataMethods = 0
         var patchedBigSaleHeaderMethods = 0
         var patchedCartRecommendationMethods = 0
-        var patchedProductRecommendationMethods = 0
+        var patchedProductSellerRecommendationMethods = 0
+        var patchedProductInfiniteRecommendationMethods = 0
         var patchedBigLotteryMethods = 0
         var patchedRaffleMethods = 0
 
@@ -470,7 +474,27 @@ val removeWildberriesAdsPatch = bytecodePatch(
                                     return-void
                                 """,
                             )
-                            patchedProductRecommendationMethods++
+                            patchedProductSellerRecommendationMethods++
+                        }
+                    }
+                }
+
+                classType.isProductRecommendationsGridClass() -> if (shouldHideRecommendationGrids) {
+                    mutableClassDefBy(classDef).methods.forEach { method ->
+                        if (
+                            method.name.startsWith("recommendationsGrid") &&
+                            method.returnType == "V" &&
+                            method.parameterTypes.firstOrNull()?.toString() ==
+                            "Landroidx/compose/foundation/lazy/grid/LazyGridScope;" &&
+                            method.hasImplementation()
+                        ) {
+                            method.addInstructions(
+                                0,
+                                """
+                                    return-void
+                                """,
+                            )
+                            patchedProductInfiniteRecommendationMethods++
                         }
                     }
                 }
@@ -653,7 +677,8 @@ val removeWildberriesAdsPatch = bytecodePatch(
             patchedBannerDataMethods == 0 &&
             patchedBigSaleHeaderMethods == 0 &&
             patchedCartRecommendationMethods == 0 &&
-            patchedProductRecommendationMethods == 0 &&
+            patchedProductSellerRecommendationMethods == 0 &&
+            patchedProductInfiniteRecommendationMethods == 0 &&
             patchedBigLotteryMethods == 0 &&
             patchedRaffleMethods == 0
         ) {
@@ -668,7 +693,12 @@ val removeWildberriesAdsPatch = bytecodePatch(
             if (patchedBannerDataMethods == 0) add("banner data")
             if (shouldHideRecommendationGrids) {
                 if (patchedCartRecommendationMethods == 0) add("cart recommendations")
-                if (patchedProductRecommendationMethods == 0) add("product recommendations")
+                if (patchedProductSellerRecommendationMethods == 0) {
+                    add("product seller recommendations")
+                }
+                if (patchedProductInfiniteRecommendationMethods == 0) {
+                    add("product infinite recommendations")
+                }
             }
             if (patchedBigLotteryMethods == 0) add("lottery")
             if (patchedRaffleMethods == 0) add("raffle")
@@ -691,7 +721,8 @@ val removeWildberriesAdsPatch = bytecodePatch(
                 "$patchedBannerDataMethods banner data methods, " +
                 "$patchedBigSaleHeaderMethods promo header methods, and " +
                 "$patchedCartRecommendationMethods cart recommendation methods, " +
-                "$patchedProductRecommendationMethods product recommendation methods, and " +
+                "$patchedProductSellerRecommendationMethods product seller recommendation methods, " +
+                "$patchedProductInfiniteRecommendationMethods product infinite recommendation methods, and " +
                 "$patchedBigLotteryMethods lottery methods, and " +
                 "$patchedRaffleMethods raffle methods.",
         )

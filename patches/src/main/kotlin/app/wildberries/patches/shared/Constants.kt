@@ -7,6 +7,25 @@ import app.morphe.patcher.patch.Compatibility
 internal object Constants {
     const val PACKAGE_NAME = "com.wildberries.ru"
 
+    private const val RUSTORE_VERSION_SUFFIX = "-rustore"
+    private const val GOOGLE_PLAY_VERSION_CODE_OFFSET = 10_000_000
+
+    private fun AppTarget.withGooglePlayCounterpart(): List<AppTarget> {
+        val rustoreVersion = version
+            ?.takeIf { it.endsWith(RUSTORE_VERSION_SUFFIX) }
+            ?: return listOf(this)
+
+        return listOf(
+            this,
+            copy(
+                version = rustoreVersion.removeSuffix(RUSTORE_VERSION_SUFFIX),
+                versionCodes = versionCodes?.mapValues { (_, versionCode) ->
+                    versionCode + GOOGLE_PLAY_VERSION_CODE_OFFSET
+                },
+            ),
+        )
+    }
+
     val COMPATIBILITY_WILDBERRIES = Compatibility(
         name = "Wildberries",
         packageName = PACKAGE_NAME,
@@ -28,6 +47,6 @@ internal object Constants {
                 versionCode = 61050,
                 minSdk = 26,
             ),
-        ),
+        ).flatMap { it.withGooglePlayCounterpart() },
     )
 }
