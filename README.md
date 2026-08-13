@@ -10,7 +10,7 @@ Personal Morphe patches for Android apps.
 ## Patches
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.11.12](https://github.com/xob0t/morphe-patches/releases/tag/v1.11.12)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;25 patches total
+> **[v1.11.13](https://github.com/xob0t/morphe-patches/releases/tag/v1.11.13)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;25 patches total
 <details open>
 <summary>📦 Avito&nbsp;&nbsp;•&nbsp;&nbsp;8 patches</summary>
 <br>
@@ -70,8 +70,8 @@ Personal Morphe patches for Android apps.
 
 **🎯 Supported versions:**
 
-| 7.7.4003-rustore | 7.7.4003 | 7.7.3001-rustore | 7.7.3001 | 7.7.2001-rustore | 7.7.2001 |
-| :---: | :---: | :---: | :---: | :---: | :---: |
+| 7.7.5003-rustore | 7.7.5003 | 7.7.4003-rustore | 7.7.4003 | 7.7.3001-rustore | 7.7.3001 | 7.7.2001-rustore | 7.7.2001 |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
