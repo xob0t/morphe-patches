@@ -33,6 +33,10 @@ private const val INTEGER = "Ljava/lang/Integer;"
 private const val FAVORITES_ADAPTER_PACKAGE = "Lcom/avito/android/user_favorites/adapter/"
 private const val ONBOARDING_DIALOG_FRAGMENT = "Lcom/avito/android/onboarding/dialog/OnboardingDialogFragment;"
 private const val USER_PROFILE_RESULT = "Lcom/avito/android/remote/model/user_profile/UserProfileResult;"
+private const val SERP_ADVERT = "Lcom/avito/android/remote/model/SerpAdvert;"
+private const val SERP_CONSTRUCTOR_ADVERT_ITEM =
+    "Lcom/avito/android/serp/adapter/constructor/SerpConstructorAdvertItem;"
+private const val BOXED_BOOLEAN = "Ljava/lang/Boolean;"
 
 private val AVI_TAB_NAMES = setOf("AI_ASSISTANT", "AI_ASSISTANT_SELLER")
 private val PROFILE_PRO_OUTPUT_ITEM_TYPES = setOf(
@@ -80,6 +84,13 @@ private fun Method.profileProOutputItemTypes(): Set<String> {
         .filterTo(mutableSetOf()) { it in PROFILE_PRO_OUTPUT_ITEM_TYPES }
 }
 
+private fun ClassDef.hasPublicReservedGetter() = methods.any { method ->
+    method.name == "getReserved" &&
+        method.parameterTypes.isEmpty() &&
+        method.returnType == BOXED_BOOLEAN &&
+        AccessFlags.PUBLIC.isSet(method.accessFlags)
+}
+
 /**
  * A collection of optional interface tweaks, each gated by its own toggle in
  * Настройки Morphe so it can be turned off without rebuilding:
@@ -94,6 +105,7 @@ private fun Method.profileProOutputItemTypes(): Set<String> {
  *  - **Hide the Avi assistant tab** in the bottom navigation bar.
  *  - **Hide launch drawers** used by Avito's promotional and informational
  *    onboarding carousel.
+ *  - **Hide reserved offers** from search and home feeds.
  *  - **Hide “Знак добра” banners** in search results.
  *  - **Hide the “Портал призов” raffle promo** on the profile page.
  *  - **Hide the referral-program entry point** on the profile page.
@@ -108,7 +120,8 @@ val uiTweaksPatch = bytecodePatch(
     description = "Optional interface tweaks, each toggleable in Настройки Morphe: single-row home " +
         "categories, hide the \"Подписки\" tab in Избранное, hide installments (Рассрочка) and the " +
         "\"Спросите у продавца\" block on offers, expand descriptions by default (no \"Читать далее\"), " +
-        "hide offer recommendations, hide profile raffle, referral and Avito Pro promos, and hide the Avi assistant tab in the bottom navigation.",
+        "hide reserved offers and offer recommendations, hide profile raffle, referral and Avito Pro promos, " +
+        "and hide the Avi assistant tab in the bottom navigation.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_AVITO)
@@ -297,43 +310,64 @@ val uiTweaksPatch = bytecodePatch(
             }
         }
 
-        // --- Hide the server-driven “Знак добра” SERP cards ---------------------
-        // The compact header card and the larger in-feed card are both Beduin
-        // models carrying the same campaign marker. Filter both the input network
-        // elements and the converted adapter items so either representation is
-        // removed without leaving a blank RecyclerView row.
-        val kindnessSerpConverter = SerpElementsConverterFingerprint.methodOrNull
-        if (kindnessSerpConverter == null) {
-            throw PatchException("UI tweaks: SERP converter not found for kindness banners")
+        // --- Hide reserved offers and server-driven “Знак добра” SERP cards -----
+        // Both reserved offers and kindness cards are removed from the input
+        // network elements and the converted adapter items. The two-stage pass
+        // covers search and home feeds without leaving blank RecyclerView rows.
+        val serpConverter = SerpElementsConverterFingerprint.methodOrNull
+        if (serpConverter == null) {
+            throw PatchException("UI tweaks: SERP converter not found for feed filters")
         } else {
-            kindnessSerpConverter.addInstructions(
+            val reservedModels = listOf(SERP_ADVERT, SERP_CONSTRUCTOR_ADVERT_ITEM)
+            val missingReservedGetters = reservedModels.filter { modelType ->
+                classDefByOrNull(modelType)?.hasPublicReservedGetter() != true
+            }
+            if (missingReservedGetters.isNotEmpty()) {
+                throw PatchException(
+                    "UI tweaks: public getReserved(): Boolean missing from " +
+                        missingReservedGetters.joinToString(),
+                )
+            }
+            serpConverter.addInstructions(
                 0,
                 """
+                    invoke-static/range {p1 .. p1}, $MORPHE_SETTINGS_CLASS->withoutReservedOffers(Ljava/util/List;)Ljava/util/List;
+                    move-result-object p1
                     invoke-static/range {p1 .. p1}, $MORPHE_SETTINGS_CLASS->withoutKindnessBanners(Ljava/util/List;)Ljava/util/List;
                     move-result-object p1
                 """,
             )
-            val kindnessReturnIndices = kindnessSerpConverter.instructionsOrNull
+            val feedReturnIndices = serpConverter.instructionsOrNull
                 ?.toList().orEmpty()
                 .mapIndexedNotNull { index, instruction ->
                     if (instruction.opcode == Opcode.RETURN_OBJECT) index else null
                 }
                 .reversed()
-            if (kindnessReturnIndices.isEmpty()) {
-                throw PatchException("UI tweaks: SERP converter has no object return for kindness banners")
+            if (feedReturnIndices.isEmpty()) {
+                throw PatchException("UI tweaks: SERP converter has no object return for feed filters")
             }
-            for (returnIndex in kindnessReturnIndices) {
+            for (returnIndex in feedReturnIndices) {
                 val register =
-                    (kindnessSerpConverter.instructionsOrNull!!.toList()[returnIndex] as OneRegisterInstruction).registerA
-                kindnessSerpConverter.addInstructions(
+                    (serpConverter.instructionsOrNull!!.toList()[returnIndex] as OneRegisterInstruction).registerA
+                serpConverter.addInstructions(
                     returnIndex,
                     """
+                        invoke-static/range {v$register .. v$register}, $MORPHE_SETTINGS_CLASS->withoutReservedOffers(Ljava/util/List;)Ljava/util/List;
+                        move-result-object v$register
                         invoke-static/range {v$register .. v$register}, $MORPHE_SETTINGS_CLASS->withoutKindnessBanners(Ljava/util/List;)Ljava/util/List;
                         move-result-object v$register
                         check-cast v$register, Ljava/util/ArrayList;
                     """,
                 )
             }
+            MorpheSettingsRegistry.addSwitch(
+                key = "avito_hide_reserved_offers",
+                title = "Скрыть забронированные объявления",
+                summary = "Убирать из ленты объявления с отметкой «Забронировано»",
+                default = false,
+                section = MorpheSettingsRegistry.Section.FILTERING,
+                order = 20,
+            )
             MorpheSettingsRegistry.addSwitch(
                 key = "avito_hide_kindness_banners",
                 title = "Скрыть «Знак добра»",
@@ -343,8 +377,8 @@ val uiTweaksPatch = bytecodePatch(
                 order = 10,
             )
             println(
-                "UI tweaks: gated kindness banners in SERP input and " +
-                    "${kindnessReturnIndices.size} output(s).",
+                "UI tweaks: gated reserved offers and kindness banners in SERP input and " +
+                    "${feedReturnIndices.size} output(s).",
             )
         }
 
