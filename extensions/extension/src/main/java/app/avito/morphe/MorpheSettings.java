@@ -38,6 +38,10 @@ public final class MorpheSettings {
     private static final java.util.Map<android.view.View, HiddenKindnessViewState> HIDDEN_KINDNESS_VIEWS =
             java.util.Collections.synchronizedMap(
                     new java.util.WeakHashMap<android.view.View, HiddenKindnessViewState>());
+    private static final java.util.concurrent.ConcurrentMap<Class<?>, java.lang.reflect.Method>
+            RESERVED_ACCESSORS = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.Set<Class<?>> NO_RESERVED_ACCESSOR =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private static Context appContext;
 
@@ -299,6 +303,71 @@ public final class MorpheSettings {
         } catch (Throwable ignored) {
         }
         return dialog;
+    }
+
+    /**
+     * Removes reserved adverts from a SERP model or adapter-item list. Avito
+     * exposes the reservation state as a nullable Boolean getReserved() on both
+     * SerpAdvert and SerpConstructorAdvertItem, so the same fail-open filter can
+     * run before and after conversion without depending on obfuscated classes.
+     */
+    public static java.util.List<?> withoutReservedOffers(java.util.List<?> items) {
+        if (items == null || items.isEmpty() || !isEnabled("avito_hide_reserved_offers", false)) {
+            return items;
+        }
+        try {
+            java.util.ArrayList<Object> kept = null;
+            for (int index = 0; index < items.size(); index++) {
+                Object item = items.get(index);
+                boolean hidden = isReservedOffer(item);
+                if (hidden) {
+                    if (kept == null) {
+                        kept = new java.util.ArrayList<>(items.size());
+                        kept.addAll(items.subList(0, index));
+                    }
+                } else if (kept != null) {
+                    kept.add(item);
+                }
+            }
+            return kept != null ? kept : items;
+        } catch (Throwable ignored) {
+            return items;
+        }
+    }
+
+    private static boolean isReservedOffer(Object item) {
+        if (item == null) {
+            return false;
+        }
+        Class<?> itemClass = item.getClass();
+        java.lang.reflect.Method accessor = RESERVED_ACCESSORS.get(itemClass);
+        if (accessor == null) {
+            if (NO_RESERVED_ACCESSOR.contains(itemClass)) {
+                return false;
+            }
+            try {
+                accessor = itemClass.getMethod("getReserved");
+                Class<?> returnType = accessor.getReturnType();
+                if (returnType != Boolean.class && returnType != Boolean.TYPE) {
+                    NO_RESERVED_ACCESSOR.add(itemClass);
+                    return false;
+                }
+                java.lang.reflect.Method existing =
+                        RESERVED_ACCESSORS.putIfAbsent(itemClass, accessor);
+                if (existing != null) {
+                    accessor = existing;
+                }
+            } catch (Throwable ignored) {
+                NO_RESERVED_ACCESSOR.add(itemClass);
+                return false;
+            }
+        }
+        try {
+            Object reserved = accessor.invoke(item);
+            return Boolean.TRUE.equals(reserved);
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     /**
