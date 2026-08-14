@@ -1,3 +1,9 @@
+## [1.12.0](https://github.com/xob0t/morphe-patches/compare/v1.11.13...v1.12.0) (2026-08-14)
+
+### ✨ New Features
+
+* **avito:** hide reserved offers ([830fb67](https://github.com/xob0t/morphe-patches/commit/830fb6732652f1494467f4a8d982b10b72cf0a01))
+
 ## [1.12.0-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.11.13...v1.12.0-dev.1) (2026-08-14)
 
 ### ✨ New Features
