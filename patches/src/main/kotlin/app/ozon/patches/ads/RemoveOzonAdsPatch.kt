@@ -49,8 +49,18 @@ private const val OZON_CELL_V2_VIEW_HOLDER =
     "Lru/ozon/app/android/widgets/commonTextWidget/cellList/presentation/CellV2ViewHolder;"
 private const val OZON_CELL_V2_VIEW_OBJECT =
     "Lru/ozon/app/android/widgets/commonTextWidget/cellList/presentation/CellV2VO;"
-private const val OZON_COMMON_CELL_V2_VIEW_HOLDER =
+private const val OZON_LEGACY_COMMON_CELL_V2_VIEW_HOLDER =
     "Lru/ozon/app/android/common/cellList/v2/presentation/CellV2ViewHolder;"
+private const val OZON_LEGACY_COMMON_CELL_V2_VIEW_OBJECT =
+    "Lru/ozon/app/android/common/cellList/v2/presentation/CellV2VO;"
+private const val OZON_COMMON_VIEW_KIT_CELL_V2_VIEW_HOLDER =
+    "Lru/ozon/android/composerCommonViewKit/cellListV2/presentation/CellV2ViewHolder;"
+private const val OZON_COMMON_VIEW_KIT_CELL_V2_VIEW_OBJECT =
+    "Lru/ozon/android/composerCommonViewKit/cellListV2/presentation/CellV2VO;"
+private val OZON_COMMON_CELL_V2_TARGETS = mapOf(
+    OZON_LEGACY_COMMON_CELL_V2_VIEW_HOLDER to OZON_LEGACY_COMMON_CELL_V2_VIEW_OBJECT,
+    OZON_COMMON_VIEW_KIT_CELL_V2_VIEW_HOLDER to OZON_COMMON_VIEW_KIT_CELL_V2_VIEW_OBJECT,
+)
 private const val OZON_IMAGE_TITLE_SUBTITLE_CELL_V2_HOLDER_SUFFIX =
     "/atoms/v3/holders/cell/image/ImageTitleSubtitleCellV2Holder;"
 
@@ -155,11 +165,11 @@ private fun Method.isCellV2ViewHolderBind(classType: String) = classType == OZON
     parameterTypes[0].toString() == OZON_CELL_V2_VIEW_OBJECT &&
     hasImplementation()
 
-private fun Method.isCommonCellV2ViewHolderBind(classType: String) = classType == OZON_COMMON_CELL_V2_VIEW_HOLDER &&
+private fun Method.isCommonCellV2ViewHolderBind(classType: String) =
     name == "bind" &&
     returnType == "V" &&
     parameterTypes.size == 2 &&
-    parameterTypes[0].toString() == "Lru/ozon/app/android/common/cellList/v2/presentation/CellV2VO;" &&
+    parameterTypes[0].toString() == OZON_COMMON_CELL_V2_TARGETS[classType] &&
     hasImplementation()
 
 private fun Method.isImageTitleSubtitleCellV2Bind(classType: String) = classType.endsWith(OZON_IMAGE_TITLE_SUBTITLE_CELL_V2_HOLDER_SUFFIX) &&
@@ -264,7 +274,7 @@ val removeOzonAdsPatch = bytecodePatch(
             val classType = classDef.type
 
             when {
-                classType == OZON_COMMON_CELL_V2_VIEW_HOLDER -> {
+                OZON_COMMON_CELL_V2_TARGETS.containsKey(classType) -> {
                     mutableClassDefBy(classDef).methods.forEach { method ->
                         if (method.isCommonCellV2ViewHolderBind(classType)) {
                             method.addInstructions(
