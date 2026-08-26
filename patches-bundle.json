@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-08-26T06:43:36",
-  "description": "## [1.12.6](https://github.com/xob0t/morphe-patches/compare/v1.12.5...v1.12.6) (2026-08-26)\n\n### 🐛 Bug Fixes\n\n* **avito:** support version 231.5 ([7aaa044](https://github.com/xob0t/morphe-patches/commit/7aaa044b2dfc8ba4ec80844d531aa753484f7354))",
-  "download_url": "https://github.com/xob0t/morphe-patches/releases/download/v1.12.6/patches-1.12.6.mpp",
+  "created_at": "2026-08-26T06:53:45",
+  "description": "## [1.12.7](https://github.com/xob0t/morphe-patches/compare/v1.12.6...v1.12.7) (2026-08-26)\n\n### 🐛 Bug Fixes\n\n* **wildberries:** support version 7.7.7001-rustore ([b0598e1](https://github.com/xob0t/morphe-patches/commit/b0598e1f32b07b22063e2472a590e2c7bb6c4860))",
+  "download_url": "https://github.com/xob0t/morphe-patches/releases/download/v1.12.7/patches-1.12.7.mpp",
   "signature_download_url": "",
-  "version": "1.12.6"
+  "version": "1.12.7"
 }
