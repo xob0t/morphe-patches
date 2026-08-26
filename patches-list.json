@@ -1,5 +1,5 @@
 {
-  "version": "1.12.5",
+  "version": "1.12.6",
   "patches": [
     {
       "name": "AMOLED dark theme",
@@ -15,6 +15,13 @@
           "appIconColor": "#00AAFF",
           "signatures": null,
           "targets": [
+            {
+              "version": "231.5",
+              "versionCode": 3502,
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
             {
               "version": "231.0",
               "versionCode": 3489,
@@ -65,6 +72,13 @@
           "appIconColor": "#00AAFF",
           "signatures": null,
           "targets": [
+            {
+              "version": "231.5",
+              "versionCode": 3502,
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
             {
               "version": "231.0",
               "versionCode": 3489,
@@ -234,6 +248,13 @@
           "signatures": null,
           "targets": [
             {
+              "version": "231.5",
+              "versionCode": 3502,
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
               "version": "231.0",
               "versionCode": 3489,
               "isExperimental": false,
@@ -282,6 +303,13 @@
           "appIconColor": "#00AAFF",
           "signatures": null,
           "targets": [
+            {
+              "version": "231.5",
+              "versionCode": 3502,
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
             {
               "version": "231.0",
               "versionCode": 3489,
@@ -332,6 +360,13 @@
           "signatures": null,
           "targets": [
             {
+              "version": "231.5",
+              "versionCode": 3502,
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
               "version": "231.0",
               "versionCode": 3489,
               "isExperimental": false,
@@ -380,6 +415,13 @@
           "appIconColor": "#00AAFF",
           "signatures": null,
           "targets": [
+            {
+              "version": "231.5",
+              "versionCode": 3502,
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
             {
               "version": "231.0",
               "versionCode": 3489,
@@ -651,6 +693,13 @@
           "signatures": null,
           "targets": [
             {
+              "version": "231.5",
+              "versionCode": 3502,
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
+            {
               "version": "231.0",
               "versionCode": 3489,
               "isExperimental": false,
@@ -731,6 +780,13 @@
           "appIconColor": "#00AAFF",
           "signatures": null,
           "targets": [
+            {
+              "version": "231.5",
+              "versionCode": 3502,
+              "isExperimental": false,
+              "minSdk": 28,
+              "description": null
+            },
             {
               "version": "231.0",
               "versionCode": 3489,
