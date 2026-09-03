@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-09-02T10:39:19",
-  "description": "## [1.12.9](https://github.com/xob0t/morphe-patches/compare/v1.12.8...v1.12.9) (2026-09-02)\n\n### 🐛 Bug Fixes\n\n* **wildberries:** support version 7.7.8001-rustore ([352f268](https://github.com/xob0t/morphe-patches/commit/352f26893dcad32fbeb17546b0e2d5e2c4df96cc))",
-  "download_url": "https://github.com/xob0t/morphe-patches/releases/download/v1.12.9/patches-1.12.9.mpp",
+  "created_at": "2026-09-03T10:37:16",
+  "description": "## [1.12.10](https://github.com/xob0t/morphe-patches/compare/v1.12.9...v1.12.10) (2026-09-03)\n\n### 🐛 Bug Fixes\n\n* **ozon:** support version 19.33.1 ([1c9041a](https://github.com/xob0t/morphe-patches/commit/1c9041ad4c3ed31decea830ffd7acd0cd3685f5f))",
+  "download_url": "https://github.com/xob0t/morphe-patches/releases/download/v1.12.10/patches-1.12.10.mpp",
   "signature_download_url": "",
-  "version": "1.12.9"
+  "version": "1.12.10"
 }
