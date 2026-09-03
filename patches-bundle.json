@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-09-03T10:37:16",
-  "description": "## [1.12.10](https://github.com/xob0t/morphe-patches/compare/v1.12.9...v1.12.10) (2026-09-03)\n\n### 🐛 Bug Fixes\n\n* **ozon:** support version 19.33.1 ([1c9041a](https://github.com/xob0t/morphe-patches/commit/1c9041ad4c3ed31decea830ffd7acd0cd3685f5f))",
-  "download_url": "https://github.com/xob0t/morphe-patches/releases/download/v1.12.10/patches-1.12.10.mpp",
+  "created_at": "2026-09-03T10:48:08",
+  "description": "## [1.12.11](https://github.com/xob0t/morphe-patches/compare/v1.12.10...v1.12.11) (2026-09-03)\n\n### 🐛 Bug Fixes\n\n* **tbank:** support version 8.2.1 ([74022b2](https://github.com/xob0t/morphe-patches/commit/74022b2acda3bea23555d0fe7fdff1e4af838012))",
+  "download_url": "https://github.com/xob0t/morphe-patches/releases/download/v1.12.11/patches-1.12.11.mpp",
   "signature_download_url": "",
-  "version": "1.12.10"
+  "version": "1.12.11"
 }
