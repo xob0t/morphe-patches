@@ -2,9 +2,11 @@ package app.wildberries.patches.ads
 
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.booleanOption
 import app.morphe.patcher.patch.bytecodePatch
+import app.shared.fieldReferenceOrNull
 import app.wildberries.patches.shared.Constants.COMPATIBILITY_WILDBERRIES
 import com.android.tools.smali.dexlib2.iface.Method
 
@@ -104,6 +106,32 @@ private object BigSaleSearchBarFingerprint : Fingerprint(
     },
 )
 
+private const val SELLER_RECOMMENDATIONS_VIEW_MODEL =
+    "Lru/wildberries/productcard/ui/compose/recommendations/SellerRecommendationsViewModel;"
+
+/**
+ * Matches the product-card seller recommendations controller without relying on
+ * its Kotlin file or method name. Wildberries 7.8.1002 renamed
+ * `SellerRecommendationsBlockControllerKt.RecommendationsBlockController` to
+ * `SellerRecommendationsControllerKt.SellerRecommendationsController` and
+ * removed the leading display-state parameter. Both implementations are Compose
+ * entry points ending in `(Composer, int)` and read state from the same view model.
+ */
+private object ProductSellerRecommendationsControllerFingerprint : Fingerprint(
+    returnType = "V",
+    custom = { method, classDef ->
+        val parameters = method.parameterTypes.map { it.toString() }
+        classDef.type.startsWith("Lru/wildberries/productcard/ui/compose/recommendations/") &&
+            parameters.size > 2 &&
+            parameters.takeLast(2) ==
+            listOf("Landroidx/compose/runtime/Composer;", "I") &&
+            SELLER_RECOMMENDATIONS_VIEW_MODEL !in parameters &&
+            method.instructionsOrNull?.any { instruction ->
+                instruction.fieldReferenceOrNull()?.definingClass == SELLER_RECOMMENDATIONS_VIEW_MODEL
+            } == true
+    },
+)
+
 // The main-page "big sale" promo search bar restyles the whole header in place of
 // the normal search toolbar (red theme, the "находки из Китая" promo strip, the
 // `bigSaleCounterButton`). On 7.6.8001 the gate was an `isBigSaleSearchBarEnabled()Z`
@@ -172,9 +200,6 @@ private fun String.isCartScreenStateClass() = startsWith("Lru/wildberries/cart/"
 
 private fun String.isCartRecommendationsViewModelClass() = startsWith("Lru/wildberries/cart/") &&
     endsWith("RecommendationsViewModel;")
-
-private fun String.isProductSellerRecommendationsControllerClass() = startsWith("Lru/wildberries/productcard/") &&
-    endsWith("SellerRecommendationsBlockControllerKt;")
 
 private fun String.isProductRecommendationsGridClass() = startsWith("Lru/wildberries/productcard/") &&
     endsWith("/recommendations/grid/RecommendationsGridKt;")
@@ -465,20 +490,6 @@ val removeWildberriesAdsPatch = bytecodePatch(
                     }
                 }
 
-                classType.isProductSellerRecommendationsControllerClass() -> if (shouldHideRecommendationGrids) {
-                    mutableClassDefBy(classDef).methods.forEach { method ->
-                        if (method.isVoidMethod("RecommendationsBlockController")) {
-                            method.addInstructions(
-                                0,
-                                """
-                                    return-void
-                                """,
-                            )
-                            patchedProductSellerRecommendationMethods++
-                        }
-                    }
-                }
-
                 classType.isProductRecommendationsGridClass() -> if (shouldHideRecommendationGrids) {
                     mutableClassDefBy(classDef).methods.forEach { method ->
                         if (
@@ -665,6 +676,13 @@ val removeWildberriesAdsPatch = bytecodePatch(
                 """,
             )
             patchedBigSaleHeaderMethods++
+        }
+
+        if (shouldHideRecommendationGrids) {
+            ProductSellerRecommendationsControllerFingerprint.matchAllOrNull().orEmpty().forEach { match ->
+                match.method.addInstructions(0, "return-void")
+                patchedProductSellerRecommendationMethods++
+            }
         }
 
         if (
