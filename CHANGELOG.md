@@ -1,3 +1,9 @@
+## [1.12.21](https://github.com/xob0t/morphe-patches/compare/v1.12.20...v1.12.21) (2026-09-22)
+
+### 🚀 Updated App Support
+
+* publish Wildberries 7.8.1002 seller recommendations fix ([#89](https://github.com/xob0t/morphe-patches/issues/89)) ([fe1073c](https://github.com/xob0t/morphe-patches/commit/fe1073c77228c1b9f6d6669b52029d95870b4d07))
+
 ## [1.12.20](https://github.com/xob0t/morphe-patches/compare/v1.12.19...v1.12.20) (2026-09-22)
 
 ### 🐛 Bug Fixes
