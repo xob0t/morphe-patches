@@ -345,65 +345,62 @@ public final class Blacklist {
     }
 
     /**
-     * Whether a seller is blacklisted when only their display name is known: either
-     * blocked by name directly ({@link #SELLER_NAME_PREFIX}) or blocked by
-     * {@code userKey} with the same recorded name. Generic placeholder names never
-     * match.
+     * Whether the seller's display name is blocked by an explicit name block
+     * ({@link #SELLER_NAME_PREFIX}). Name blocks are only created, with a warning,
+     * where the feed has no seller id; they then apply to every seller with that
+     * name. Sellers blocked by {@code userKey} are never matched by name.
      */
     public static boolean isSellerNameBlocked(String sellerName) {
-        String normalized = normalizeSellerName(sellerName);
-        if (normalized == null) {
+        Set<String> names = blockedSellerNames();
+        if (names.isEmpty()) {
             return false;
         }
-        ensureLoaded();
-        Set<String> names = blockedSellerNames;
-        if (names == null) {
-            names = new java.util.HashSet<>();
-            synchronized (LOCK) {
-                for (String key : blockedSellers) {
-                    if (key.startsWith(SELLER_NAME_PREFIX)) {
-                        names.add(key.substring(SELLER_NAME_PREFIX.length()));
-                    }
-                    String label = normalizeSellerName(sellerLabels.get(key));
-                    if (label != null) {
-                        names.add(label);
-                    }
-                }
-            }
-            blockedSellerNames = names;
-        }
-        return names.contains(normalized);
+        String normalized = normalizeSellerName(sellerName);
+        return normalized != null && names.contains(normalized);
     }
 
-    /** Normalized names of blocked sellers; rebuilt lazily after any change. */
+    /** Whether any explicit name block exists (cheap pre-check before resolving names). */
+    private static boolean hasSellerNameBlocks() {
+        return !blockedSellerNames().isEmpty();
+    }
+
+    private static Set<String> blockedSellerNames() {
+        Set<String> names = blockedSellerNames;
+        if (names != null) {
+            return names;
+        }
+        ensureLoaded();
+        synchronized (LOCK) {
+            names = new java.util.HashSet<>();
+            for (String key : blockedSellers) {
+                if (key.startsWith(SELLER_NAME_PREFIX)) {
+                    names.add(key.substring(SELLER_NAME_PREFIX.length()));
+                }
+            }
+            // persist() resets the cache under LOCK, so a set built here is current.
+            if (loaded) {
+                blockedSellerNames = names;
+            }
+            return names;
+        }
+    }
+
+    /** Names from explicit name blocks; rebuilt lazily after any change. */
     private static volatile Set<String> blockedSellerNames;
 
-    /** Seller blocked by {@code userKey} or, failing that, by display name. */
+    /** Seller blocked by {@code userKey} or by an explicit name block. */
     public static boolean isSellerBlocked(String userKey, String sellerName) {
         return isSellerBlocked(userKey) || isSellerNameBlocked(sellerName);
     }
 
-    /** Unblocks a seller by {@code userKey} and every entry matching their name. */
+    /** Unblocks a seller: their {@code userKey} and any name block for their name. */
     public static void removeSeller(String userKey, String sellerName) {
         if (userKey != null) {
             removeSeller(userKey);
         }
-        String normalized = normalizeSellerName(sellerName);
-        if (normalized == null) {
-            return;
-        }
-        ensureLoaded();
-        List<String> matches = new ArrayList<>();
-        synchronized (LOCK) {
-            for (String key : blockedSellers) {
-                if (key.equals(SELLER_NAME_PREFIX + normalized)
-                        || normalized.equals(normalizeSellerName(sellerLabels.get(key)))) {
-                    matches.add(key);
-                }
-            }
-        }
-        for (String key : matches) {
-            removeSeller(key);
+        String nameKey = sellerNameKey(sellerName);
+        if (nameKey != null) {
+            removeSeller(nameKey);
         }
     }
 
@@ -763,8 +760,7 @@ public final class Blacklist {
                 putSellerLabel(userKey, nameOf(seller));
                 return true;
             }
-            // Some SERP responses omit the seller userKey and carry only the name.
-            if (isBlank(userKey) && isSellerNameBlocked(nameOf(seller))) {
+            if (hasSellerNameBlocks() && isSellerNameBlocked(nameOf(seller))) {
                 return true;
             }
         }
@@ -1389,6 +1385,18 @@ public final class Blacklist {
         }
     }
 
+    /**
+     * Remembers the advert/seller pair of an opened advert page, so feeds that
+     * carry no seller id (Beduin v2 search tiles) can still hide that advert when
+     * its seller is blocked by {@code userKey}.
+     */
+    public static void rememberAdvertSeller(Object advertDetails) {
+        try {
+            rememberDirectSellerKey(advertDetails);
+        } catch (Throwable ignored) {
+        }
+    }
+
     public static String resolveSellerKeyForNavigation(String userKey) {
         ensureLoaded();
         if (isBlank(userKey) || !userKey.startsWith(JOB_EMPLOYER_PREFIX)) {
@@ -1917,7 +1925,7 @@ public final class Blacklist {
         if (legacyJobKey != null && isSellerBlocked(legacyJobKey)) {
             return true;
         }
-        return sellerCount() > 0 && isSellerNameBlocked(sellerNameForBlocking(item));
+        return hasSellerNameBlocks() && isSellerNameBlocked(sellerNameForBlocking(item));
     }
 
     /** Immediately collapse every currently-bound tile that matches the block. */
@@ -2094,6 +2102,9 @@ public final class Blacklist {
      */
     public static List<?> filterBeduinComponents(Object adapter, List<?> components) {
         if (components == null) {
+            if (adapter != null) {
+                beduinLists.remove(adapter);
+            }
             return null;
         }
         try {
@@ -2134,12 +2145,28 @@ public final class Blacklist {
      */
     private static List<?> realignBeduinColumns(List<?> original, List<Object> kept) {
         try {
-            // Same-shape params, indexed by the column their margins are for.
+            // Only realign what verifiably is a two-column grid: every sided tile of
+            // the original list must sit in the column its margins are for. Rows,
+            // pagers and wider grids fail this check and are left alone.
             java.util.Map<String, Object[]> paramsByShape = new java.util.HashMap<>();
+            int column = 0;
             for (Object child : original) {
                 Object params = beduinParamsOf(child);
+                if (params == null || isBeduinHidden(params)) {
+                    continue;
+                }
+                if (!isBeduinGridParams(params)) {
+                    return kept;
+                }
+                if (isBeduinFullSpan(params)) {
+                    column = 0;
+                    continue;
+                }
                 int side = beduinParamsSide(params);
                 if (side >= 0) {
+                    if (side != column) {
+                        return kept;
+                    }
                     Object[] bySide = paramsByShape.get(beduinParamsShape(params));
                     if (bySide == null) {
                         bySide = new Object[2];
@@ -2149,19 +2176,19 @@ public final class Blacklist {
                         bySide[side] = params;
                     }
                 }
+                column = (column + 1) % 2;
             }
             if (paramsByShape.isEmpty()) {
                 return kept;
             }
-            int column = 0;
+            column = 0;
             for (int i = 0; i < kept.size(); i++) {
                 Object child = kept.get(i);
                 Object params = beduinParamsOf(child);
-                if (params == null) {
+                if (params == null || isBeduinHidden(params) || !isBeduinGridParams(params)) {
                     continue;
                 }
-                Integer span = parseIntField(params.toString(), "span=");
-                if (span != null && span >= 2) {
+                if (isBeduinFullSpan(params)) {
                     column = 0;
                     continue;
                 }
@@ -2179,6 +2206,21 @@ public final class Blacklist {
         } catch (Throwable ignored) {
         }
         return kept;
+    }
+
+    /** Grid-cell params ({@code span=} is a grid-only field; rows and pagers lack it). */
+    private static boolean isBeduinGridParams(Object params) {
+        return params != null && params.toString().contains("span=");
+    }
+
+    /** Hidden children ({@code layoutVisible=false}) are dropped by the adapter and take no cell. */
+    private static boolean isBeduinHidden(Object params) {
+        return params.toString().contains("layoutVisible=false");
+    }
+
+    private static boolean isBeduinFullSpan(Object params) {
+        Integer span = parseIntField(params.toString(), "span=");
+        return span != null && span >= 2;
     }
 
     /** The grid child's layout params (the field whose value prints as {@code Params(...)}). */
@@ -2261,7 +2303,7 @@ public final class Blacklist {
         return null;
     }
 
-    /** Offer id, a seller key seen for this offer elsewhere, or the seller name. */
+    /** Offer id, a seller key seen for this offer elsewhere, or a name block. */
     private static boolean isBeduinAdvertBlocked(BeduinAdvertItem advert) {
         if (isOfferBlocked(advert.id)) {
             return true;
@@ -2284,6 +2326,7 @@ public final class Blacklist {
             if (advert == null) {
                 android.view.View root = viewHolder == null ? null : itemViewOf(viewHolder);
                 if (root != null) {
+                    boundAdvertViews.remove(root);
                     restore(root);
                 }
                 return;
@@ -2412,14 +2455,30 @@ public final class Blacklist {
                 return snippet;
             }
         }
+        // Kinds without advert data (skeletons, other snippet types) are retried
+        // only after a while, not searched again on every submit and bind.
+        Long missedAt = beduinMisses.get(kind);
+        long now = android.os.SystemClock.uptimeMillis();
+        if (missedAt != null && now - missedAt < BEDUIN_MISS_RETRY_MS) {
+            return null;
+        }
         List<BeduinStep> found = new ArrayList<>();
         java.util.Map<?, ?> element = searchBeduinElement(root, found);
         if (element == null) {
+            if (path == null) {
+                beduinMisses.put(kind, now);
+            }
             return null;
         }
+        beduinMisses.remove(kind);
         beduinPaths.put(kind, found);
         return beduinMap(element.get("itemSnippet"));
     }
+
+    private static final long BEDUIN_MISS_RETRY_MS = 30_000L;
+    /** Component kinds whose search found no advert data, with when it was tried. */
+    private static final java.util.Map<String, Long> beduinMisses =
+            new java.util.concurrent.ConcurrentHashMap<>();
 
     private static java.util.Map<?, ?> followBeduinPath(Object root, List<BeduinStep> path) {
         Object current = root;

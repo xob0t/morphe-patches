@@ -57,6 +57,7 @@ public final class MorpheBlockMenu {
             }
             final String userKey = key;
             final String sellerName = name;
+            Blacklist.rememberAdvertSeller(advertDetails);
             final boolean sellerResolvedWithoutDetailSeller = seller == null && userKey != null && !userKey.isEmpty();
             if ((offerId == null || offerId.isEmpty()) && (userKey == null || userKey.isEmpty())) {
                 return;
