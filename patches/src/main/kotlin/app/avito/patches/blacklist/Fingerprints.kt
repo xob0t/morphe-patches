@@ -92,3 +92,18 @@ object SerpElementsConverterFingerprint : Fingerprint(
             }
     },
 )
+
+/**
+ * Matches Beduin v2's `LazyComponentAdapter.submitList(List, Runnable)`: the
+ * single entry through which every server-driven Beduin v2 lazy list and grid
+ * receives its components (the adapter already drops components whose display
+ * predicate is false here). Newer search screens render their results through
+ * it instead of the SERP converter. Absent on builds without Beduin v2 lists.
+ */
+object BeduinLazyAdapterSubmitListFingerprint : Fingerprint(
+    definingClass = "Lcom/avito/beduin/v2/component/common/lazy/",
+    name = "submitList",
+    returnType = "V",
+    parameters = listOf(LIST, "Ljava/lang/Runnable;"),
+    custom = { method, _ -> method.implementation != null },
+)

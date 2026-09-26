@@ -52,9 +52,12 @@ private val registerBlacklistActivityPatch = resourcePatch {
  * The feed filter runs inside the obfuscated SERP element converter
  * ([SerpElementsConverterFingerprint]): the input `List<SerpElement>` is passed
  * to `Blacklist.filterSerpElements`, which removes blocked adverts in place before
- * they are converted into adapter items. The Settings entry, its click, and the
- * long-press bind hook live in [morpheSettingsPatch] (this patch's `onBindAdvert`
- * is called from there).
+ * they are converted into adapter items. Newer builds may also render search
+ * results as server-driven Beduin v2 lists; when present, those are filtered at
+ * the Beduin lazy adapter ([BeduinLazyAdapterSubmitListFingerprint]) and get the
+ * same long-press block menu from its adapters' bind. The Settings entry, its
+ * click, and the long-press bind hook live in [morpheSettingsPatch] (this patch's
+ * `onBindAdvert` is called from there).
  */
 @Suppress("unused")
 val blockListingsPatch = bytecodePatch(
@@ -112,6 +115,50 @@ val blockListingsPatch = bytecodePatch(
             "Block listings: installed SERP feed filter (in+out, ${returnIndices.size} returns) " +
                 "in ${SerpElementsConverterFingerprint.originalClassDef.type}",
         )
+
+        // Beduin v2 lists (the newer search results screen) bypass the SERP
+        // converter and the Konveyor bind. Optional: older builds without Beduin v2
+        // lazy lists keep working with the hooks above alone.
+        val beduinSubmit = BeduinLazyAdapterSubmitListFingerprint.methodOrNull
+        if (beduinSubmit != null) {
+            val lazyAdapter = BeduinLazyAdapterSubmitListFingerprint.originalClassDef.type
+            beduinSubmit.addInstructions(
+                0,
+                """
+                    invoke-static/range {p0 .. p1}, $BLACKLIST_CLASS->filterBeduinComponents(Ljava/lang/Object;Ljava/util/List;)Ljava/util/List;
+                    move-result-object p1
+                """,
+            )
+
+            // Long-press menu on Beduin tiles: hook onBindViewHolder(holder, position)
+            // of every concrete lazy adapter (grid, row, pager, ...).
+            var beduinBindHooks = 0
+            classDefForEach { classDef ->
+                if (classDef.superclass != lazyAdapter) return@classDefForEach
+                val bind = classDef.methods.firstOrNull { method ->
+                    method.name == "onBindViewHolder" &&
+                        method.returnType == "V" &&
+                        method.implementation != null &&
+                        method.parameterTypes.map { it.toString() }.let { params ->
+                            params.size == 2 && params[0].startsWith("L") && params[1] == "I"
+                        }
+                } ?: return@classDefForEach
+                mutableClassDefBy(classDef).methods
+                    .first { it.name == bind.name && it.parameterTypes == bind.parameterTypes }
+                    .addInstructions(
+                        0,
+                        "invoke-static/range {p0 .. p2}, " +
+                            "$BLACKLIST_CLASS->onBindBeduin(Ljava/lang/Object;Ljava/lang/Object;I)V",
+                    )
+                beduinBindHooks++
+            }
+            println(
+                "Block listings: filtered Beduin v2 lists in $lazyAdapter " +
+                    "and hooked $beduinBindHooks lazy adapter bind(s)",
+            )
+        } else {
+            println("Block listings: no Beduin v2 lazy adapter in this build, skipped")
+        }
 
         // Add block-offer / block-seller actions to the advert-detail toolbar. The
         // presenter setup method gets the AdvertDetails and builds the toolbar, so we

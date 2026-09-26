@@ -380,6 +380,9 @@ public final class BlacklistActivity extends Activity {
             if (offer && itemLabel != null) {
                 meta.append(id);
             }
+            if (!offer && Blacklist.isSellerNameKey(id)) {
+                meta.append("по имени");
+            }
             long blockedAt = offer ? Blacklist.getOfferTime(id) : Blacklist.getSellerTime(id);
             if (blockedAt > 0) {
                 if (meta.length() > 0) {
@@ -731,6 +734,16 @@ public final class BlacklistActivity extends Activity {
         }
         if (isJobEmployerUriKey(userKey)) {
             toast("Профиль работодателя из вакансии недоступен");
+            return;
+        }
+        if (Blacklist.isSellerNameKey(userKey)) {
+            // Blocked by name: no profile id; open the advert it was blocked from.
+            String link = Blacklist.getSellerLink(userKey);
+            if (link != null && !link.trim().isEmpty()) {
+                openInApp(link);
+            } else {
+                toast("Продавец скрыт по имени, профиль недоступен");
+            }
             return;
         }
         if (isJobEmployerKey(userKey)) {
