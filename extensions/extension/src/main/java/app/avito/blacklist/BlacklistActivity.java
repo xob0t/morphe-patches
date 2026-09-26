@@ -177,12 +177,18 @@ public final class BlacklistActivity extends Activity {
         return bar;
     }
 
-    /** Import / export / clear, grouped into the top-bar overflow menu. */
+    /**
+     * Import / export / clear, grouped into the top-bar overflow menu, plus a way
+     * back to the name-block warning after "Больше не показывать".
+     */
     private void showOverflowMenu(View anchor) {
         android.widget.PopupMenu menu = new android.widget.PopupMenu(this, anchor);
         menu.getMenu().add(0, 1, 0, "Импорт");
         menu.getMenu().add(0, 2, 1, "Экспорт");
         menu.getMenu().add(0, 3, 2, "Очистить");
+        if (Blacklist.isNameBlockWarningOff()) {
+            menu.getMenu().add(0, 4, 3, "Предупреждать о блокировке по имени");
+        }
         menu.setOnMenuItemClickListener(new android.widget.PopupMenu.OnMenuItemClickListener() {
             @Override
             public boolean onMenuItemClick(android.view.MenuItem item) {
@@ -195,6 +201,10 @@ public final class BlacklistActivity extends Activity {
                         return true;
                     case 3:
                         confirmClear();
+                        return true;
+                    case 4:
+                        Blacklist.setNameBlockWarningOff(false);
+                        toast("Предупреждение снова включено");
                         return true;
                     default:
                         return false;
@@ -379,6 +389,9 @@ public final class BlacklistActivity extends Activity {
             StringBuilder meta = new StringBuilder();
             if (offer && itemLabel != null) {
                 meta.append(id);
+            }
+            if (!offer && Blacklist.isSellerNameKey(id)) {
+                meta.append("по имени");
             }
             long blockedAt = offer ? Blacklist.getOfferTime(id) : Blacklist.getSellerTime(id);
             if (blockedAt > 0) {
@@ -731,6 +744,16 @@ public final class BlacklistActivity extends Activity {
         }
         if (isJobEmployerUriKey(userKey)) {
             toast("Профиль работодателя из вакансии недоступен");
+            return;
+        }
+        if (Blacklist.isSellerNameKey(userKey)) {
+            // Blocked by name: no profile id; open the advert it was blocked from.
+            String link = Blacklist.getSellerLink(userKey);
+            if (link != null && !link.trim().isEmpty()) {
+                openInApp(link);
+            } else {
+                toast("Продавец скрыт по имени, профиль недоступен");
+            }
             return;
         }
         if (isJobEmployerKey(userKey)) {

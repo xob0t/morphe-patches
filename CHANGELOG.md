@@ -1,3 +1,9 @@
+## [1.12.23](https://github.com/xob0t/morphe-patches/compare/v1.12.22...v1.12.23) (2026-09-26)
+
+### 🐛 Bug Fixes
+
+* **avito:** block listings in Beduin v2 search feeds ([#91](https://github.com/xob0t/morphe-patches/issues/91)) ([91c52eb](https://github.com/xob0t/morphe-patches/commit/91c52eb8c1fdb020f999e405c0053c65950c0928))
+
 ## [1.12.22](https://github.com/xob0t/morphe-patches/compare/v1.12.21...v1.12.22) (2026-09-26)
 
 ### 🐛 Bug Fixes

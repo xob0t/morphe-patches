@@ -57,6 +57,7 @@ public final class MorpheBlockMenu {
             }
             final String userKey = key;
             final String sellerName = name;
+            Blacklist.rememberAdvertSeller(advertDetails);
             final boolean sellerResolvedWithoutDetailSeller = seller == null && userKey != null && !userKey.isEmpty();
             if ((offerId == null || offerId.isEmpty()) && (userKey == null || userKey.isEmpty())) {
                 return;
@@ -117,13 +118,13 @@ public final class MorpheBlockMenu {
                 final Toggle sellerToggle = new Toggle() {
                     @Override
                     public boolean blocked() {
-                        return Blacklist.isSellerBlocked(userKey);
+                        return Blacklist.isSellerBlocked(userKey, sellerName);
                     }
 
                     @Override
                     public void toggle() {
-                        if (Blacklist.isSellerBlocked(userKey)) {
-                            Blacklist.removeSeller(userKey);
+                        if (Blacklist.isSellerBlocked(userKey, sellerName)) {
+                            Blacklist.removeSeller(userKey, sellerName);
                         } else {
                             Blacklist.addSeller(userKey, sellerName);
                             Blacklist.putSellerLinkForBlocking(userKey, advertDetails);
@@ -184,13 +185,13 @@ public final class MorpheBlockMenu {
                     new Toggle() {
                         @Override
                         public boolean blocked() {
-                            return Blacklist.isSellerBlocked(userKey);
+                            return Blacklist.isSellerBlocked(userKey, sellerName);
                         }
 
                         @Override
                         public void toggle() {
-                            if (Blacklist.isSellerBlocked(userKey)) {
-                                Blacklist.removeSeller(userKey);
+                            if (Blacklist.isSellerBlocked(userKey, sellerName)) {
+                                Blacklist.removeSeller(userKey, sellerName);
                             } else {
                                 Blacklist.addSeller(userKey, sellerName);
                             }
