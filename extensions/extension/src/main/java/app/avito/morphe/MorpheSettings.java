@@ -276,6 +276,15 @@ public final class MorpheSettings {
     }
 
     /**
+     * Gate for the profile header's standalone "Портал призов" rewards banner
+     * (Profile Pro rewards entry point), under the same toggle as the other
+     * prize-portal surfaces.
+     */
+    public static boolean hideProfileRewardEntryPoint() {
+        return isEnabled("avito_hide_profile_raffle", true);
+    }
+
+    /**
      * Gate for the "single-row home categories" feature, injected into the
      * rubricator tile's getRowLine(): when on, every tile reports row 1 so the
      * category rubricator collapses to one row. Off → stock (two rows).
