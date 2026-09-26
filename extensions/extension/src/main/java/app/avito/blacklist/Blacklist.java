@@ -40,6 +40,7 @@ public final class Blacklist {
     private static final String KEY_OFFER_SELLER_LABELS = "offer_seller_labels";
     private static final String KEY_OFFER_TIMES = "offer_times";
     private static final String KEY_SELLER_TIMES = "seller_times";
+    private static final String KEY_NAME_BLOCK_WARNING_OFF = "name_block_warning_off";
     private static final String JOB_EMPLOYER_PREFIX = "job_employer:";
     public static final String BRAND_SELLER_PREFIX = "brand:";
     public static final String JOB_EMPLOYER_URI_PREFIX = "job_employer_uri:";
@@ -1046,17 +1047,31 @@ public final class Blacklist {
             };
             if (byName) {
                 // The feed gave no seller id, only the display name: say what that
-                // means before blocking, since same-named sellers are hidden too.
+                // means before blocking (unless the user opted out), since
+                // same-named sellers are hidden too.
                 final android.content.Context dialogCtx = ctx;
                 labels.add("Скрыть продавца по имени");
                 actions.add(new Runnable() {
                     @Override
                     public void run() {
+                        if (isNameBlockWarningOff()) {
+                            blockSeller.run();
+                            return;
+                        }
+                        final android.widget.CheckBox dontShow = dontShowAgainBox(dialogCtx);
                         java.util.List<String> confirmLabels = new ArrayList<>();
                         java.util.List<Runnable> confirmActions = new ArrayList<>();
                         confirmLabels.add("Скрыть по имени");
-                        confirmActions.add(blockSeller);
-                        showRoundedMenu(dialogCtx, nameBlockWarning(sellerNameFinal),
+                        confirmActions.add(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (dontShow.isChecked()) {
+                                    setNameBlockWarningOff();
+                                }
+                                blockSeller.run();
+                            }
+                        });
+                        showRoundedMenu(dialogCtx, nameBlockWarning(sellerNameFinal), dontShow,
                                 confirmLabels, confirmActions);
                     }
                 });
@@ -1069,6 +1084,36 @@ public final class Blacklist {
             return;
         }
         showRoundedMenu(ctx, "Чёрный список", labels, actions);
+    }
+
+    public static boolean isNameBlockWarningOff() {
+        SharedPreferences prefs = prefs();
+        return prefs != null && prefs.getBoolean(KEY_NAME_BLOCK_WARNING_OFF, false);
+    }
+
+    private static void setNameBlockWarningOff() {
+        setNameBlockWarningOff(true);
+    }
+
+    /** Turns the name-block warning off ("Больше не показывать") or back on. */
+    public static void setNameBlockWarningOff(boolean off) {
+        SharedPreferences prefs = prefs();
+        if (prefs != null) {
+            prefs.edit().putBoolean(KEY_NAME_BLOCK_WARNING_OFF, off).apply();
+        }
+    }
+
+    /** "Больше не показывать" checkbox, tinted with Avito's accent colour. */
+    private static android.widget.CheckBox dontShowAgainBox(android.content.Context ctx) {
+        float d = ctx.getResources().getDisplayMetrics().density;
+        android.widget.CheckBox box = new android.widget.CheckBox(ctx);
+        box.setText("Больше не показывать");
+        box.setTextSize(14f);
+        box.setTextColor(avitoAttrColor(ctx, "black", 0xFFFFFFFF));
+        box.setButtonTintList(android.content.res.ColorStateList.valueOf(
+                avitoAttrColor(ctx, "blue", 0xFF00AAFF)));
+        box.setPadding((int) (4 * d), 0, 0, 0);
+        return box;
     }
 
     /** Warning shown before blocking a seller known only by display name. */
@@ -1085,6 +1130,13 @@ public final class Blacklist {
      * same index; an extra "Отмена" row dismisses.
      */
     static void showRoundedMenu(android.content.Context ctx, String title,
+                                java.util.List<String> labels,
+                                final java.util.List<Runnable> actions) {
+        showRoundedMenu(ctx, title, null, labels, actions);
+    }
+
+    /** As above, with an optional {@code extra} view (e.g. a checkbox) under the title. */
+    static void showRoundedMenu(android.content.Context ctx, String title, android.view.View extra,
                                 java.util.List<String> labels,
                                 final java.util.List<Runnable> actions) {
         try {
@@ -1107,6 +1159,13 @@ public final class Blacklist {
             header.setTextSize(13f);
             header.setPadding((int) (24 * d), (int) (6 * d), (int) (24 * d), (int) (10 * d));
             content.addView(header);
+            if (extra != null) {
+                android.widget.LinearLayout.LayoutParams extraLp = new android.widget.LinearLayout.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+                extraLp.leftMargin = extraLp.rightMargin = (int) (20 * d);
+                content.addView(extra, extraLp);
+            }
 
             final android.app.Dialog dialog = new android.app.Dialog(ctx);
 
