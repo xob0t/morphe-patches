@@ -39,6 +39,8 @@ private const val SERP_CONSTRUCTOR_ADVERT_ITEM =
 private const val BOXED_BOOLEAN = "Ljava/lang/Boolean;"
 
 private val AVI_TAB_NAMES = setOf("AI_ASSISTANT", "AI_ASSISTANT_SELLER")
+private const val PROFILE_PRO_REWARD_ENTRY_POINT_PACKAGE =
+    "Lcom/avito/android/profile/pro/impl/screen/item/reward_entry_point/"
 private val PROFILE_PRO_OUTPUT_ITEM_TYPES = setOf(
     "Lcom/avito/android/profile/pro/impl/screen/item/group/row/ProfileProGroupRowItem;",
     "Lcom/avito/android/profile/pro/impl/screen/item/widget_group/widget/ProfileProWidgetItem;",
@@ -84,6 +86,19 @@ private fun Method.profileProOutputItemTypes(): Set<String> {
         .filterTo(mutableSetOf()) { it in PROFILE_PRO_OUTPUT_ITEM_TYPES }
 }
 
+/**
+ * The Profile Pro rewards entry point converter: turns the profile tab's rewards
+ * widget into a single `ProfileProRewardEntryPointItem` (the "Портал призов"
+ * banner) and returns it as a `List`.
+ */
+private fun Method.isProfileRewardEntryPointConverter() = returnType == "Ljava/util/List;" &&
+    parameterTypes.size == 1 &&
+    implementation?.instructions?.any { instruction ->
+        instruction.opcode == Opcode.NEW_INSTANCE &&
+            ((instruction as? ReferenceInstruction)?.reference as? TypeReference)
+                ?.type?.startsWith(PROFILE_PRO_REWARD_ENTRY_POINT_PACKAGE) == true
+    } == true
+
 private fun ClassDef.hasPublicReservedGetter() = methods.any { method ->
     method.name == "getReserved" &&
         method.parameterTypes.isEmpty() &&
@@ -107,7 +122,8 @@ private fun ClassDef.hasPublicReservedGetter() = methods.any { method ->
  *    onboarding carousel.
  *  - **Hide reserved offers** from search and home feeds.
  *  - **Hide “Знак добра” banners** in search results.
- *  - **Hide the “Портал призов” raffle promo** on the profile page.
+ *  - **Hide the “Портал призов” raffle promo** on the profile page (profile rows
+ *    and the header rewards banner).
  *  - **Hide the referral-program entry point** on the profile page.
  *  - **Hide the Avito Pro entry point** on the profile page.
  *
@@ -438,6 +454,38 @@ val uiTweaksPatch = bytecodePatch(
             profilePromoConvertersPatched++
             profileOutputItemTypesPatched += outputItemTypes
         }
+
+        // The profile header can also carry the prize portal as a standalone
+        // rewards entry point banner (its own widget and converter). Return no
+        // items for it while the raffle toggle is on.
+        var rewardEntryPointConvertersPatched = 0
+        classDefForEach { classDef ->
+            if (!classDef.type.startsWith("Lcom/avito/android/profile/pro/impl/converters/")) {
+                return@classDefForEach
+            }
+            val converterMethod = classDef.methods.singleOrNull { method ->
+                method.isProfileRewardEntryPointConverter()
+            } ?: return@classDefForEach
+            val method = mutableClassDefBy(classDef).methods.single {
+                it.name == converterMethod.name && it.parameterTypes == converterMethod.parameterTypes
+            }
+            method.addInstructionsWithLabels(
+                0,
+                """
+                    invoke-static {}, $MORPHE_SETTINGS_CLASS->hideProfileRewardEntryPoint()Z
+                    move-result v0
+                    if-eqz v0, :stock
+                    invoke-static {}, Ljava/util/Collections;->emptyList()Ljava/util/List;
+                    move-result-object v0
+                    return-object v0
+                """,
+                ExternalLabel("stock", method.getInstruction(0)),
+            )
+            rewardEntryPointConvertersPatched++
+        }
+        if (rewardEntryPointConvertersPatched == 0) {
+            throw PatchException("UI tweaks: profile rewards entry point converter not found")
+        }
         val missingProfileOutputItemTypes = PROFILE_PRO_OUTPUT_ITEM_TYPES - profileOutputItemTypesPatched
         if (missingProfileOutputItemTypes.isNotEmpty()) {
             throw PatchException(
@@ -465,7 +513,8 @@ val uiTweaksPatch = bytecodePatch(
                 order = 40,
             )
             println(
-                "UI tweaks: gated $profilePromoConvertersPatched profile promo converter(s)" +
+                "UI tweaks: gated $profilePromoConvertersPatched profile promo converter(s) and " +
+                    "$rewardEntryPointConvertersPatched rewards entry point converter(s)" +
                     if (missingProfileOutputItemTypes.isEmpty()) {
                         "."
                     } else {
