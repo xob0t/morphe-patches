@@ -9,12 +9,18 @@ import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
 import app.shared.childrenNamed
+import app.shared.methodReferenceOrNull
 import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.RegisterRangeInstruction
 import org.w3c.dom.Element
 
 private const val BLACKLIST_CLASS = "Lapp/avito/blacklist/Blacklist;"
 private const val BLACKLIST_ACTIVITY = "app.avito.blacklist.BlacklistActivity"
+private const val KONVEYOR_ITEM_BINDER = "Lcom/avito/konveyor/a;"
+private const val EXTENDED_PROFILE_BEDUIN_WRAPPER =
+    "Lcom/avito/android/extended_profile_native_widgets_beduin_v2_wrapper/"
 
 /**
  * Registers the self-contained blacklist management screen
@@ -159,6 +165,53 @@ val blockListingsPatch = bytecodePatch(
         } else {
             println("Block listings: no Beduin v2 lazy adapter in this build, skipped")
         }
+
+        // Seller profile pages list adverts in a Beduin v2 lazy column
+        // (ExtendedProfileLazyColumnAdapter) that binds Konveyor items by calling
+        // the ItemBinder's bind(holder, item, position) directly, bypassing the
+        // presenter bind hook. Add the long-press menu right before each such call,
+        // with the holder and item it is about to bind.
+        var sellerProfileBindHooks = 0
+        classDefForEach { classDef ->
+            if (!classDef.type.startsWith(EXTENDED_PROFILE_BEDUIN_WRAPPER)) return@classDefForEach
+            classDef.methods.forEach { method ->
+                val callIndexes = method.instructionsOrNull
+                    ?.toList().orEmpty()
+                    .mapIndexedNotNull { index, instruction ->
+                        val reference = instruction.methodReferenceOrNull() ?: return@mapIndexedNotNull null
+                        val isItemBinderBind = reference.definingClass == KONVEYOR_ITEM_BINDER &&
+                            reference.returnType == "V" &&
+                            reference.parameterTypes.size == 3 &&
+                            reference.parameterTypes[2].toString() == "I"
+                        if (isItemBinderBind) index else null
+                    }
+                    .reversed()
+                if (callIndexes.isEmpty()) return@forEach
+                val mutableMethod = mutableClassDefBy(classDef).methods
+                    .first { it.name == method.name && it.parameterTypes == method.parameterTypes }
+                callIndexes.forEach { index ->
+                    // Registers of bind(holder, item, position): binder, holder, item, position.
+                    val registers = when (val call = mutableMethod.instructionsOrNull!!.toList()[index]) {
+                        is FiveRegisterInstruction -> listOf(call.registerC, call.registerD, call.registerE)
+                        is RegisterRangeInstruction -> (call.startRegister until call.startRegister + 3).toList()
+                        else -> throw PatchException("Block listings: unexpected seller profile bind call")
+                    }
+                    val (holder, item) = registers[1] to registers[2]
+                    val target = "$BLACKLIST_CLASS->onBindSellerProfileAdvert(Ljava/lang/Object;Ljava/lang/Object;)V"
+                    val hook = when {
+                        item == holder + 1 -> "invoke-static/range {v$holder .. v$item}, $target"
+                        holder <= 15 && item <= 15 -> "invoke-static {v$holder, v$item}, $target"
+                        else -> throw PatchException("Block listings: seller profile bind registers out of range")
+                    }
+                    mutableMethod.addInstructions(index, hook)
+                    sellerProfileBindHooks++
+                }
+            }
+        }
+        if (sellerProfileBindHooks == 0) {
+            throw PatchException("Block listings: seller profile item bind call not found")
+        }
+        println("Block listings: added long-press to $sellerProfileBindHooks seller profile item bind call(s)")
 
         // Add block-offer / block-seller actions to the advert-detail toolbar. The
         // presenter setup method gets the AdvertDetails and builds the toolbar, so we
