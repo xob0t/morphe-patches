@@ -1,3 +1,15 @@
+## [1.12.28-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.12.28-dev.1...v1.12.28-dev.2) (2026-09-27)
+
+### 🐛 Bug Fixes
+
+* **avito:** hide reserved offers in Beduin v2 search results ([#97](https://github.com/xob0t/morphe-patches/issues/97)) ([0cdf2b3](https://github.com/xob0t/morphe-patches/commit/0cdf2b303c3a3859d8a7cb07440243c805b6d8bf)), closes [#78](https://github.com/xob0t/morphe-patches/issues/78)
+
+## [1.12.28-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.12.27...v1.12.28-dev.1) (2026-09-27)
+
+### 🐛 Bug Fixes
+
+* **ozon:** allow keeping recommendation grids ([#96](https://github.com/xob0t/morphe-patches/issues/96)) ([f2b38ed](https://github.com/xob0t/morphe-patches/commit/f2b38ed1b2419439ca2eb5928de54bd67c401d5f)), closes [#64](https://github.com/xob0t/morphe-patches/issues/64)
+
 ## [1.12.27](https://github.com/xob0t/morphe-patches/compare/v1.12.26...v1.12.27) (2026-09-27)
 
 ### 🐛 Bug Fixes
