@@ -1,3 +1,9 @@
+## [1.12.25](https://github.com/xob0t/morphe-patches/compare/v1.12.24...v1.12.25) (2026-09-27)
+
+### 🐛 Bug Fixes
+
+* **avito:** hide "Реклама скрыта" stubs in Beduin v2 feeds ([#93](https://github.com/xob0t/morphe-patches/issues/93)) ([2893712](https://github.com/xob0t/morphe-patches/commit/28937122dc66d921f820889d890a9aae6a283673))
+
 ## [1.12.24](https://github.com/xob0t/morphe-patches/compare/v1.12.23...v1.12.24) (2026-09-27)
 
 ### 🐛 Bug Fixes
