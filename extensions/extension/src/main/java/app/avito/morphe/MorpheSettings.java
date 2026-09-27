@@ -147,6 +147,57 @@ public final class MorpheSettings {
      * natively renders nothing) while the toggle is on, otherwise the value
      * unchanged.
      */
+    /** Badge id of the offer page's "Можно купить в рассрочку" badge. */
+    private static final int INSTALLMENT_BADGE_ID = 2558;
+
+    /**
+     * Gate for the offer page's badge bar, injected at the return of
+     * {@code AdvertBadgeBar.getBadges()}: while "hide installments" is on, drops
+     * the installments badge ("Можно купить в рассрочку"), matched by its badge
+     * id or a title mentioning рассрочка. Other badges are kept.
+     */
+    public static java.util.List<?> withoutInstallmentBadges(java.util.List<?> badges) {
+        if (badges == null || badges.isEmpty() || !isEnabled("avito_hide_installments", true)) {
+            return badges;
+        }
+        try {
+            java.util.ArrayList<Object> kept = null;
+            for (int i = 0; i < badges.size(); i++) {
+                Object badge = badges.get(i);
+                if (isInstallmentBadge(badge)) {
+                    if (kept == null) {
+                        kept = new java.util.ArrayList<>(badges.subList(0, i));
+                    }
+                } else if (kept != null) {
+                    kept.add(badge);
+                }
+            }
+            return kept == null ? badges : kept;
+        } catch (Throwable ignored) {
+            return badges;
+        }
+    }
+
+    private static boolean isInstallmentBadge(Object badge) {
+        if (badge == null) {
+            return false;
+        }
+        try {
+            Object id = badge.getClass().getMethod("getId").invoke(badge);
+            if (id instanceof Integer && (Integer) id == INSTALLMENT_BADGE_ID) {
+                return true;
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            Object title = badge.getClass().getMethod("getTitle").invoke(badge);
+            return title instanceof String
+                    && ((String) title).toLowerCase(java.util.Locale.ROOT).contains("рассрочк");
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     public static Object creditInfoOrNull(Object creditInfo) {
         return isEnabled("avito_hide_installments", true) ? null : creditInfo;
     }
