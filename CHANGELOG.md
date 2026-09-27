@@ -1,3 +1,9 @@
+## [1.12.27](https://github.com/xob0t/morphe-patches/compare/v1.12.26...v1.12.27) (2026-09-27)
+
+### 🐛 Bug Fixes
+
+* **avito:** long-press to block on seller profile pages ([#95](https://github.com/xob0t/morphe-patches/issues/95)) ([9061c60](https://github.com/xob0t/morphe-patches/commit/9061c60fd34191e5cd6b37aeff456e4427c3e1fd))
+
 ## [1.12.26](https://github.com/xob0t/morphe-patches/compare/v1.12.25...v1.12.26) (2026-09-27)
 
 ### 🐛 Bug Fixes
