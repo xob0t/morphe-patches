@@ -38,7 +38,9 @@ public final class AdCleanup {
      * Called at the entry of Beduin v2's {@code LazyComponentAdapter.submitList}:
      * returns the components without ad banner slots, which only render the
      * "Реклама скрыта" stub once the ad SDK is removed. The original list is
-     * returned when there is nothing to drop. Fail-open.
+     * returned when there is nothing to drop. The two-column grid is realigned
+     * after removal, since other filters on this list may already have shifted the
+     * tiles around the slot. Fail-open.
      */
     public static java.util.List<?> withoutBeduinAdBanners(java.util.List<?> components) {
         if (components == null || components.isEmpty()) {
@@ -58,7 +60,7 @@ public final class AdCleanup {
                     kept.add(component);
                 }
             }
-            return kept == null ? components : kept;
+            return kept == null ? components : Blacklist.realignBeduinColumns(components, kept);
         } catch (Throwable ignored) {
             return components;
         }

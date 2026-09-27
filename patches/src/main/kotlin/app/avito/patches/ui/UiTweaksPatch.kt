@@ -1,5 +1,6 @@
 package app.avito.patches.ui
 
+import app.avito.patches.blacklist.BeduinLazyAdapterSubmitListFingerprint
 import app.avito.patches.blacklist.SerpElementsConverterFingerprint
 import app.avito.patches.settings.MorpheSettingsRegistry
 import app.avito.patches.settings.morpheSettingsPatch
@@ -396,6 +397,24 @@ val uiTweaksPatch = bytecodePatch(
             println(
                 "UI tweaks: gated reserved offers and kindness banners in SERP input and " +
                     "${feedReturnIndices.size} output(s).",
+            )
+        }
+
+        // Beduin v2 lists (the newer search results screen) bypass the SERP
+        // converter; their tiles carry itemSnippet.item.isReserved instead. Optional:
+        // older builds without Beduin v2 lazy lists only have the SERP path above.
+        val beduinSubmit = BeduinLazyAdapterSubmitListFingerprint.methodOrNull
+        if (beduinSubmit != null) {
+            beduinSubmit.addInstructions(
+                0,
+                """
+                    invoke-static/range {p1 .. p1}, $MORPHE_SETTINGS_CLASS->withoutReservedBeduinTiles(Ljava/util/List;)Ljava/util/List;
+                    move-result-object p1
+                """,
+            )
+            println(
+                "UI tweaks: gated reserved offers in Beduin v2 lists in " +
+                    BeduinLazyAdapterSubmitListFingerprint.originalClassDef.type,
             )
         }
 

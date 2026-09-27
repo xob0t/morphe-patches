@@ -395,6 +395,35 @@ public final class MorpheSettings {
         }
     }
 
+    /**
+     * Removes reserved advert tiles from a Beduin v2 list (the newer search results
+     * screen), which bypasses the SERP converter. The two-column grid is realigned
+     * after removal like the blacklist's Beduin filter. Fail-open.
+     */
+    public static java.util.List<?> withoutReservedBeduinTiles(java.util.List<?> components) {
+        if (components == null || components.isEmpty() || !isEnabled("avito_hide_reserved_offers", false)) {
+            return components;
+        }
+        try {
+            java.util.ArrayList<Object> kept = null;
+            for (int index = 0; index < components.size(); index++) {
+                Object component = components.get(index);
+                if (app.avito.blacklist.Blacklist.isBeduinTileReserved(component)) {
+                    if (kept == null) {
+                        kept = new java.util.ArrayList<>(components.subList(0, index));
+                    }
+                } else if (kept != null) {
+                    kept.add(component);
+                }
+            }
+            return kept == null
+                    ? components
+                    : app.avito.blacklist.Blacklist.realignBeduinColumns(components, kept);
+        } catch (Throwable ignored) {
+            return components;
+        }
+    }
+
     private static boolean isReservedOffer(Object item) {
         if (item == null) {
             return false;
