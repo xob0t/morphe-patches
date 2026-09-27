@@ -2234,7 +2234,7 @@ public final class Blacklist {
      * Full-span items (banners, headers) start a new row. Any mismatch keeps the
      * filtered list as is.
      */
-    private static List<?> realignBeduinColumns(List<?> original, List<Object> kept) {
+    public static List<?> realignBeduinColumns(List<?> original, List<Object> kept) {
         try {
             // Only realign what verifiably is a two-column grid: every sided tile of
             // the original list must sit in the column its margins are for. Rows,
@@ -2488,15 +2488,7 @@ public final class Blacklist {
      * Returns null for non-advert components.
      */
     private static BeduinAdvertItem beduinAdvertOf(Object component) {
-        if (component == null) {
-            return null;
-        }
-        String description = String.valueOf(component);
-        if (!description.contains("Snippet")) {
-            return null;
-        }
-        java.util.Map<?, ?> snippet = findBeduinSnippet(component,
-                component.getClass().getName() + "|" + parseField(description, "componentType="));
+        java.util.Map<?, ?> snippet = beduinSnippetOf(component);
         if (snippet == null) {
             return null;
         }
@@ -2515,6 +2507,34 @@ public final class Blacklist {
                 item == null ? null : beduinString(item.get("title")),
                 item == null ? null : beduinString(item.get("uri")),
                 seller == null ? null : beduinString(seller.get("name")));
+    }
+
+    /**
+     * Whether a Beduin v2 list component is an advert tile marked reserved
+     * ({@code itemSnippet.item.isReserved}). These tiles show no «Забронировано»
+     * badge, but the flag matches the one legacy SERP models expose.
+     */
+    public static boolean isBeduinTileReserved(Object component) {
+        try {
+            java.util.Map<?, ?> snippet = beduinSnippetOf(component);
+            java.util.Map<?, ?> item = snippet == null ? null : beduinMap(snippet.get("item"));
+            return item != null && "true".equals(beduinString(item.get("isReserved")));
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /** The component's {@code itemSnippet} object, or null for non-advert components. */
+    private static java.util.Map<?, ?> beduinSnippetOf(Object component) {
+        if (component == null) {
+            return null;
+        }
+        String description = String.valueOf(component);
+        if (!description.contains("Snippet")) {
+            return null;
+        }
+        return findBeduinSnippet(component,
+                component.getClass().getName() + "|" + parseField(description, "componentType="));
     }
 
     /** One hop from a component towards its element map: a field or a map key. */
