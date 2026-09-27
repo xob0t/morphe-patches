@@ -783,12 +783,34 @@ public final class Blacklist {
      * the Morphe settings row.
      */
     public static void onBindAdvert(Object viewHolder, Object item) {
+        onBindAdvert(viewHolder, item, false);
+    }
+
+    /**
+     * Bind hook for the adverts listed on a seller's profile page. Adds the same
+     * long-press block menu, but only individually blocked offers are hidden
+     * there: the user opened this seller on purpose, so a seller-level block
+     * (or a seller id learned for only some of the adverts) doesn't empty the page.
+     */
+    public static void onBindSellerProfileAdvert(Object viewHolder, Object item) {
+        onBindAdvert(viewHolder, item, true);
+    }
+
+    /** Tiles bound on a seller's profile page (see {@link #onBindSellerProfileAdvert}). */
+    private static final java.util.Map<android.view.View, Boolean> sellerPageViews =
+            java.util.Collections.synchronizedMap(new java.util.WeakHashMap<android.view.View, Boolean>());
+
+    private static void onBindAdvert(Object viewHolder, Object item, boolean sellerPage) {
         try {
             if (viewHolder == null || item == null) {
                 return;
             }
             rememberSeenSellerKeys(item);
-            if (!isBlockableListingItem(item)) {
+            // Seller-page advert items use their own (obfuscated) model; there, any
+            // item exposing a numeric advert id is an advert tile.
+            boolean blockable = isBlockableListingItem(item)
+                    || (sellerPage && !isBlank(offerIdOf(item)));
+            if (!blockable) {
                 return;
             }
             final android.view.View root = itemViewOf(viewHolder);
@@ -803,7 +825,15 @@ public final class Blacklist {
             // collapsed state onto a different advert, and so any blocked item the
             // feed filter missed is still hidden here.
             boundAdvertViews.put(root, boundItem);
-            if (isItemBlocked(boundItem)) {
+            if (sellerPage) {
+                sellerPageViews.put(root, Boolean.TRUE);
+            } else {
+                sellerPageViews.remove(root);
+            }
+            boolean blocked = sellerPage
+                    ? isOfferBlocked(offerIdOf(boundItem))
+                    : isItemBlocked(boundItem);
+            if (blocked) {
                 collapse(root);
             } else {
                 restore(root);
@@ -1998,7 +2028,9 @@ public final class Blacklist {
         }
         for (java.util.Map.Entry<android.view.View, Object> entry : entries) {
             Object item = entry.getValue();
-            boolean matches = isOffer ? id.equals(offerIdOf(item)) : isItemBlocked(item);
+            boolean matches = isOffer
+                    ? id.equals(offerIdOf(item))
+                    : !sellerPageViews.containsKey(entry.getKey()) && isItemBlocked(item);
             if (matches) {
                 collapse(entry.getKey());
             }
