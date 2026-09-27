@@ -19,8 +19,50 @@ import app.avito.blacklist.Blacklist;
  * <p>The stub has its own RecyclerView view type, so a holder created for it is
  * only ever rebound as a stub — collapsing it per instance is safe and needs no
  * restore. Fully defensive: any failure leaves the row untouched.
+ *
+ * <p>Server-driven Beduin v2 feeds (the newer search results screen) render the
+ * same stub from an ad banner component instead; those are dropped from the list
+ * before display by {@link #withoutBeduinAdBanners}.
  */
 public final class AdCleanup {
+
+    /**
+     * Beduin v2 ad slots: grid children laid out as {@code itemType=advBanner}, or
+     * server ad components ({@code componentType=Adv<Name>}, e.g.
+     * {@code AdvUniversalSearchBanner}; not {@code Advert...}).
+     */
+    private static final java.util.regex.Pattern BEDUIN_AD_COMPONENT =
+            java.util.regex.Pattern.compile("itemType=advBanner\\b|componentType=Adv[A-Z]");
+
+    /**
+     * Called at the entry of Beduin v2's {@code LazyComponentAdapter.submitList}:
+     * returns the components without ad banner slots, which only render the
+     * "Реклама скрыта" stub once the ad SDK is removed. The original list is
+     * returned when there is nothing to drop. Fail-open.
+     */
+    public static java.util.List<?> withoutBeduinAdBanners(java.util.List<?> components) {
+        if (components == null || components.isEmpty()) {
+            return components;
+        }
+        try {
+            java.util.ArrayList<Object> kept = null;
+            for (int i = 0; i < components.size(); i++) {
+                Object component = components.get(i);
+                boolean ad = component != null
+                        && BEDUIN_AD_COMPONENT.matcher(String.valueOf(component)).find();
+                if (ad) {
+                    if (kept == null) {
+                        kept = new java.util.ArrayList<>(components.subList(0, i));
+                    }
+                } else if (kept != null) {
+                    kept.add(component);
+                }
+            }
+            return kept == null ? components : kept;
+        } catch (Throwable ignored) {
+            return components;
+        }
+    }
 
     // -2 = not resolved yet; -1 = resource not found (give up); >0 = the id.
     private static int adEmptyId = -2;

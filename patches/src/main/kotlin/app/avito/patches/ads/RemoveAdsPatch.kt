@@ -1,5 +1,6 @@
 package app.avito.patches.ads
 
+import app.avito.patches.blacklist.BeduinLazyAdapterSubmitListFingerprint
 import app.avito.patches.shared.Constants.COMPATIBILITY_AVITO
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
@@ -332,8 +333,19 @@ val removeAdsPatch = bytecodePatch(
             """,
         )
 
+        // Beduin v2 feeds (the newer search results screen) keep ad banner slots
+        // that render a "Реклама скрыта" stub once ads are gone; drop them from
+        // every Beduin lazy list before display.
+        BeduinLazyAdapterSubmitListFingerprint.method.addInstructions(
+            0,
+            """
+                invoke-static/range {p1 .. p1}, Lapp/avito/morphe/AdCleanup;->withoutBeduinAdBanners(Ljava/util/List;)Ljava/util/List;
+                move-result-object p1
+            """,
+        )
+
         println(
-            "Remove ads: patched 4 banner surface(s), $galleryTeaserConvertersPatched gallery Beduin teaser " +
+            "Remove ads: patched 5 banner surface(s), $galleryTeaserConvertersPatched gallery Beduin teaser " +
                 "converter(s) (all required).",
         )
     }
