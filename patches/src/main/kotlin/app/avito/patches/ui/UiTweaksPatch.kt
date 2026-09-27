@@ -28,6 +28,7 @@ private const val BOTTOM_NAVIGATION_SPACE = "Lcom/avito/android/bottom_navigatio
 private const val MORPHE_SETTINGS_CLASS = "Lapp/avito/morphe/MorpheSettings;"
 private const val ADVERT_DETAILS = "Lcom/avito/android/remote/model/AdvertDetails;"
 private const val CREDIT_BROKER_PRODUCT = "Lcom/avito/android/remote/model/credit_broker/CreditBrokerProduct;"
+private const val ADVERT_BADGE_BAR = "Lcom/avito/android/remote/model/advert_badge_bar/AdvertBadgeBar;"
 private const val ICE_BREAKERS = "Lcom/avito/android/remote/model/IceBreakers;"
 private const val INTEGER = "Ljava/lang/Integer;"
 private const val FAVORITES_ADAPTER_PACKAGE = "Lcom/avito/android/user_favorites/adapter/"
@@ -112,8 +113,8 @@ private fun ClassDef.hasPublicReservedGetter() = methods.any { method ->
  *
  *  - **Force home categories into a single row.**
  *  - **Hide the "Подписки" tab** on the Избранное (Favorites) screen.
- *  - **Hide the installments (Рассрочка)** surfaces and the **"Спросите у
- *    продавца"** block on offer pages.
+ *  - **Hide the installments (Рассрочка)** surfaces (credit block, buy-bar row and
+ *    badge-bar badge) and the **"Спросите у продавца"** block on offer pages.
  *  - **Expand descriptions by default** so the full text shows without tapping
  *    "Читать далее".
  *  - **Hide the recommendations block** at the bottom of offer pages.
@@ -689,6 +690,42 @@ val uiTweaksPatch = bytecodePatch(
             summary = "Убрать рассрочку со страниц объявлений",
             order = 20,
         )
+
+        // Рассрочка can also come as a badge in the offer page's badge bar
+        // ("Можно купить в рассрочку"). Drop installment badges from
+        // AdvertBadgeBar.getBadges() under the same toggle.
+        val badgesGetter = mutableClassDefByOrNull(ADVERT_BADGE_BAR)
+            ?.methods
+            ?.firstOrNull { method ->
+                method.name == "getBadges" &&
+                    method.parameterTypes.isEmpty() &&
+                    method.returnType == "Ljava/util/List;" &&
+                    method.implementation != null
+            }
+            ?: throw PatchException("UI tweaks: AdvertBadgeBar.getBadges not found")
+        val badgesReturns = badgesGetter.instructionsOrNull
+            ?.toList().orEmpty()
+            .mapIndexedNotNull { index, instruction ->
+                if (instruction.opcode == Opcode.RETURN_OBJECT) {
+                    index to (instruction as OneRegisterInstruction).registerA
+                } else {
+                    null
+                }
+            }
+            .reversed()
+        if (badgesReturns.isEmpty()) {
+            throw PatchException("UI tweaks: AdvertBadgeBar.getBadges has no object return")
+        }
+        badgesReturns.forEach { (returnIndex, register) ->
+            badgesGetter.addInstructions(
+                returnIndex,
+                """
+                    invoke-static/range {v$register .. v$register}, $MORPHE_SETTINGS_CLASS->withoutInstallmentBadges(Ljava/util/List;)Ljava/util/List;
+                    move-result-object v$register
+                """,
+            )
+        }
+        println("UI tweaks: gated AdvertBadgeBar.getBadges installment badges (${badgesReturns.size} returns).")
 
         // "Спросите у продавца" (icebreakers): the suggested-questions block.
         gateAdvertDetailsGetter(

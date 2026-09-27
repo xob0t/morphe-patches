@@ -1,3 +1,9 @@
+## [1.12.26](https://github.com/xob0t/morphe-patches/compare/v1.12.25...v1.12.26) (2026-09-27)
+
+### 🐛 Bug Fixes
+
+* **avito:** hide the installments badge on offer pages ([#94](https://github.com/xob0t/morphe-patches/issues/94)) ([d493d0c](https://github.com/xob0t/morphe-patches/commit/d493d0cc36a13cfefd3fa12660021a60d455d36e))
+
 ## [1.12.25](https://github.com/xob0t/morphe-patches/compare/v1.12.24...v1.12.25) (2026-09-27)
 
 ### 🐛 Bug Fixes
