@@ -1,3 +1,9 @@
+## [1.12.24](https://github.com/xob0t/morphe-patches/compare/v1.12.23...v1.12.24) (2026-09-27)
+
+### 🐛 Bug Fixes
+
+* **avito:** hide the profile prize portal banner ([#92](https://github.com/xob0t/morphe-patches/issues/92)) ([8351f88](https://github.com/xob0t/morphe-patches/commit/8351f88843c54da3cab8152bd61a2f1f1c0639e6))
+
 ## [1.12.23](https://github.com/xob0t/morphe-patches/compare/v1.12.22...v1.12.23) (2026-09-26)
 
 ### 🐛 Bug Fixes
