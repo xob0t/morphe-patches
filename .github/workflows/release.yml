@@ -84,6 +84,8 @@ jobs:
           git clone --filter=blob:none --no-tags --branch dev \
             "https://github.com/$GITHUB_REPOSITORY.git" "$repo_dir"
           git -C "$repo_dir" fetch origin main:refs/remotes/origin/main
+          git -C "$repo_dir" config user.name 'morphe-target-promoter[bot]'
+          git -C "$repo_dir" config user.email 'morphe-target-promoter[bot]@users.noreply.github.com'
           if git -C "$repo_dir" merge-base --is-ancestor origin/main HEAD; then
             echo 'dev already contains main.'
             exit 0
@@ -115,8 +117,6 @@ jobs:
             CHANGELOG.md README.md gradle.properties \
             patches-bundle.json patches-list.json
           git -C "$repo_dir" diff --cached --check
-          git -C "$repo_dir" config user.name 'morphe-target-promoter[bot]'
-          git -C "$repo_dir" config user.email 'morphe-target-promoter[bot]@users.noreply.github.com'
           git -C "$repo_dir" commit -m 'chore: backmerge main into dev [skip ci]'
           git -C "$repo_dir" push origin HEAD:dev
 
