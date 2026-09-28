@@ -19,8 +19,12 @@ import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.Method
+import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.Instruction
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.RegisterRangeInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 import com.android.tools.smali.dexlib2.iface.reference.TypeReference
 
@@ -54,6 +58,60 @@ private fun Method.hasFieldReference(fields: Set<String>): Boolean = instruction
     val reference = instruction.fieldReferenceOrNull() ?: return@any false
     reference.definingClass == NAVIGATION_TAB && reference.name in fields
 } == true
+
+private val INSTANCE_FIELD_READS = setOf(
+    Opcode.IGET, Opcode.IGET_WIDE, Opcode.IGET_OBJECT, Opcode.IGET_BOOLEAN,
+    Opcode.IGET_BYTE, Opcode.IGET_CHAR, Opcode.IGET_SHORT,
+)
+
+private fun Instruction.argumentRegisters(): List<Int> = when (this) {
+    is FiveRegisterInstruction -> listOf(registerC, registerD, registerE, registerF, registerG).take(registerCount)
+    is RegisterRangeInstruction -> List(registerCount) { startRegister + it }
+    else -> emptyList()
+}
+
+/**
+ * Resolves the field a Kotlin data-class `toString()` prints right after [label].
+ *
+ * The generated method prints `name=` labels and property values alternately, but
+ * R8 outlines append runs into helpers and loads their arguments in register-
+ * allocation order: on 234.0 the rubricator item loads `", title="` before
+ * `"…(stringId="`, and both `", rowLine="` and `", rowSpan="` before the textIcon
+ * and rowLine reads. The order values are *passed* (to `append` or an outlined
+ * helper) is still print order, so each label and field read is recorded when an
+ * invoke consumes its register, then the n-th label is paired with the n-th field.
+ *
+ * Returns null unless the method looks like a plain data-class `toString`: the
+ * first label opens with `ClassName(`, label and field counts agree, and [label]
+ * occurs exactly once.
+ */
+private fun Method.dataClassToStringField(label: String): FieldReference? {
+    val owner = definingClass
+    val pending = mutableMapOf<Int, Any>()
+    val labels = mutableListOf<String>()
+    val fields = mutableListOf<FieldReference>()
+    instructionsOrNull?.forEach { instruction ->
+        val string = instruction.stringReferenceOrNull()
+        val field = instruction.fieldReferenceOrNull()
+        when {
+            string != null -> {
+                val register = (instruction as OneRegisterInstruction).registerA
+                if (string.endsWith("=")) pending[register] = string else pending.remove(register)
+            }
+            field != null && instruction.opcode in INSTANCE_FIELD_READS && field.definingClass == owner ->
+                pending[(instruction as TwoRegisterInstruction).registerA] = field
+            else -> instruction.argumentRegisters().forEach { register ->
+                when (val value = pending.remove(register)) {
+                    is String -> labels += value
+                    is FieldReference -> if (value !in fields) fields += value
+                }
+            }
+        }
+    } ?: return null
+    if (labels.size != fields.size || labels.firstOrNull()?.contains('(') != true) return null
+    if (labels.count { it == label } != 1) return null
+    return fields[labels.indexOf(label)]
+}
 
 private fun ClassDef.isFavoritesTabModel() = type.startsWith(FAVORITES_ADAPTER_PACKAGE) &&
     AccessFlags.ABSTRACT.isSet(accessFlags) &&

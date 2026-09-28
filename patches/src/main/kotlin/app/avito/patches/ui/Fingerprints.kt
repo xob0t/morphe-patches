@@ -2,16 +2,11 @@ package app.avito.patches.ui
 
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.InstructionLocation
-import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.fieldAccess
 import app.morphe.patcher.methodCall
 import app.morphe.patcher.opcode
 import app.morphe.patcher.string
-import app.shared.fieldReferenceOrNull
-import app.shared.stringReferenceOrNull
 import com.android.tools.smali.dexlib2.Opcode
-import com.android.tools.smali.dexlib2.iface.Method
-import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 
 internal const val VISUAL_RUBRICATOR_ITEM_MARKER = "VisualRubricatorWidgetElementItemImpl(stringId="
 internal const val ROW_LINE_MARKER = ", rowLine="
@@ -22,29 +17,6 @@ object VisualRubricatorElementFingerprint : Fingerprint(
     parameters = emptyList(),
     filters = listOf(string(VISUAL_RUBRICATOR_ITEM_MARKER)),
 )
-
-/**
- * Resolves the field a Kotlin data-class `toString()` prints right after [label].
- *
- * The generated method loads one `name=` label per property and reads the
- * properties in declaration order, but R8 hoists the label constants and outlines
- * append runs — on 234.0 the rubricator item emits
- * `z(sb, textIcon, ", rowLine=", rowLine, ", rowSpan=")` with both labels loaded
- * before either field. So the field read after a label isn't necessarily its
- * value; pairing the n-th label with the n-th distinct field read is.
- *
- * Returns null when the label/field counts disagree (not a plain data-class
- * `toString`) or the label is absent.
- */
-internal fun Method.dataClassToStringField(label: String): FieldReference? {
-    val instructions = instructionsOrNull ?: return null
-    val labels = instructions.mapNotNull { it.stringReferenceOrNull() }.filter { it.endsWith("=") }
-    val fields = instructions.mapNotNull { it.fieldReferenceOrNull() }
-        .filter { it.definingClass == definingClass }
-        .distinct()
-    if (labels.size != fields.size) return null
-    return fields.getOrNull(labels.indexOf(label))
-}
 
 /**
  * Matches the Favorites presenter method that consumes the assembled tab list and
