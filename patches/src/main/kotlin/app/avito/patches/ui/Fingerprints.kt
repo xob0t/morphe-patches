@@ -18,19 +18,6 @@ object VisualRubricatorElementFingerprint : Fingerprint(
     filters = listOf(string(VISUAL_RUBRICATOR_ITEM_MARKER)),
 )
 
-object VisualRubricatorRowLineFingerprint : Fingerprint(
-    name = "toString",
-    returnType = "Ljava/lang/String;",
-    parameters = emptyList(),
-    filters = listOf(
-        string(ROW_LINE_MARKER),
-        fieldAccess(
-            definingClass = "this",
-            type = "Ljava/lang/Integer;",
-        ),
-    ),
-)
-
 /**
  * Matches the Favorites presenter method that consumes the assembled tab list and
  * populates the (legacy) tab strip — `user_favorites/O.b(List)` on 227.0.
