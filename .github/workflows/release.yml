@@ -79,10 +79,46 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.patches-release-token.outputs.token }}
         run: |
-          gh api --method POST "repos/$GITHUB_REPOSITORY/merges" \
-            -f base=dev \
-            -f head=main \
-            -f commit_message='chore: backmerge main into dev'
+          gh auth setup-git
+          repo_dir="$RUNNER_TEMP/backmerge"
+          git clone --filter=blob:none --no-tags --branch dev \
+            "https://github.com/$GITHUB_REPOSITORY.git" "$repo_dir"
+          git -C "$repo_dir" fetch origin main:refs/remotes/origin/main
+          if git -C "$repo_dir" merge-base --is-ancestor origin/main HEAD; then
+            echo 'dev already contains main.'
+            exit 0
+          fi
+
+          if ! git -C "$repo_dir" merge --no-ff --no-commit origin/main; then
+            conflicts=$(git -C "$repo_dir" diff --name-only --diff-filter=U)
+            if [ -z "$conflicts" ]; then
+              echo 'Merge failed without file conflicts.' >&2
+              exit 1
+            fi
+            while IFS= read -r file; do
+              case "$file" in
+                CHANGELOG.md|README.md|gradle.properties|patches-bundle.json|patches-list.json)
+                  git -C "$repo_dir" checkout --ours -- "$file"
+                  git -C "$repo_dir" add -- "$file"
+                  ;;
+                *)
+                  echo "Unexpected backmerge conflict: $file" >&2
+                  exit 1
+                  ;;
+              esac
+            done <<< "$conflicts"
+          fi
+
+          # Release metadata on dev belongs to its prerelease, even when a merge
+          # can combine part of a generated file without a conflict.
+          git -C "$repo_dir" restore --source=HEAD --staged --worktree -- \
+            CHANGELOG.md README.md gradle.properties \
+            patches-bundle.json patches-list.json
+          git -C "$repo_dir" diff --cached --check
+          git -C "$repo_dir" config user.name 'morphe-target-promoter[bot]'
+          git -C "$repo_dir" config user.email 'morphe-target-promoter[bot]@users.noreply.github.com'
+          git -C "$repo_dir" commit -m 'chore: backmerge main into dev [skip ci]'
+          git -C "$repo_dir" push origin HEAD:dev
 
       - name: Create autobuild dispatch token
         if: github.ref == 'refs/heads/main' && steps.release.outputs.new_release_published == 'true'
