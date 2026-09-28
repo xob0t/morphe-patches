@@ -1,3 +1,9 @@
+## [1.12.31](https://github.com/xob0t/morphe-patches/compare/v1.12.30...v1.12.31) (2026-09-28)
+
+### 🐛 Bug Fixes
+
+* **avito:** hook the rubricator rowLine getter on 234.0 ([#107](https://github.com/xob0t/morphe-patches/issues/107)) ([6a62526](https://github.com/xob0t/morphe-patches/commit/6a6252607585a8226bcc8e5b047370876f205a4d))
+
 ## [1.12.30](https://github.com/xob0t/morphe-patches/compare/v1.12.29...v1.12.30) (2026-09-28)
 
 ### 🐛 Bug Fixes
