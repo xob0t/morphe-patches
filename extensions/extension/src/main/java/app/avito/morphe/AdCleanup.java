@@ -22,25 +22,76 @@ import app.avito.blacklist.Blacklist;
  *
  * <p>Server-driven Beduin v2 feeds (the newer search results screen) render the
  * same stub from an ad banner component instead; those are dropped from the list
- * before display by {@link #withoutBeduinAdBanners}.
+ * before display by {@link #withoutBeduinAdBanners}, together with the promo
+ * banners the feed embeds. The legacy SERP drops the same promo banner models via
+ * {@link #withoutSerpBanners}.
  */
 public final class AdCleanup {
 
     /**
      * Beduin v2 ad slots: grid children laid out as {@code itemType=advBanner}, or
      * server ad components ({@code componentType=Adv<Name>}, e.g.
-     * {@code AdvUniversalSearchBanner}; not {@code Advert...}).
+     * {@code AdvUniversalSearchBanner}; not {@code Advert...}). Also the promo
+     * banners Beduin v2 search embeds through {@code BuyerFeedNativeWrapper},
+     * keyed by their SERP element type: legacy banner models (e.g.
+     * {@code itemType=actionPromoBanner}) and server-driven content widgets
+     * ({@code itemType=beduinV2ContentWidget}, e.g. "Упростили перепродажу").
      */
     private static final java.util.regex.Pattern BEDUIN_AD_COMPONENT =
-            java.util.regex.Pattern.compile("itemType=advBanner\\b|componentType=Adv[A-Z]");
+            java.util.regex.Pattern.compile(
+                    "itemType=advBanner\\b|componentType=Adv[A-Z]"
+                            + "|itemType=(?:actionPromoBanner|info_banner|discount_banner|uspBannerWidget"
+                            + "|heroBannerWidget|heroBannerSnippetsWidget|brandspaceWidget|beduinV2ContentWidget)\\b");
+
+    /**
+     * Legacy SERP promo banner models (network {@code SerpElement}s), matching the
+     * Beduin v2 item types above. Alert and map banners are informational and kept.
+     */
+    private static final java.util.Set<String> SERP_BANNER_MODELS = new java.util.HashSet<>(java.util.Arrays.asList(
+            "com.avito.android.remote.model.ActionPromoBanner",
+            "com.avito.android.remote.model.InfoBanner",
+            "com.avito.android.remote.model.user_adverts.DiscountBanner",
+            "com.avito.android.remote.model.vertical_main.UspBannersWidget",
+            "com.avito.android.remote.model.vertical_main.BrandspaceWidget",
+            "com.avito.android.remote.model.serp.HeroBannerWidget",
+            "com.avito.android.remote.model.serp.HeroBannerSnippetsWidget"
+    ));
+
+    /**
+     * Called at the entry of the legacy SERP element converter: returns the network
+     * elements without promo banners, so no adapter row is built for them. The
+     * original list is returned when there is nothing to drop. Fail-open.
+     */
+    public static java.util.List<?> withoutSerpBanners(java.util.List<?> elements) {
+        if (elements == null || elements.isEmpty()) {
+            return elements;
+        }
+        try {
+            java.util.ArrayList<Object> kept = null;
+            for (int i = 0; i < elements.size(); i++) {
+                Object element = elements.get(i);
+                boolean banner = element != null && SERP_BANNER_MODELS.contains(element.getClass().getName());
+                if (banner) {
+                    if (kept == null) {
+                        kept = new java.util.ArrayList<>(elements.subList(0, i));
+                    }
+                } else if (kept != null) {
+                    kept.add(element);
+                }
+            }
+            return kept == null ? elements : kept;
+        } catch (Throwable ignored) {
+            return elements;
+        }
+    }
 
     /**
      * Called at the entry of Beduin v2's {@code LazyComponentAdapter.submitList}:
      * returns the components without ad banner slots, which only render the
-     * "Реклама скрыта" stub once the ad SDK is removed. The original list is
-     * returned when there is nothing to drop. The two-column grid is realigned
-     * after removal, since other filters on this list may already have shifted the
-     * tiles around the slot. Fail-open.
+     * "Реклама скрыта" stub once the ad SDK is removed, and without embedded promo
+     * banners. The original list is returned when there is nothing to drop. The
+     * two-column grid is realigned after removal, since other filters on this list
+     * may already have shifted the tiles around the slot. Fail-open.
      */
     public static java.util.List<?> withoutBeduinAdBanners(java.util.List<?> components) {
         if (components == null || components.isEmpty()) {
