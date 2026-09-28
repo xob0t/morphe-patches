@@ -36,6 +36,14 @@ jobs:
             exit 0
           fi
 
+          changed_files="$(gh api \
+            "repos/$GITHUB_REPOSITORY/compare/main...$SOURCE_BRANCH" \
+            --jq '.files | length')"
+          if [ "$changed_files" -eq 0 ]; then
+            echo "Skipping pull request creation because $SOURCE_BRANCH has no changes from main."
+            exit 0
+          fi
+
           existing_pr="$(gh pr list \
             --repo "$GITHUB_REPOSITORY" \
             --base main \
