@@ -1,3 +1,9 @@
+## [1.12.29-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.12.28...v1.12.29-dev.1) (2026-09-28)
+
+### 🐛 Bug Fixes
+
+* **avito:** hide promo banners in search results ([#99](https://github.com/xob0t/morphe-patches/issues/99)) ([1d2248d](https://github.com/xob0t/morphe-patches/commit/1d2248dd0372cc25cdd822d61c7e75da2650a2d3))
+
 ## [1.12.28](https://github.com/xob0t/morphe-patches/compare/v1.12.27...v1.12.28) (2026-09-27)
 
 ### 🐛 Bug Fixes
