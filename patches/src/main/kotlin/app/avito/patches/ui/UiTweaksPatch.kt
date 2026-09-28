@@ -153,13 +153,12 @@ val uiTweaksPatch = bytecodePatch(
         // The DoubleRows visual rubricator routes each tile to row_first/row_second
         // by its getRowLine(); when the toggle is on, make every tile report row 1
         // so the second row collapses and all categories land in one scrollable row.
-        // The class/method keep their real names across 213–227.
-        val rubricatorMatch = VisualRubricatorElementFingerprint.matchOrNull()
-        val rowLineMatch = rubricatorMatch?.let { match ->
-            VisualRubricatorRowLineFingerprint.matchOrNull(match.originalClassDef)
-        }
-        val getRowLine = rowLineMatch?.let { match ->
-            val rowLineField = match.instructionMatches[1].instruction.fieldReferenceOrNull()
+        // The rowLine field is resolved positionally from the item's toString(): the
+        // neighbouring textIcon Integer is a drawable id, and hooking its getter
+        // instead feeds resource id 1 to the tile binder and crashes the home screen.
+        val getRowLine = VisualRubricatorElementFingerprint.matchOrNull()?.let { match ->
+            val rowLineField = match.originalMethod.dataClassToStringField(ROW_LINE_MARKER)
+                ?.takeIf { it.type == INTEGER }
                 ?: return@let null
             Fingerprint(
                 returnType = rowLineField.type,
