@@ -1,3 +1,9 @@
+## [1.13.0-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.13.0-dev.1...v1.13.0-dev.2) (2026-09-28)
+
+### 🐛 Bug Fixes
+
+* **ci:** backmerge stable releases into dev ([ff825cf](https://github.com/xob0t/morphe-patches/commit/ff825cfaf58e4061930eb8bf248e2a9334ae8b39))
+
 ## [1.12.29](https://github.com/xob0t/morphe-patches/compare/v1.12.28...v1.12.29) (2026-09-28)
 
 ### 🐛 Bug Fixes
