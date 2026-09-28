@@ -74,6 +74,16 @@ jobs:
           subject-name: 'Morphe Patches ${{ steps.release.outputs.new_release_git_tag }}'
           subject-path: patches/build/libs/patches-*.mpp
 
+      - name: Backmerge stable main into dev
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ steps.patches-release-token.outputs.token }}
+        run: |
+          gh api --method POST "repos/$GITHUB_REPOSITORY/merges" \
+            -f base=dev \
+            -f head=main \
+            -f commit_message='chore: backmerge main into dev'
+
       - name: Create autobuild dispatch token
         if: github.ref == 'refs/heads/main' && steps.release.outputs.new_release_published == 'true'
         id: autobuild-token
