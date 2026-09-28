@@ -128,6 +128,8 @@ private fun ClassDef.hasPublicReservedGetter() = methods.any { method ->
  *    and the header rewards banner).
  *  - **Hide the referral-program entry point** on the profile page.
  *  - **Hide the Avito Pro entry point** on the profile page.
+ *  - **Hide profile sections** "Может быть интересно", "Инструменты", "Сервисы"
+ *    and "Работа и подработка" (each off by default).
  *
  * Every advertised tweak is required on the supported app target. A missing hook
  * aborts patching so an incomplete build cannot be published.
@@ -139,6 +141,7 @@ val uiTweaksPatch = bytecodePatch(
         "categories, hide the \"Подписки\" tab in Избранное, hide installments (Рассрочка) and the " +
         "\"Спросите у продавца\" block on offers, expand descriptions by default (no \"Читать далее\"), " +
         "hide reserved offers and offer recommendations, hide profile raffle, referral and Avito Pro promos, " +
+        "optionally hide profile sections (recommendations, tools, services, jobs), " +
         "and hide the Avi assistant tab in the bottom navigation.",
     default = true,
 ) {
@@ -593,6 +596,39 @@ val uiTweaksPatch = bytecodePatch(
             )
             println("UI tweaks: gated profile referrals behind the toggle (${returnTargets.size} returns).")
         }
+
+        // --- Hide whole sections on the profile page ----------------------------
+        // Filter the List<ProfileTabWidget> on entry to the converter that builds
+        // the profile screen, so a hidden section loses its heading and rows
+        // together. Each section has its own toggle, all off by default.
+        val profileWidgetsConverter = ProfileWidgetsConverterFingerprint.methodOrNull
+            ?: throw PatchException("UI tweaks: Profile Pro widgets converter not found")
+        profileWidgetsConverter.addInstructions(
+            0,
+            """
+                invoke-static/range {p1 .. p1}, $MORPHE_SETTINGS_CLASS->withoutHiddenProfileSections(Ljava/util/ArrayList;)Ljava/util/ArrayList;
+                move-result-object p1
+            """,
+        )
+        listOf(
+            Triple("avito_hide_profile_recommendations", "Скрыть «Может быть интересно»", "Убрать подборку объявлений"),
+            Triple("avito_hide_profile_tools", "Скрыть «Инструменты»", "Убрать блок инструментов продавца"),
+            Triple("avito_hide_profile_services", "Скрыть «Сервисы»", "Убрать плитки сервисов Авито"),
+            Triple("avito_hide_profile_jobs", "Скрыть «Работа и подработка»", "Убрать блок поиска работы"),
+        ).forEachIndexed { index, (key, title, summary) ->
+            MorpheSettingsRegistry.addSwitch(
+                key = key,
+                title = title,
+                summary = summary,
+                default = false,
+                section = MorpheSettingsRegistry.Section.PROFILE,
+                order = (index + 1) * 10,
+            )
+        }
+        println(
+            "UI tweaks: gated profile sections in " +
+                "${ProfileWidgetsConverterFingerprint.originalClassDef.type}->${profileWidgetsConverter.name}",
+        )
 
         // --- Hide promotional/informational onboarding drawers on launch --------
         // OnboardingDialogFragment is dedicated to Avito's server-driven onboarding

@@ -1,6 +1,7 @@
 package app.avito.patches.ads
 
 import app.avito.patches.blacklist.BeduinLazyAdapterSubmitListFingerprint
+import app.avito.patches.blacklist.SerpElementsConverterFingerprint
 import app.avito.patches.shared.Constants.COMPATIBILITY_AVITO
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
@@ -334,8 +335,10 @@ val removeAdsPatch = bytecodePatch(
         )
 
         // Beduin v2 feeds (the newer search results screen) keep ad banner slots
-        // that render a "Реклама скрыта" stub once ads are gone; drop them from
-        // every Beduin lazy list before display.
+        // that render a "Реклама скрыта" stub once ads are gone, and embed promo
+        // banners (legacy SERP banners like actionPromoBanner, server-driven
+        // beduinV2ContentWidget cards); drop them from every Beduin lazy list
+        // before display.
         BeduinLazyAdapterSubmitListFingerprint.method.addInstructions(
             0,
             """
@@ -344,8 +347,18 @@ val removeAdsPatch = bytecodePatch(
             """,
         )
 
+        // Legacy SERP: drop promo banner elements (action promo, info, discount,
+        // USP, brandspace, hero banners) before they are converted to adapter rows.
+        SerpElementsConverterFingerprint.method.addInstructions(
+            0,
+            """
+                invoke-static/range {p1 .. p1}, Lapp/avito/morphe/AdCleanup;->withoutSerpBanners(Ljava/util/List;)Ljava/util/List;
+                move-result-object p1
+            """,
+        )
+
         println(
-            "Remove ads: patched 5 banner surface(s), $galleryTeaserConvertersPatched gallery Beduin teaser " +
+            "Remove ads: patched 6 banner surface(s), $galleryTeaserConvertersPatched gallery Beduin teaser " +
                 "converter(s) (all required).",
         )
     }
