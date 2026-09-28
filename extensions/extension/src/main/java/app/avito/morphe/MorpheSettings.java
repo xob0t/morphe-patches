@@ -327,6 +327,43 @@ public final class MorpheSettings {
     }
 
     /**
+     * Drops whole profile sections before the Profile Pro converter turns the
+     * widget list into screen items, so each section's heading and rows go away
+     * together. Returns a filtered copy; the loaded profile model is left intact.
+     * The server sends these groups without ids, so they are matched by their
+     * exact title; recommendations also carry a stable analytics type.
+     */
+    public static java.util.ArrayList<?> withoutHiddenProfileSections(java.util.ArrayList<?> widgets) {
+        if (widgets == null || widgets.isEmpty()) {
+            return widgets;
+        }
+        try {
+            boolean hideRecommendations = isEnabled("avito_hide_profile_recommendations", false);
+            boolean hideTools = isEnabled("avito_hide_profile_tools", false);
+            boolean hideServices = isEnabled("avito_hide_profile_services", false);
+            boolean hideJobs = isEnabled("avito_hide_profile_jobs", false);
+            if (!hideRecommendations && !hideTools && !hideServices && !hideJobs) {
+                return widgets;
+            }
+            java.util.ArrayList<Object> kept = new java.util.ArrayList<>(widgets.size());
+            for (Object widget : widgets) {
+                boolean hidden = widget != null
+                        && ((hideRecommendations && (hasStringValue(widget, "recommendationBlock")
+                        || hasStringValue(widget, "Может быть интересно")))
+                        || (hideTools && hasStringValue(widget, "Инструменты"))
+                        || (hideServices && hasStringValue(widget, "Сервисы"))
+                        || (hideJobs && hasStringValue(widget, "Работа и подработка")));
+                if (!hidden) {
+                    kept.add(widget);
+                }
+            }
+            return kept.size() == widgets.size() ? widgets : kept;
+        } catch (Throwable ignored) {
+            return widgets;
+        }
+    }
+
+    /**
      * Gate for the profile header's standalone "Портал призов" rewards banner
      * (Profile Pro rewards entry point), under the same toggle as the other
      * prize-portal surfaces.
