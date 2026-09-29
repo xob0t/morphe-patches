@@ -1,6 +1,8 @@
 package app.avito.patches.sellerfilter
 
+import app.avito.patches.blacklist.BeduinLazyAdapterSubmitListFingerprint
 import app.avito.patches.blacklist.SerpElementsConverterFingerprint
+import app.avito.patches.blacklist.beduinLazyAdapterBinds
 import app.avito.patches.settings.morpheSettingsPatch
 import app.avito.patches.shared.Constants.COMPATIBILITY_AVITO
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
@@ -57,6 +59,32 @@ val hideProfessionalSellersPatch = bytecodePatch(
             )
         }
 
+        // Beduin v2 lists (the in-app search results screen) bypass the SERP
+        // converter and the Konveyor bind, so filter and tint them at the lazy
+        // adapter. Optional: older builds without Beduin v2 lists only have the
+        // SERP path above.
+        var beduinBindHooks = 0
+        val beduinSubmit = BeduinLazyAdapterSubmitListFingerprint.methodOrNull
+        if (beduinSubmit != null) {
+            beduinSubmit.addInstructions(
+                0,
+                """
+                    invoke-static/range {p1 .. p1}, $SELLER_FILTER_CLASS->filterBeduinComponents(Ljava/util/List;)Ljava/util/List;
+                    move-result-object p1
+                """,
+            )
+            val beduinBinds =
+                beduinLazyAdapterBinds(BeduinLazyAdapterSubmitListFingerprint.originalClassDef.type)
+            beduinBinds.forEach { bind ->
+                bind.addInstructions(
+                    0,
+                    "invoke-static/range {p0 .. p2}, " +
+                        "$SELLER_FILTER_CLASS->onBindBeduin(Ljava/lang/Object;Ljava/lang/Object;I)V",
+                )
+            }
+            beduinBindHooks = beduinBinds.size
+        }
+
         var widgetFiltersHooks = 0
         WidgetFiltersActivityOnCreateFingerprint.methodOrNull?.let { filtersOnCreate ->
             val returnIndices = filtersOnCreate.instructionsOrNull
@@ -105,8 +133,8 @@ val hideProfessionalSellersPatch = bytecodePatch(
 
         println(
             "Hide professional sellers: installed SERP filter, tint binder, and native controls " +
-                "(${returnIndices.size} converter returns, $widgetFiltersHooks WidgetFiltersActivity returns, " +
-                "$homeActivityHooks HomeActivity returns)",
+                "(${returnIndices.size} converter returns, $beduinBindHooks Beduin lazy adapter binds, " +
+                "$widgetFiltersHooks WidgetFiltersActivity returns, $homeActivityHooks HomeActivity returns)",
         )
     }
 }

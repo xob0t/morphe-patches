@@ -116,25 +116,72 @@ public final class ProfessionalSellerFilter {
     }
 
     /**
+     * Beduin v2 lists (the in-app search results screen) bypass the SERP
+     * converter. Their advert tiles carry the seller's review count as
+     * {@code itemSnippet.seller.rating.reviewsCountFormatted}; matching tiles are
+     * dropped and the two-column grid is realigned like the blacklist's Beduin
+     * filter. Tiles without a rated seller are kept.
+     */
+    public static List<?> filterBeduinComponents(List<?> components) {
+        if (components == null || components.isEmpty()) {
+            return components;
+        }
+        int maximum = maximumReviews();
+        if (maximum <= 0 || tintMatches()) {
+            return components;
+        }
+        try {
+            ArrayList<Object> kept = null;
+            for (int index = 0; index < components.size(); index++) {
+                Object component = components.get(index);
+                if (beduinReviewCount(component) > maximum) {
+                    if (kept == null) {
+                        kept = new ArrayList<>(components.subList(0, index));
+                    }
+                } else if (kept != null) {
+                    kept.add(component);
+                }
+            }
+            return kept == null
+                    ? components
+                    : app.avito.blacklist.Blacklist.realignBeduinColumns(components, kept);
+        } catch (Throwable ignored) {
+            return components;
+        }
+    }
+
+    /**
      * Applies or clears the optional matched-offer tint on every adapter bind.
      * The keyed bound-item tag prevents a delayed callback from tinting a
      * RecyclerView holder that has already been recycled for another model.
      */
     public static void onBind(Object viewHolder, final Object item) {
+        bindTint(viewHolder, item, false);
+    }
+
+    /** Tint bind for Beduin v2 lazy adapters: {@code onBindViewHolder(holder, position)}. */
+    public static void onBindBeduin(Object adapter, Object viewHolder, int position) {
+        try {
+            bindTint(viewHolder, app.avito.blacklist.Blacklist.beduinItemAt(adapter, position), true);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void bindTint(Object viewHolder, final Object item, final boolean beduin) {
         try {
             final View root = app.avito.blacklist.Blacklist.itemViewOf(viewHolder);
             if (root == null) {
                 return;
             }
             root.setTag(TINT_BOUND_ITEM_TAG, item);
-            if (!shouldTint(item)) {
+            if (!shouldTint(item, beduin)) {
                 applyTileTint(root, false);
             }
             root.post(new Runnable() {
                 @Override
                 public void run() {
                     if (root.getTag(TINT_BOUND_ITEM_TAG) == item) {
-                        applyTileTint(root, shouldTint(item));
+                        applyTileTint(root, shouldTint(item, beduin));
                     }
                 }
             });
@@ -142,12 +189,21 @@ public final class ProfessionalSellerFilter {
         }
     }
 
-    private static boolean shouldTint(Object item) {
-        if (!tintMatches()) {
+    private static boolean shouldTint(Object item, boolean beduin) {
+        if (item == null || !tintMatches()) {
             return false;
         }
         int maximum = maximumReviews();
-        return maximum > 0 && sellerReviewCount(item) > maximum;
+        if (maximum <= 0) {
+            return false;
+        }
+        int reviews = beduin ? beduinReviewCount(item) : sellerReviewCount(item);
+        return reviews > maximum;
+    }
+
+    private static int beduinReviewCount(Object component) {
+        return parseReviewCount(
+                app.avito.blacklist.Blacklist.beduinSellerReviewsFormatted(component));
     }
 
     private static void applyTileTint(View root, boolean tinted) {
