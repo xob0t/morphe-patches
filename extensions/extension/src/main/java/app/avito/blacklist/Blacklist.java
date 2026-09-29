@@ -2454,7 +2454,7 @@ public final class Blacklist {
         });
     }
 
-    private static Object beduinItemAt(Object adapter, int position) {
+    public static Object beduinItemAt(Object adapter, int position) {
         if (adapter == null || position < 0) {
             return null;
         }
@@ -2521,6 +2521,22 @@ public final class Blacklist {
             return item != null && "true".equals(beduinString(item.get("isReserved")));
         } catch (Throwable ignored) {
             return false;
+        }
+    }
+
+    /**
+     * The seller's formatted review count on a Beduin v2 advert tile
+     * ({@code itemSnippet.seller.rating.reviewsCountFormatted}, e.g. "(243)"), or
+     * null for non-advert components and sellers without a rating.
+     */
+    public static String beduinSellerReviewsFormatted(Object component) {
+        try {
+            java.util.Map<?, ?> snippet = beduinSnippetOf(component);
+            java.util.Map<?, ?> seller = snippet == null ? null : beduinMap(snippet.get("seller"));
+            java.util.Map<?, ?> rating = seller == null ? null : beduinMap(seller.get("rating"));
+            return rating == null ? null : beduinString(rating.get("reviewsCountFormatted"));
+        } catch (Throwable ignored) {
+            return null;
         }
     }
 

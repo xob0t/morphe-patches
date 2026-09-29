@@ -5,9 +5,11 @@ import app.avito.patches.settings.morpheSettingsPatch
 import app.avito.patches.shared.Constants.COMPATIBILITY_AVITO
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
+import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
+import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
 import app.shared.childrenNamed
 import app.shared.methodReferenceOrNull
 import com.android.tools.smali.dexlib2.Opcode
@@ -21,6 +23,29 @@ private const val BLACKLIST_ACTIVITY = "app.avito.blacklist.BlacklistActivity"
 private const val KONVEYOR_ITEM_BINDER = "Lcom/avito/konveyor/a;"
 private const val EXTENDED_PROFILE_BEDUIN_WRAPPER =
     "Lcom/avito/android/extended_profile_native_widgets_beduin_v2_wrapper/"
+
+/**
+ * `onBindViewHolder(holder, position)` of every concrete Beduin v2 lazy adapter
+ * (grid, row, pager, ...) extending [lazyAdapter], the
+ * [BeduinLazyAdapterSubmitListFingerprint] class.
+ */
+internal fun BytecodePatchContext.beduinLazyAdapterBinds(lazyAdapter: String): List<MutableMethod> {
+    val binds = mutableListOf<MutableMethod>()
+    classDefForEach { classDef ->
+        if (classDef.superclass != lazyAdapter) return@classDefForEach
+        val bind = classDef.methods.firstOrNull { method ->
+            method.name == "onBindViewHolder" &&
+                method.returnType == "V" &&
+                method.implementation != null &&
+                method.parameterTypes.map { it.toString() }.let { params ->
+                    params.size == 2 && params[0].startsWith("L") && params[1] == "I"
+                }
+        } ?: return@classDefForEach
+        binds += mutableClassDefBy(classDef).methods
+            .first { it.name == bind.name && it.parameterTypes == bind.parameterTypes }
+    }
+    return binds
+}
 
 /**
  * Registers the self-contained blacklist management screen
@@ -138,26 +163,15 @@ val blockListingsPatch = bytecodePatch(
 
             // Long-press menu on Beduin tiles: hook onBindViewHolder(holder, position)
             // of every concrete lazy adapter (grid, row, pager, ...).
-            var beduinBindHooks = 0
-            classDefForEach { classDef ->
-                if (classDef.superclass != lazyAdapter) return@classDefForEach
-                val bind = classDef.methods.firstOrNull { method ->
-                    method.name == "onBindViewHolder" &&
-                        method.returnType == "V" &&
-                        method.implementation != null &&
-                        method.parameterTypes.map { it.toString() }.let { params ->
-                            params.size == 2 && params[0].startsWith("L") && params[1] == "I"
-                        }
-                } ?: return@classDefForEach
-                mutableClassDefBy(classDef).methods
-                    .first { it.name == bind.name && it.parameterTypes == bind.parameterTypes }
-                    .addInstructions(
-                        0,
-                        "invoke-static/range {p0 .. p2}, " +
-                            "$BLACKLIST_CLASS->onBindBeduin(Ljava/lang/Object;Ljava/lang/Object;I)V",
-                    )
-                beduinBindHooks++
+            val beduinBinds = beduinLazyAdapterBinds(lazyAdapter)
+            beduinBinds.forEach { bind ->
+                bind.addInstructions(
+                    0,
+                    "invoke-static/range {p0 .. p2}, " +
+                        "$BLACKLIST_CLASS->onBindBeduin(Ljava/lang/Object;Ljava/lang/Object;I)V",
+                )
             }
+            val beduinBindHooks = beduinBinds.size
             println(
                 "Block listings: filtered Beduin v2 lists in $lazyAdapter " +
                     "and hooked $beduinBindHooks lazy adapter bind(s)",
