@@ -1,3 +1,9 @@
+## [1.12.32](https://github.com/xob0t/morphe-patches/compare/v1.12.31...v1.12.32) (2026-09-29)
+
+### 🐛 Bug Fixes
+
+* **avito:** apply the seller review filter to Beduin v2 search results ([#108](https://github.com/xob0t/morphe-patches/issues/108)) ([b03f50e](https://github.com/xob0t/morphe-patches/commit/b03f50e2e13a3f6b5e943cd71c91be6365b34189))
+
 ## [1.12.31](https://github.com/xob0t/morphe-patches/compare/v1.12.30...v1.12.31) (2026-09-28)
 
 ### 🐛 Bug Fixes

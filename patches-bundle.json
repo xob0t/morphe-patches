@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-09-28T16:21:38",
-  "description": "## [1.12.31](https://github.com/xob0t/morphe-patches/compare/v1.12.30...v1.12.31) (2026-09-28)\n\n### 🐛 Bug Fixes\n\n* **avito:** hook the rubricator rowLine getter on 234.0 ([#107](https://github.com/xob0t/morphe-patches/issues/107)) ([6a62526](https://github.com/xob0t/morphe-patches/commit/6a6252607585a8226bcc8e5b047370876f205a4d))",
-  "download_url": "https://github.com/xob0t/morphe-patches/releases/download/v1.12.31/patches-1.12.31.mpp",
+  "created_at": "2026-09-29T01:06:50",
+  "description": "## [1.12.32](https://github.com/xob0t/morphe-patches/compare/v1.12.31...v1.12.32) (2026-09-29)\n\n### 🐛 Bug Fixes\n\n* **avito:** apply the seller review filter to Beduin v2 search results ([#108](https://github.com/xob0t/morphe-patches/issues/108)) ([b03f50e](https://github.com/xob0t/morphe-patches/commit/b03f50e2e13a3f6b5e943cd71c91be6365b34189))",
+  "download_url": "https://github.com/xob0t/morphe-patches/releases/download/v1.12.32/patches-1.12.32.mpp",
   "signature_download_url": "",
-  "version": "1.12.31"
+  "version": "1.12.32"
 }
