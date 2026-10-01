@@ -90,15 +90,17 @@ object ExpandablePanelCollapsedLinesFingerprint : Fingerprint(
 
 /**
  * Matches the Profile Pro converter that turns the loaded `List<ProfileTabWidget>`
- * into profile screen items (`converters/t.a` on 233.5). Its sibling in the same
- * package with this signature only delegates here; this one dispatches every
- * widget type and builds the recommendations item with a literal id.
+ * into profile screen items (`converters/t.a` on 233.5, `converters/t.b` on 234.5).
+ * Its sibling in the same package with this signature only delegates here; this
+ * one dispatches every widget type and builds the recommendations item with a
+ * literal id. The widget list parameter is `ArrayList` up to 234.0 and `List`
+ * from 234.5, so only its package is matched.
  */
 object ProfileWidgetsConverterFingerprint : Fingerprint(
     definingClass = "Lcom/avito/android/profile/pro/impl/converters/",
     returnType = "Ljava/util/List;",
     parameters = listOf(
-        "Ljava/util/ArrayList;",
+        "Ljava/util/",
         "Lcom/avito/android/activeOrders/",
         "Lcom/avito/android/safedeal_items_public/",
         "Lcom/avito/android/profile/pro/impl/interactor/",

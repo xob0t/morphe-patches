@@ -660,11 +660,19 @@ val uiTweaksPatch = bytecodePatch(
         // together. Each section has its own toggle, all off by default.
         val profileWidgetsConverter = ProfileWidgetsConverterFingerprint.methodOrNull
             ?: throw PatchException("UI tweaks: Profile Pro widgets converter not found")
+        // The widget list is an ArrayList up to 234.0 and a List from 234.5.
+        val profileWidgetsType = profileWidgetsConverter.parameterTypes.first().toString()
+        val profileWidgetsCast = if (profileWidgetsType == "Ljava/util/List;") {
+            ""
+        } else {
+            "check-cast p1, $profileWidgetsType"
+        }
         profileWidgetsConverter.addInstructions(
             0,
             """
-                invoke-static/range {p1 .. p1}, $MORPHE_SETTINGS_CLASS->withoutHiddenProfileSections(Ljava/util/ArrayList;)Ljava/util/ArrayList;
+                invoke-static/range {p1 .. p1}, $MORPHE_SETTINGS_CLASS->withoutHiddenProfileSections(Ljava/util/List;)Ljava/util/List;
                 move-result-object p1
+                $profileWidgetsCast
             """,
         )
         listOf(
