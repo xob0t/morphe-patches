@@ -60,7 +60,7 @@
           "patches-list.json",
           "README.md"
         ],
-        "message": "chore: Release v${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+        "message": "chore: Release v${nextRelease.version}${branch === 'main' ? ' [skip ci]' : ''}\n\n${nextRelease.notes}"
       }
     ],
     [
