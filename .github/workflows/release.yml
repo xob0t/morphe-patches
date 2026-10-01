@@ -21,6 +21,7 @@ jobs:
       pull-requests: read
       id-token: write
       attestations: write
+      actions: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -66,6 +67,24 @@ jobs:
         id: release
         env:
           GITHUB_TOKEN: ${{ steps.patches-release-token.outputs.token }}
+
+      # The release commit is pushed with [skip ci] and becomes the new head of
+      # an open dev -> main pull request, so that head never gets the required
+      # Build check. Dispatch it explicitly; workflow_dispatch from GITHUB_TOKEN
+      # still starts a run, and its check counts for the pull request.
+      - name: Build open promotion pull request
+        if: github.ref == 'refs/heads/dev'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --base main --head dev \
+            --state open --json number --jq '.[0].number // empty')
+          if [ -z "$pr" ]; then
+            echo "No open dev -> main pull request."
+            exit 0
+          fi
+          gh workflow run build_pull_request.yml --repo "$GITHUB_REPOSITORY" --ref dev
+          echo "Dispatched Build for #$pr at the current dev head."
 
       - name: Attest
         if: steps.release.outputs.new_release_published == 'true'

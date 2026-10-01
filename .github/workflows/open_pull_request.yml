@@ -16,6 +16,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      actions: write
     runs-on: ubuntu-latest
     steps:
       - name: Open pull request
@@ -64,3 +65,7 @@ jobs:
             --title "chore: $MESSAGE" \
             --body "This pull request will $MESSAGE." \
             --draft
+
+          # A pull request opened by GITHUB_TOKEN gets no approved pull_request
+          # run, so dispatch the required Build check for its head.
+          gh workflow run build_pull_request.yml --repo "$GITHUB_REPOSITORY" --ref "$SOURCE_BRANCH"
