@@ -1,42 +1,14 @@
-## [1.13.2](https://github.com/xob0t/morphe-patches/compare/v1.13.1...v1.13.2) (2026-09-30)
+## [1.13.3-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.2...v1.13.3-dev.1) (2026-10-01)
 
 ### 🐛 Bug Fixes
 
-* **wildberries:** support version 7.8.2002-rustore ([461de1c](https://github.com/xob0t/morphe-patches/commit/461de1c388cfcbedac610cb6fd8d9a40337476f4))
+* **avito:** drop embedded Avito ads from search results ([#112](https://github.com/xob0t/morphe-patches/issues/112)) ([60d135e](https://github.com/xob0t/morphe-patches/commit/60d135ee9af19667ae270052d4b16f98223ba805))
 
-## [1.13.1](https://github.com/xob0t/morphe-patches/compare/v1.13.0...v1.13.1) (2026-09-30)
-
-### 🐛 Bug Fixes
-
-* **ozon:** support version 19.37.0 ([1bd95a6](https://github.com/xob0t/morphe-patches/commit/1bd95a6c0fdbe13b5b56f30c0abffcb378e21b87))
-
-## [1.13.0](https://github.com/xob0t/morphe-patches/compare/v1.12.32...v1.13.0) (2026-09-29)
+## [1.13.0-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.13.0-dev.1...v1.13.0-dev.2) (2026-09-28)
 
 ### 🐛 Bug Fixes
 
-* **avito:** hide promo banners in search results ([#99](https://github.com/xob0t/morphe-patches/issues/99)) ([1d2248d](https://github.com/xob0t/morphe-patches/commit/1d2248dd0372cc25cdd822d61c7e75da2650a2d3))
-
-### ✨ New Features
-
-* **avito:** add toggles to hide profile page sections ([#100](https://github.com/xob0t/morphe-patches/issues/100)) ([dfa1e5a](https://github.com/xob0t/morphe-patches/commit/dfa1e5a64fc816701e1d49e672cfe4a5297a987d))
-
-## [1.12.32](https://github.com/xob0t/morphe-patches/compare/v1.12.31...v1.12.32) (2026-09-29)
-
-### 🐛 Bug Fixes
-
-* **avito:** apply the seller review filter to Beduin v2 search results ([#108](https://github.com/xob0t/morphe-patches/issues/108)) ([b03f50e](https://github.com/xob0t/morphe-patches/commit/b03f50e2e13a3f6b5e943cd71c91be6365b34189))
-
-## [1.12.31](https://github.com/xob0t/morphe-patches/compare/v1.12.30...v1.12.31) (2026-09-28)
-
-### 🐛 Bug Fixes
-
-* **avito:** hook the rubricator rowLine getter on 234.0 ([#107](https://github.com/xob0t/morphe-patches/issues/107)) ([6a62526](https://github.com/xob0t/morphe-patches/commit/6a6252607585a8226bcc8e5b047370876f205a4d))
-
-## [1.12.30](https://github.com/xob0t/morphe-patches/compare/v1.12.29...v1.12.30) (2026-09-28)
-
-### 🐛 Bug Fixes
-
-* **avito:** support version 234.0 ([b19e8d7](https://github.com/xob0t/morphe-patches/commit/b19e8d711ede02f7a98be30543d676e86872927f))
+* **ci:** backmerge stable releases into dev ([ff825cf](https://github.com/xob0t/morphe-patches/commit/ff825cfaf58e4061930eb8bf248e2a9334ae8b39))
 
 ## [1.12.29](https://github.com/xob0t/morphe-patches/compare/v1.12.28...v1.12.29) (2026-09-28)
 

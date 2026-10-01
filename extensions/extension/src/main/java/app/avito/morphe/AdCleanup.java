@@ -46,8 +46,15 @@ public final class AdCleanup {
     /**
      * Legacy SERP promo banner models (network {@code SerpElement}s), matching the
      * Beduin v2 item types above. Alert and map banners are informational and kept.
+     *
+     * <p>Also Avito's own ads embedded in the search response
+     * ({@code embeddedAdvBanner}). They need no ad SDK, so they still load. Each one
+     * renders a full Beduin screen into its row on every bind, while the
+     * resource patch keeps that row hidden. That cost 1-3 s of main-thread time
+     * per ad while scrolling search, so they are dropped before conversion.
      */
     private static final java.util.Set<String> SERP_BANNER_MODELS = new java.util.HashSet<>(java.util.Arrays.asList(
+            "com.avito.android.remote.model.advertising.EmbeddedAdvBanner",
             "com.avito.android.remote.model.ActionPromoBanner",
             "com.avito.android.remote.model.InfoBanner",
             "com.avito.android.remote.model.user_adverts.DiscountBanner",
