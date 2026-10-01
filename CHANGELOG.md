@@ -1,3 +1,9 @@
+## [1.13.3](https://github.com/xob0t/morphe-patches/compare/v1.13.2...v1.13.3) (2026-10-01)
+
+### 🐛 Bug Fixes
+
+* **avito:** drop embedded Avito ads from search results ([#112](https://github.com/xob0t/morphe-patches/issues/112)) ([60d135e](https://github.com/xob0t/morphe-patches/commit/60d135ee9af19667ae270052d4b16f98223ba805))
+
 ## [1.13.3-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.2...v1.13.3-dev.1) (2026-10-01)
 
 ### 🐛 Bug Fixes
