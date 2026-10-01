@@ -331,9 +331,11 @@ public final class MorpheSettings {
      * widget list into screen items, so each section's heading and rows go away
      * together. Returns a filtered copy; the loaded profile model is left intact.
      * The server sends these groups without ids, so they are matched by their
-     * exact title; recommendations also carry a stable analytics type.
+     * exact title; recommendations also carry a stable analytics type. The
+     * result is either the input or an ArrayList, so callers whose parameter is
+     * an ArrayList can cast it back.
      */
-    public static java.util.ArrayList<?> withoutHiddenProfileSections(java.util.ArrayList<?> widgets) {
+    public static java.util.List<?> withoutHiddenProfileSections(java.util.List<?> widgets) {
         if (widgets == null || widgets.isEmpty()) {
             return widgets;
         }
