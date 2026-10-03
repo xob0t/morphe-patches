@@ -1,3 +1,9 @@
+## [1.13.5](https://github.com/xob0t/morphe-patches/compare/v1.13.4...v1.13.5) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **avito:** remove personal banners from My listings ([fb7f78c](https://github.com/xob0t/morphe-patches/commit/fb7f78c354d7cf85704aff3edb90b43573dfec62))
+
 ## [1.13.5-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.4...v1.13.5-dev.1) (2026-10-03)
 
 ### 🐛 Bug Fixes
