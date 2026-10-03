@@ -357,8 +357,20 @@ val removeAdsPatch = bytecodePatch(
             """,
         )
 
+        // My listings uses the personal-banner feature rather than either SERP
+        // converter. Filter both its stateless Beduin and direct Beduin items
+        // before visibility tracking, adapter submission and post-submit work.
+        UserAdvertsItemsCollectorFingerprint.method.addInstructions(
+            0,
+            """
+                check-cast p1, Ljava/util/List;
+                invoke-static/range {p1 .. p1}, Lapp/avito/morphe/AdCleanup;->withoutUserAdvertsBanners(Ljava/util/List;)Ljava/util/List;
+                move-result-object p1
+            """,
+        )
+
         println(
-            "Remove ads: patched 6 banner surface(s), $galleryTeaserConvertersPatched gallery Beduin teaser " +
+            "Remove ads: patched 7 banner surface(s), $galleryTeaserConvertersPatched gallery Beduin teaser " +
                 "converter(s) (all required).",
         )
     }

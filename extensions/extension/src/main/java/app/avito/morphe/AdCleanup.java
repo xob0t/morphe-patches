@@ -44,6 +44,45 @@ public final class AdCleanup {
                             + "|heroBannerWidget|heroBannerSnippetsWidget|brandspaceWidget|beduinV2ContentWidget)\\b");
 
     /**
+     * Personal-banner rows in My listings: either a direct banner item or a
+     * stateless Beduin item with the feature's dedicated view-type prefix.
+     * Match the stable Kotlin model markers, since their classes are minified.
+     */
+    private static final java.util.regex.Pattern USER_ADVERTS_BANNER_ITEM =
+            java.util.regex.Pattern.compile(
+                    "^DirectBeduinBannerItem\\("
+                            + "|^BeduinItem\\(stringId=[^,]*, viewType=personal_banner_item");
+
+    /**
+     * Removes both personal-banner renderers before My listings submits its
+     * items to the adapter. Ordinary listings and unrelated Beduin items stay
+     * in their original order. The input list is never changed. Fail-open.
+     */
+    public static java.util.List<?> withoutUserAdvertsBanners(java.util.List<?> items) {
+        if (items == null || items.isEmpty()) {
+            return items;
+        }
+        try {
+            java.util.ArrayList<Object> kept = null;
+            for (int i = 0; i < items.size(); i++) {
+                Object item = items.get(i);
+                boolean banner = item != null
+                        && USER_ADVERTS_BANNER_ITEM.matcher(String.valueOf(item)).find();
+                if (banner) {
+                    if (kept == null) {
+                        kept = new java.util.ArrayList<>(items.subList(0, i));
+                    }
+                } else if (kept != null) {
+                    kept.add(item);
+                }
+            }
+            return kept == null ? items : kept;
+        } catch (Throwable ignored) {
+            return items;
+        }
+    }
+
+    /**
      * Legacy SERP promo banner models (network {@code SerpElement}s), matching the
      * Beduin v2 item types above. Alert and map banners are informational and kept.
      *
