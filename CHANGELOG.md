@@ -1,8 +1,8 @@
-## [1.13.4](https://github.com/xob0t/morphe-patches/compare/v1.13.3...v1.13.4) (2026-10-01)
+## [1.13.5-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.4...v1.13.5-dev.1) (2026-10-03)
 
 ### 🐛 Bug Fixes
 
-* **avito:** match the Profile Pro widgets converter on 234.5 ([#116](https://github.com/xob0t/morphe-patches/issues/116)) ([a36b22f](https://github.com/xob0t/morphe-patches/commit/a36b22fba7e19a79e09298e9c5889dd0ce15a84e)), closes [#115](https://github.com/xob0t/morphe-patches/issues/115)
+* **avito:** remove personal banners from My listings ([fb7f78c](https://github.com/xob0t/morphe-patches/commit/fb7f78c354d7cf85704aff3edb90b43573dfec62))
 
 ## [1.13.4-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.3...v1.13.4-dev.1) (2026-10-01)
 

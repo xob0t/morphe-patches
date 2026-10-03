@@ -76,3 +76,22 @@ object HeroBannerToolbarConfigFingerprint : Fingerprint(
     returnType = "Lcom/avito/android/remote/model/ToolbarConfig;",
     parameters = emptyList(),
 )
+
+/**
+ * The My listings collector submits both personal-banner renderers and the
+ * user's listings to the adapter. Match the submit call inside its Flow emit
+ * method so class minification does not affect the hook.
+ */
+object UserAdvertsItemsCollectorFingerprint : Fingerprint(
+    definingClass = "Lcom/avito/android/user_adverts/tab_screens/adverts/",
+    name = "emit",
+    returnType = "Ljava/lang/Object;",
+    parameters = listOf("Ljava/lang/Object;", "Lkotlin/coroutines/Continuation;"),
+    filters = listOf(
+        methodCall(
+            name = "submitList",
+            parameters = listOf("Ljava/util/List;", "Ljava/lang/Runnable;"),
+            returnType = "V",
+        ),
+    ),
+)
