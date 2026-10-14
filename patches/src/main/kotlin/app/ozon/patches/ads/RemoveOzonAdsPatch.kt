@@ -1,13 +1,21 @@
 package app.ozon.patches.ads
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.booleanOption
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
+import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod.Companion.toMutable
 import app.ozon.patches.shared.Constants.COMPATIBILITY_OZON
+import com.android.tools.smali.dexlib2.AccessFlags
+import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.builder.MutableMethodImplementation
 import com.android.tools.smali.dexlib2.iface.Method
+import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
+import com.android.tools.smali.dexlib2.immutable.ImmutableMethod
+import com.android.tools.smali.dexlib2.immutable.ImmutableMethodParameter
 import org.w3c.dom.Element
 
 private const val OZON_AD_WIDGETS_PREFIX = "Lru/ozon/app/android/ads/widgets/"
@@ -29,6 +37,10 @@ private const val OZON_TILE_GRID2_BANNER_VIEW_MAPPER =
     "Lru/ozon/app/android/universalwidgets/widgets/uw/sku/tileGrid2/presentation/viewmapper/TileGrid2BannerViewMapper;"
 private const val OZON_TILE_GRID2_CONFIG =
     "Lru/ozon/app/android/universalwidgets/widgets/uw/sku/tileGrid2/data/TileGrid2Config;"
+private const val OZON_TILE_GRID2_DTO = "Lru/ozon/app/android/storefront/data/tiles/tilegrid2/TileGrid2DTO;"
+private const val OZON_TILE_GRID2_BANNER_DTO =
+    "Lru/ozon/app/android/storefront/data/tiles/tilegrid2/TileItemDTO\$TileGrid2BannerDTO;"
+private const val OZON_TILE_GRID2_BANNER_FILTER_METHOD = "morpheWithoutBanners"
 private const val OZON_TILE_GRID3_PREFIX =
     "Lru/ozon/app/android/universalwidgets/widgets/uw/sku/tilegrid3/"
 private const val OZON_TILE_GRID3_CONFIG =
@@ -133,6 +145,84 @@ private fun Method.isTileGrid2ParseMethod(classType: String) = classType == OZON
     returnType == "Ljava/util/List;" &&
     parameterTypes.size == 1 &&
     hasImplementation()
+
+private fun Method.isTileGrid2ItemsGetter(classType: String) = classType == OZON_TILE_GRID2_DTO &&
+    name == "getItems" &&
+    returnType == "Ljava/util/List;" &&
+    parameterTypes.isEmpty() &&
+    hasImplementation()
+
+// TileGrid2 emits each row as [tile, tile, button, button]. Dropping only the banner tile leaves its
+// separated button behind and shifts every following cell, so banners are removed before rows are built.
+private fun tileGrid2BannerFilterMethod() = ImmutableMethod(
+    OZON_TILE_GRID2_DTO,
+    OZON_TILE_GRID2_BANNER_FILTER_METHOD,
+    listOf(ImmutableMethodParameter("Ljava/util/List;", null, null)),
+    "Ljava/util/List;",
+    AccessFlags.PRIVATE.value or AccessFlags.STATIC.value,
+    null,
+    null,
+    MutableMethodImplementation(6),
+).toMutable().apply {
+    addInstructions(
+        0,
+        """
+            invoke-interface {p0}, Ljava/util/List;->size()I
+            move-result v0
+            const/4 v1, 0x0
+            :ozon_tile_grid2_scan
+            if-ge v1, v0, :ozon_tile_grid2_unchanged
+            invoke-interface {p0, v1}, Ljava/util/List;->get(I)Ljava/lang/Object;
+            move-result-object v2
+            instance-of v3, v2, $OZON_TILE_GRID2_BANNER_DTO
+            if-nez v3, :ozon_tile_grid2_filter
+            add-int/lit8 v1, v1, 0x1
+            goto :ozon_tile_grid2_scan
+            :ozon_tile_grid2_filter
+            new-instance v4, Ljava/util/ArrayList;
+            invoke-direct {v4, v0}, Ljava/util/ArrayList;-><init>(I)V
+            const/4 v1, 0x0
+            :ozon_tile_grid2_copy
+            if-ge v1, v0, :ozon_tile_grid2_filtered
+            invoke-interface {p0, v1}, Ljava/util/List;->get(I)Ljava/lang/Object;
+            move-result-object v2
+            instance-of v3, v2, $OZON_TILE_GRID2_BANNER_DTO
+            if-nez v3, :ozon_tile_grid2_next
+            invoke-virtual {v4, v2}, Ljava/util/ArrayList;->add(Ljava/lang/Object;)Z
+            :ozon_tile_grid2_next
+            add-int/lit8 v1, v1, 0x1
+            goto :ozon_tile_grid2_copy
+            :ozon_tile_grid2_filtered
+            return-object v4
+            :ozon_tile_grid2_unchanged
+            return-object p0
+        """,
+    )
+}
+
+private fun MutableMethod.filterTileGrid2BannersOnReturn(): Boolean {
+    val returnRegisters = instructionsOrNull
+        ?.mapIndexedNotNull { index, instruction ->
+            if (instruction.opcode == Opcode.RETURN_OBJECT) {
+                index to (instruction as OneRegisterInstruction).registerA
+            } else {
+                null
+            }
+        }
+        .orEmpty()
+    if (returnRegisters.isEmpty()) return false
+
+    returnRegisters.asReversed().forEach { (index, register) ->
+        addInstructions(
+            index,
+            """
+                invoke-static {v$register}, $OZON_TILE_GRID2_DTO->$OZON_TILE_GRID2_BANNER_FILTER_METHOD(Ljava/util/List;)Ljava/util/List;
+                move-result-object v$register
+            """,
+        )
+    }
+    return true
+}
 
 private fun Method.isObjectGridOneBannerCanMapMethod(classType: String) = classType == OZON_OBJECT_GRID_ONE_BANNER_VIEW_MAPPER &&
     name == "canMap" &&
@@ -255,6 +345,8 @@ val removeOzonAdsPatch = bytecodePatch(
         var patchedTileScrollBindMethods = 0
         var patchedTileGrid2BannerCanMapMethods = 0
         var patchedInfiniteTileGrid2ParseMethods = 0
+        var patchedTileGrid2BannerFilterMethods = 0
+        var hasTileGrid2BannerDto = false
         var patchedTileGrid3CanMapMethods = 0
         var patchedTileGrid3ListMapMethods = 0
         var patchedTileGrid3BindMethods = 0
@@ -642,6 +734,21 @@ val removeOzonAdsPatch = bytecodePatch(
                     }
                 }
 
+                classType == OZON_TILE_GRID2_BANNER_DTO -> hasTileGrid2BannerDto = true
+
+                classType == OZON_TILE_GRID2_DTO -> {
+                    val mutableClass = mutableClassDefBy(classDef)
+                    val itemsGetters = mutableClass.methods.filter { method ->
+                        method.isTileGrid2ItemsGetter(classType)
+                    }
+                    if (itemsGetters.isNotEmpty()) {
+                        mutableClass.methods.add(tileGrid2BannerFilterMethod())
+                        itemsGetters.forEach { method ->
+                            if (method.filterTileGrid2BannersOnReturn()) patchedTileGrid2BannerFilterMethods++
+                        }
+                    }
+                }
+
                 classType == OZON_TILE_GRID2_BANNER_VIEW_MAPPER -> {
                     mutableClassDefBy(classDef).methods.forEach { method ->
                         if (method.isWidgetCanMapMethod()) {
@@ -877,6 +984,7 @@ val removeOzonAdsPatch = bytecodePatch(
             if (patchedTileScrollListMapMethods == 0) add("tile scroll list mapper")
             if (patchedTileScrollBindMethods == 0) add("tile scroll view binding")
             if (patchedTileGrid2BannerCanMapMethods == 0) add("tile grid2 banner canMap")
+            if (hasTileGrid2BannerDto && patchedTileGrid2BannerFilterMethods == 0) add("tile grid2 banner filter")
             if (patchedTileGrid3CanMapMethods == 0) add("tile grid3 canMap")
             if (patchedTileGrid3ListMapMethods == 0) add("tile grid3 list mapper")
             if (patchedTileGrid3BindMethods == 0) add("tile grid3 view binding")
@@ -922,6 +1030,7 @@ val removeOzonAdsPatch = bytecodePatch(
                 "$patchedTileScrollListMapMethods tile scroll list map methods, and " +
                 "$patchedTileScrollBindMethods tile scroll bind methods, " +
                 "$patchedTileGrid2BannerCanMapMethods tile grid2 banner canMap methods, " +
+                "$patchedTileGrid2BannerFilterMethods tile grid2 banner filter methods, " +
                 "$patchedInfiniteTileGrid2ParseMethods infinite tile grid2 parse methods, " +
                 "$patchedTileGrid3CanMapMethods tile grid3 canMap methods, " +
                 "$patchedTileGrid3ListMapMethods tile grid3 list map methods, " +
