@@ -47,6 +47,14 @@ private const val BOXED_BOOLEAN = "Ljava/lang/Boolean;"
 private val AVI_TAB_NAMES = setOf("AI_ASSISTANT", "AI_ASSISTANT_SELLER")
 private const val PROFILE_PRO_REWARD_ENTRY_POINT_PACKAGE =
     "Lcom/avito/android/profile/pro/impl/screen/item/reward_entry_point/"
+private const val PROFILE_PRO_CONVERTERS_PACKAGE = "Lcom/avito/android/profile/pro/impl/converters/"
+
+// Avito 235.1 repackaged the Profile Pro converters and the reward entry point item
+// into the default package; they keep these Kotlin source file names.
+private const val PROFILE_PRO_REWARD_ENTRY_POINT_ITEM_SOURCE_FILE = "ProfileProRewardEntryPointItem.kt"
+
+private fun ClassDef.isProfileProConverter() = type.startsWith(PROFILE_PRO_CONVERTERS_PACKAGE) ||
+    sourceFile.let { it != null && it.startsWith("ProfilePro") && it.endsWith("Converter.kt") }
 private val PROFILE_PRO_OUTPUT_ITEM_TYPES = setOf(
     "Lcom/avito/android/profile/pro/impl/screen/item/group/row/ProfileProGroupRowItem;",
     "Lcom/avito/android/profile/pro/impl/screen/item/widget_group/widget/ProfileProWidgetItem;",
@@ -113,7 +121,12 @@ private fun Method.dataClassToStringField(label: String): FieldReference? {
     return fields[labels.indexOf(label)]
 }
 
-private fun ClassDef.isFavoritesTabModel() = type.startsWith(FAVORITES_ADAPTER_PACKAGE) &&
+// The favorites tab adapter classes (FavoritesTab*.kt). Avito 235.1 repackaged
+// them out of `user_favorites/adapter/` into the default package.
+private fun ClassDef.isFavoritesAdapterClass() = type.startsWith(FAVORITES_ADAPTER_PACKAGE) ||
+    sourceFile.let { it != null && it.startsWith("FavoritesTab") && it.endsWith(".kt") }
+
+private fun ClassDef.isFavoritesTabModel() = isFavoritesAdapterClass() &&
     AccessFlags.ABSTRACT.isSet(accessFlags) &&
     interfaces.any { it.toString() == "Landroid/os/Parcelable;" } &&
     fields.count { it.type == "I" } == 1 &&
@@ -151,13 +164,15 @@ private fun Method.profileProOutputItemTypes(): Set<String> {
  * widget into a single `ProfileProRewardEntryPointItem` (the "Портал призов"
  * banner) and returns it as a `List`.
  */
-private fun Method.isProfileRewardEntryPointConverter() = returnType == "Ljava/util/List;" &&
-    parameterTypes.size == 1 &&
-    implementation?.instructions?.any { instruction ->
-        instruction.opcode == Opcode.NEW_INSTANCE &&
-            ((instruction as? ReferenceInstruction)?.reference as? TypeReference)
-                ?.type?.startsWith(PROFILE_PRO_REWARD_ENTRY_POINT_PACKAGE) == true
-    } == true
+private fun Method.isProfileRewardEntryPointConverter(rewardItemTypes: Set<String>) =
+    returnType == "Ljava/util/List;" &&
+        parameterTypes.size == 1 &&
+        implementation?.instructions?.any { instruction ->
+            instruction.opcode == Opcode.NEW_INSTANCE &&
+                ((instruction as? ReferenceInstruction)?.reference as? TypeReference)?.type?.let { type ->
+                    type.startsWith(PROFILE_PRO_REWARD_ENTRY_POINT_PACKAGE) || type in rewardItemTypes
+                } == true
+        } == true
 
 private fun ClassDef.hasPublicReservedGetter() = methods.any { method ->
     method.name == "getReserved" &&
@@ -227,20 +242,31 @@ val uiTweaksPatch = bytecodePatch(
         if (getRowLine == null) {
             throw PatchException("UI tweaks: rubricator getRowLine() not found")
         } else {
+            // Filter the returned value instead of branching at entry: on 235.1 the
+            // getter's only register is `this`, so an entry prologue clobbers it.
             val rowLineMethod = getRowLine.method
-            rowLineMethod.addInstructionsWithLabels(
-                0,
-                """
-                    invoke-static {}, $MORPHE_SETTINGS_CLASS->singleRowCategories()Z
-                    move-result v0
-                    if-eqz v0, :stock
-                    const/4 v0, 0x1
-                    invoke-static {v0}, $INTEGER->valueOf(I)$INTEGER
-                    move-result-object v0
-                    return-object v0
-                """,
-                ExternalLabel("stock", rowLineMethod.getInstruction(0)),
-            )
+            val rowLineReturns = rowLineMethod.instructionsOrNull
+                ?.toList().orEmpty()
+                .mapIndexedNotNull { index, instruction ->
+                    if (instruction.opcode == Opcode.RETURN_OBJECT) {
+                        index to (instruction as OneRegisterInstruction).registerA
+                    } else {
+                        null
+                    }
+                }
+                .reversed()
+            if (rowLineReturns.isEmpty()) {
+                throw PatchException("UI tweaks: rubricator getRowLine() has no object return")
+            }
+            rowLineReturns.forEach { (returnIndex, register) ->
+                rowLineMethod.addInstructions(
+                    returnIndex,
+                    """
+                        invoke-static/range {v$register .. v$register}, $MORPHE_SETTINGS_CLASS->categoryRowLine($INTEGER)$INTEGER
+                        move-result-object v$register
+                    """,
+                )
+            }
             // Restart-required: the rubricator items are diffed and won't rebind on a
             // simple settings round-trip.
             MorpheSettingsRegistry.addSwitch(
@@ -311,7 +337,7 @@ val uiTweaksPatch = bytecodePatch(
         var favoritesTabViewHooks = 0
         if (favoritesTabModel != null) {
             classDefForEach { classDef ->
-                if (!classDef.type.startsWith(FAVORITES_ADAPTER_PACKAGE)) return@classDefForEach
+                if (!classDef.isFavoritesAdapterClass()) return@classDefForEach
                 val bind = classDef.methods.firstOrNull { method ->
                     method.isFavoritesTabViewBind(favoritesTabModel)
                 } ?: return@classDefForEach
@@ -487,9 +513,7 @@ val uiTweaksPatch = bytecodePatch(
         var profilePromoConvertersPatched = 0
         val profileOutputItemTypesPatched = mutableSetOf<String>()
         classDefForEach { classDef ->
-            if (!classDef.type.startsWith("Lcom/avito/android/profile/pro/impl/converters/")) {
-                return@classDefForEach
-            }
+            if (!classDef.isProfileProConverter()) return@classDefForEach
             val converterMethod = classDef.methods.singleOrNull { method ->
                 method.profileProOutputItemTypes().isNotEmpty()
             } ?: return@classDefForEach
@@ -539,12 +563,14 @@ val uiTweaksPatch = bytecodePatch(
         // rewards entry point banner (its own widget and converter). Return no
         // items for it while the raffle toggle is on.
         var rewardEntryPointConvertersPatched = 0
+        val rewardItemTypes = mutableSetOf<String>()
         classDefForEach { classDef ->
-            if (!classDef.type.startsWith("Lcom/avito/android/profile/pro/impl/converters/")) {
-                return@classDefForEach
-            }
+            if (classDef.sourceFile == PROFILE_PRO_REWARD_ENTRY_POINT_ITEM_SOURCE_FILE) rewardItemTypes += classDef.type
+        }
+        classDefForEach { classDef ->
+            if (!classDef.isProfileProConverter()) return@classDefForEach
             val converterMethod = classDef.methods.singleOrNull { method ->
-                method.isProfileRewardEntryPointConverter()
+                method.isProfileRewardEntryPointConverter(rewardItemTypes)
             } ?: return@classDefForEach
             val method = mutableClassDefBy(classDef).methods.single {
                 it.name == converterMethod.name && it.parameterTypes == converterMethod.parameterTypes

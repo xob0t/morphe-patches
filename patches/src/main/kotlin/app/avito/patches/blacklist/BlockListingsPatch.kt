@@ -24,6 +24,11 @@ private const val KONVEYOR_ITEM_BINDER = "Lcom/avito/konveyor/a;"
 private const val EXTENDED_PROFILE_BEDUIN_WRAPPER =
     "Lcom/avito/android/extended_profile_native_widgets_beduin_v2_wrapper/"
 
+// Avito 235.1 repackaged Konveyor and the seller-profile wrapper into the default
+// package; their classes keep these Kotlin source file names.
+private const val KONVEYOR_ITEM_BINDER_SOURCE_FILE = "ItemBinder.kt"
+private const val EXTENDED_PROFILE_LAZY_COLUMN_ADAPTER_SOURCE_FILE = "ExtendedProfileLazyColumnAdapter.kt"
+
 /**
  * `onBindViewHolder(holder, position)` of every concrete Beduin v2 lazy adapter
  * (grid, row, pager, ...) extending [lazyAdapter], the
@@ -185,15 +190,21 @@ val blockListingsPatch = bytecodePatch(
         // the ItemBinder's bind(holder, item, position) directly, bypassing the
         // presenter bind hook. Add the long-press menu right before each such call,
         // with the holder and item it is about to bind.
+        val itemBinderTypes = mutableSetOf(KONVEYOR_ITEM_BINDER)
+        classDefForEach { classDef ->
+            if (classDef.sourceFile == KONVEYOR_ITEM_BINDER_SOURCE_FILE) itemBinderTypes += classDef.type
+        }
         var sellerProfileBindHooks = 0
         classDefForEach { classDef ->
-            if (!classDef.type.startsWith(EXTENDED_PROFILE_BEDUIN_WRAPPER)) return@classDefForEach
+            val isSellerProfileAdapter = classDef.type.startsWith(EXTENDED_PROFILE_BEDUIN_WRAPPER) ||
+                classDef.sourceFile == EXTENDED_PROFILE_LAZY_COLUMN_ADAPTER_SOURCE_FILE
+            if (!isSellerProfileAdapter) return@classDefForEach
             classDef.methods.forEach { method ->
                 val callIndexes = method.instructionsOrNull
                     ?.toList().orEmpty()
                     .mapIndexedNotNull { index, instruction ->
                         val reference = instruction.methodReferenceOrNull() ?: return@mapIndexedNotNull null
-                        val isItemBinderBind = reference.definingClass == KONVEYOR_ITEM_BINDER &&
+                        val isItemBinderBind = reference.definingClass in itemBinderTypes &&
                             reference.returnType == "V" &&
                             reference.parameterTypes.size == 3 &&
                             reference.parameterTypes[2].toString() == "I"

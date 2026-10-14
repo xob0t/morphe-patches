@@ -111,9 +111,13 @@ private fun nullParametersInstructions(parameterIndexes: List<Int>) = buildStrin
     }
 }
 
-private fun MethodReference.isRxThrowableObservableFactory() = definingClass == "Lio/reactivex/rxjava3/core/z;" &&
-    parameterTypes.map { it.toString() } == listOf("Ljava/lang/Throwable;") &&
-    returnType.startsWith("Lio/reactivex/rxjava3/")
+// Rx `Observable.error(Throwable)`: a static factory on the loader's own return type.
+// Matched structurally because Avito 235.1 repackaged RxJava (`z` became `dxi1`) and
+// R8 narrowed the factory's return type to an obfuscated subclass.
+private fun MethodReference.isRxThrowableObservableFactory(observableType: String) =
+    definingClass == observableType &&
+        returnType.startsWith("L") &&
+        parameterTypes.map { it.toString() } == listOf("Ljava/lang/Throwable;")
 
 private fun Element.hideView() {
     setAttribute("android:visibility", "gone")
@@ -316,7 +320,7 @@ val removeAdsPatch = bytecodePatch(
                 }
 
                 instruction.methodReferenceOrNull()
-                    ?.takeIf { it.isRxThrowableObservableFactory() }
+                    ?.takeIf { it.isRxThrowableObservableFactory(commercialBannerLoaderMethod.returnType) }
             }
             ?: throw PatchException(
                 "Remove ads: commercial banner loader matched but its Rx error factory " +
