@@ -1,3 +1,9 @@
+## [1.13.10-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.13.10-dev.1...v1.13.10-dev.2) (2026-10-14)
+
+### 🐛 Bug Fixes
+
+* **avito:** support R8 repackaging in 235.1 ([#131](https://github.com/xob0t/morphe-patches/issues/131)) ([e23988c](https://github.com/xob0t/morphe-patches/commit/e23988cdf6061d78f4ca795fc96bfaa6ecc19115)), closes [#128](https://github.com/xob0t/morphe-patches/issues/128)
+
 ## [1.13.10-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.9...v1.13.10-dev.1) (2026-10-14)
 
 ### 🐛 Bug Fixes
