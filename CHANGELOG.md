@@ -1,3 +1,9 @@
+## [1.13.10-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.9...v1.13.10-dev.1) (2026-10-14)
+
+### 🐛 Bug Fixes
+
+* **ozon:** drop TileGrid2 banners before rows are built ([#129](https://github.com/xob0t/morphe-patches/issues/129)) ([b61a226](https://github.com/xob0t/morphe-patches/commit/b61a2263bedeaf77e67d5d3cd44f7decf4f3f2f5))
+
 ## [1.13.5-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.4...v1.13.5-dev.1) (2026-10-03)
 
 ### 🐛 Bug Fixes
