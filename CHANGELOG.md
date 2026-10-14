@@ -1,3 +1,10 @@
+## [1.13.12-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.11...v1.13.12-dev.1) (2026-10-14)
+
+### 🐛 Bug Fixes
+
+* **avito:** support R8 repackaging in 235.1 ([#131](https://github.com/xob0t/morphe-patches/issues/131)) ([e23988c](https://github.com/xob0t/morphe-patches/commit/e23988cdf6061d78f4ca795fc96bfaa6ecc19115)), closes [#128](https://github.com/xob0t/morphe-patches/issues/128)
+* **ozon:** drop TileGrid2 banners before rows are built ([#129](https://github.com/xob0t/morphe-patches/issues/129)) ([b61a226](https://github.com/xob0t/morphe-patches/commit/b61a2263bedeaf77e67d5d3cd44f7decf4f3f2f5))
+
 ## [1.13.11-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.10...v1.13.11-dev.1) (2026-10-14)
 
 ### 🐛 Bug Fixes
