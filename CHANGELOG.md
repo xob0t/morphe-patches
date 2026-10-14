@@ -1,44 +1,28 @@
-## [1.13.11](https://github.com/xob0t/morphe-patches/compare/v1.13.10...v1.13.11) (2026-10-14)
+## [1.13.12-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.11...v1.13.12-dev.1) (2026-10-14)
 
 ### 🐛 Bug Fixes
 
-* **ozon:** support version 19.39.0 ([9bb73c6](https://github.com/xob0t/morphe-patches/commit/9bb73c67cfce99ef60f26170a477575b3cdc3164))
+* **avito:** support R8 repackaging in 235.1 ([#131](https://github.com/xob0t/morphe-patches/issues/131)) ([e23988c](https://github.com/xob0t/morphe-patches/commit/e23988cdf6061d78f4ca795fc96bfaa6ecc19115)), closes [#128](https://github.com/xob0t/morphe-patches/issues/128)
+* **ozon:** drop TileGrid2 banners before rows are built ([#129](https://github.com/xob0t/morphe-patches/issues/129)) ([b61a226](https://github.com/xob0t/morphe-patches/commit/b61a2263bedeaf77e67d5d3cd44f7decf4f3f2f5))
 
-## [1.13.10](https://github.com/xob0t/morphe-patches/compare/v1.13.9...v1.13.10) (2026-10-09)
-
-### 🐛 Bug Fixes
-
-* **ozon:** support version 19.38.2 ([d88c745](https://github.com/xob0t/morphe-patches/commit/d88c74541a93d2d7c23230a5d9c3fe782e2ba544))
-
-## [1.13.9](https://github.com/xob0t/morphe-patches/compare/v1.13.8...v1.13.9) (2026-10-07)
+## [1.13.11-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.10...v1.13.11-dev.1) (2026-10-14)
 
 ### 🐛 Bug Fixes
 
-* **tbank:** support version 8.4.2 ([1690eb8](https://github.com/xob0t/morphe-patches/commit/1690eb87b939aed067a803565be48904a3b282a5))
+* **avito:** support R8 repackaging in 235.1 ([#131](https://github.com/xob0t/morphe-patches/issues/131)) ([e23988c](https://github.com/xob0t/morphe-patches/commit/e23988cdf6061d78f4ca795fc96bfaa6ecc19115)), closes [#128](https://github.com/xob0t/morphe-patches/issues/128)
+* **ozon:** drop TileGrid2 banners before rows are built ([#129](https://github.com/xob0t/morphe-patches/issues/129)) ([b61a226](https://github.com/xob0t/morphe-patches/commit/b61a2263bedeaf77e67d5d3cd44f7decf4f3f2f5))
 
-## [1.13.8](https://github.com/xob0t/morphe-patches/compare/v1.13.7...v1.13.8) (2026-10-06)
-
-### 🐛 Bug Fixes
-
-* **wildberries:** support version 7.8.3002-rustore ([311b52b](https://github.com/xob0t/morphe-patches/commit/311b52b5d19fd5a7893d217194f452bbf9b8d2db))
-
-## [1.13.7](https://github.com/xob0t/morphe-patches/compare/v1.13.6...v1.13.7) (2026-10-06)
+## [1.13.10-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.13.10-dev.1...v1.13.10-dev.2) (2026-10-14)
 
 ### 🐛 Bug Fixes
 
-* **ozon:** support version 19.38.0 ([7338be9](https://github.com/xob0t/morphe-patches/commit/7338be9cfc2ce3cb1c5fac589eb1bf7abf9ad215))
+* **avito:** support R8 repackaging in 235.1 ([#131](https://github.com/xob0t/morphe-patches/issues/131)) ([e23988c](https://github.com/xob0t/morphe-patches/commit/e23988cdf6061d78f4ca795fc96bfaa6ecc19115)), closes [#128](https://github.com/xob0t/morphe-patches/issues/128)
 
-## [1.13.6](https://github.com/xob0t/morphe-patches/compare/v1.13.5...v1.13.6) (2026-10-06)
-
-### 🐛 Bug Fixes
-
-* **avito:** support version 234.5 ([341f65f](https://github.com/xob0t/morphe-patches/commit/341f65fb4c047c76eaf027c9d3a8df4d28a94252))
-
-## [1.13.5](https://github.com/xob0t/morphe-patches/compare/v1.13.4...v1.13.5) (2026-10-03)
+## [1.13.10-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.9...v1.13.10-dev.1) (2026-10-14)
 
 ### 🐛 Bug Fixes
 
-* **avito:** remove personal banners from My listings ([fb7f78c](https://github.com/xob0t/morphe-patches/commit/fb7f78c354d7cf85704aff3edb90b43573dfec62))
+* **ozon:** drop TileGrid2 banners before rows are built ([#129](https://github.com/xob0t/morphe-patches/issues/129)) ([b61a226](https://github.com/xob0t/morphe-patches/commit/b61a2263bedeaf77e67d5d3cd44f7decf4f3f2f5))
 
 ## [1.13.5-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.4...v1.13.5-dev.1) (2026-10-03)
 

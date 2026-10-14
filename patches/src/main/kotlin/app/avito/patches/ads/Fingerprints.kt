@@ -7,9 +7,13 @@ import app.morphe.patcher.string
 private const val HERO_BANNER_WIDGET = "Lcom/avito/android/remote/model/serp/HeroBannerWidget;"
 private const val ITEMS_CAROUSEL_WIDGET = "Lcom/avito/android/remote/model/inset/ItemsCarouselWidget;"
 
+/**
+ * Matches the commercial banner loader by its unsupported-type error. Avito 235.1
+ * repackaged both the loader and RxJava into the default package, so the method is
+ * matched by its string and any object return type (the Rx observable class).
+ */
 object CommercialBannerLoaderErrorFingerprint : Fingerprint(
-    definingClass = "Lcom/avito/android/advertising/loaders/",
-    returnType = "Lio/reactivex/rxjava3/core/z;",
+    returnType = "L",
     filters = listOf(
         string("Not supported SerpBanner type: "),
     ),
@@ -49,9 +53,11 @@ object HeroBannerWidgetConverterFingerprint : Fingerprint(
  * Matches the SERP converter for item carousels. Promotional carousels use the
  * model's background image to render a banner behind their header and listings;
  * ordinary item carousels do not, so the patch can suppress only that surface.
+ *
+ * Not pinned to a package: Avito 235.1 repackaged the converter into the default
+ * package. The model-typed signature and getter call identify it on their own.
  */
 object ItemsCarouselWidgetConverterFingerprint : Fingerprint(
-    definingClass = "Lcom/avito/android/serp/adapter/carousel_widget/",
     parameters = listOf(
         ITEMS_CAROUSEL_WIDGET,
         "Z",

@@ -7,6 +7,8 @@ import android.content.SharedPreferences;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.Typeface;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
@@ -233,6 +235,37 @@ public final class ProfessionalSellerFilter {
      * Adds a native-looking threshold row immediately below the Filters toolbar.
      * The fragment view is committed asynchronously, hence the short bounded retry.
      */
+    /**
+     * Called at the start of the host Activity's onCreate, the only point where the
+     * patch can rely on the `this` register (R8 reuses it before later returns).
+     * Defers the decor work until the launch transaction has finished.
+     */
+    public static void attachToFilterActivityAfterCreate(final Activity activity) {
+        postToMainLooper(new Runnable() {
+            @Override
+            public void run() {
+                attachToFilterActivity(activity);
+            }
+        });
+    }
+
+    /** See {@link #attachToFilterActivityAfterCreate(Activity)}. */
+    public static void observeHostActivityAfterCreate(final Activity activity) {
+        postToMainLooper(new Runnable() {
+            @Override
+            public void run() {
+                observeHostActivity(activity);
+            }
+        });
+    }
+
+    private static void postToMainLooper(Runnable runnable) {
+        try {
+            new Handler(Looper.getMainLooper()).post(runnable);
+        } catch (Throwable ignored) {
+        }
+    }
+
     public static void attachToFilterActivity(final Activity activity) {
         if (activity == null) {
             return;

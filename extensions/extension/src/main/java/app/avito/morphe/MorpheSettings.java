@@ -384,6 +384,15 @@ public final class MorpheSettings {
     }
 
     /**
+     * Applied to the rubricator item's getRowLine() result: every tile reports row
+     * 1 while single-row categories are enabled. Filtering the return value keeps
+     * the hook register-neutral (the getter can have `this` as its only register).
+     */
+    public static Integer categoryRowLine(Integer rowLine) {
+        return singleRowCategories() ? Integer.valueOf(1) : rowLine;
+    }
+
+    /**
      * Suppresses Avito's server-driven onboarding carousel drawers before their
      * first rendered frame. The dialog is returned unchanged so disabling the
      * setting restores stock behaviour without rebuilding.
