@@ -85,27 +85,40 @@ val hideProfessionalSellersPatch = bytecodePatch(
             beduinBindHooks = beduinBinds.size
         }
 
-        // Hook onCreate at entry: R8 may reuse the `this` register before later
-        // returns (Avito 235.1 HomeActivity), so p0 is only reliably the Activity
-        // here. The extension defers its decor work until creation has finished.
         var widgetFiltersHooks = 0
         WidgetFiltersActivityOnCreateFingerprint.methodOrNull?.let { filtersOnCreate ->
-            filtersOnCreate.addInstructions(
-                0,
-                "invoke-static/range {p0 .. p0}, " +
-                    "$SELLER_FILTER_CLASS->attachToFilterActivityAfterCreate(Landroid/app/Activity;)V",
-            )
-            widgetFiltersHooks = 1
+            val returnIndices = filtersOnCreate.instructionsOrNull
+                ?.toList().orEmpty()
+                .mapIndexedNotNull { index, instruction ->
+                    if (instruction.opcode == Opcode.RETURN_VOID) index else null
+                }
+                .reversed()
+            for (returnIndex in returnIndices) {
+                filtersOnCreate.addInstructions(
+                    returnIndex,
+                    "invoke-static/range {p0 .. p0}, " +
+                        "$SELLER_FILTER_CLASS->attachToFilterActivity(Landroid/app/Activity;)V",
+                )
+            }
+            widgetFiltersHooks = returnIndices.size
         }
 
         var homeActivityHooks = 0
         HomeActivityOnCreateFingerprint.methodOrNull?.let { homeOnCreate ->
-            homeOnCreate.addInstructions(
-                0,
-                "invoke-static/range {p0 .. p0}, " +
-                    "$SELLER_FILTER_CLASS->observeHostActivityAfterCreate(Landroid/app/Activity;)V",
-            )
-            homeActivityHooks = 1
+            val returnIndices = homeOnCreate.instructionsOrNull
+                ?.toList().orEmpty()
+                .mapIndexedNotNull { index, instruction ->
+                    if (instruction.opcode == Opcode.RETURN_VOID) index else null
+                }
+                .reversed()
+            for (returnIndex in returnIndices) {
+                homeOnCreate.addInstructions(
+                    returnIndex,
+                    "invoke-static/range {p0 .. p0}, " +
+                        "$SELLER_FILTER_CLASS->observeHostActivity(Landroid/app/Activity;)V",
+                )
+            }
+            homeActivityHooks = returnIndices.size
         }
         val missingUiHosts = buildList {
             if (widgetFiltersHooks == 0) add("WidgetFiltersActivity")
@@ -121,7 +134,7 @@ val hideProfessionalSellersPatch = bytecodePatch(
         println(
             "Hide professional sellers: installed SERP filter, tint binder, and native controls " +
                 "(${returnIndices.size} converter returns, $beduinBindHooks Beduin lazy adapter binds, " +
-                "$widgetFiltersHooks WidgetFiltersActivity hooks, $homeActivityHooks HomeActivity hooks)",
+                "$widgetFiltersHooks WidgetFiltersActivity returns, $homeActivityHooks HomeActivity returns)",
         )
     }
 }
