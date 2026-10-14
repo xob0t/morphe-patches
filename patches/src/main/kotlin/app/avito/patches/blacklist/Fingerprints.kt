@@ -9,6 +9,8 @@ private const val STRING = "Ljava/lang/String;"
 private const val ADVERT_DETAILS = "Lcom/avito/android/remote/model/AdvertDetails;"
 private const val ADVERT_DETAILS_STYLE = "Lcom/avito/android/advert_details/AdvertDetailsStyle;"
 private const val EXTENDED_PROFILE = "Lcom/avito/android/remote/model/ExtendedProfile;"
+private const val BEDUIN_LAZY_PACKAGE = "Lcom/avito/beduin/v2/component/common/lazy/"
+private const val BEDUIN_LAZY_ADAPTER_SOURCE_FILE = "LazyComponentAdapter.kt"
 
 /**
  * Matches the seller-profile (ExtendedProfile) header converter — the method that
@@ -17,11 +19,11 @@ private const val EXTENDED_PROFILE = "Lcom/avito/android/remote/model/ExtendedPr
  * add a "block seller" action to the profile toolbar.
  *
  * Identified by its distinctive shape — two `String`s followed by an
- * `ExtendedProfile` — within the (stable) `extended_profile/converter` package, so
- * it survives the per-release minification of the class/method names.
+ * `ExtendedProfile` — so it survives the per-release minification of the
+ * class/method names. Not pinned to `extended_profile/converter`: Avito 235.1
+ * repackaged the converter into the default package.
  */
 object SellerProfileConverterFingerprint : Fingerprint(
-    definingClass = "Lcom/avito/android/extended_profile/converter/",
     parameters = listOf(STRING, STRING, EXTENDED_PROFILE),
     // Only the concrete converter implementation — not an abstract declaration with
     // the same signature (which has no body to patch).
@@ -33,12 +35,12 @@ object SellerProfileConverterFingerprint : Fingerprint(
  * advert-detail toolbar (and inflates its menu) and receives the full
  * `AdvertDetails`. We hook its entry to add block-offer / block-seller actions.
  *
- * Identified by its stable advert-presenter package, parameter shape and its call
- * to `AdvertDetails.getNavigationBar()`. The concrete class and method names are
- * minified per release, while the model API and feature package remain stable.
+ * Identified by its parameter shape and its call to
+ * `AdvertDetails.getNavigationBar()`. The concrete class and method names are
+ * minified per release, and Avito 235.1 also moved the presenter out of
+ * `com/avito/android/advert/` into the default package; the model API is stable.
  */
 object AdvertDetailsToolbarMenuFingerprint : Fingerprint(
-    definingClass = "Lcom/avito/android/advert/",
     returnType = "V",
     parameters = listOf(
         ADVERT_DETAILS_STYLE,
@@ -70,13 +72,12 @@ object AdvertDetailsToolbarMenuFingerprint : Fingerprint(
  * - 226.5: `(List, SerpDisplayType, String, String, boolean, boolean, List, int) -> ArrayList`
  *
  * The match therefore relies only on the stable core shared by both: a concrete
- * method in `serp/adapter` returning `ArrayList`, taking a `List` then a
- * (non-obfuscated) `SerpDisplayType`, two `String`s, and at least one more
- * `List` afterwards. `SerpDisplayType` makes this highly distinctive — it is the
- * only `serp/adapter` method with this shape.
+ * method returning `ArrayList`, taking a `List` then a (non-obfuscated)
+ * `SerpDisplayType`, two `String`s, and at least one more `List` afterwards.
+ * `SerpDisplayType` makes this highly distinctive. It is not pinned to
+ * `serp/adapter`: Avito 235.1 repackaged the converter into the default package.
  */
 object SerpElementsConverterFingerprint : Fingerprint(
-    definingClass = "Lcom/avito/android/serp/adapter/",
     returnType = "Ljava/util/ArrayList;",
     // Variable-arity shape (param count differs across releases), so the parameter
     // constraints stay here rather than in the fixed-arity `parameters` field.
@@ -99,11 +100,16 @@ object SerpElementsConverterFingerprint : Fingerprint(
  * receives its components (the adapter already drops components whose display
  * predicate is false here). Newer search screens render their results through
  * it instead of the SERP converter. Absent on builds without Beduin v2 lists.
+ *
+ * Avito 235.1 repackaged the adapter into the default package, so it is also
+ * matched by its preserved Kotlin source file name.
  */
 object BeduinLazyAdapterSubmitListFingerprint : Fingerprint(
-    definingClass = "Lcom/avito/beduin/v2/component/common/lazy/",
     name = "submitList",
     returnType = "V",
     parameters = listOf(LIST, "Ljava/lang/Runnable;"),
-    custom = { method, _ -> method.implementation != null },
+    custom = { method, classDef ->
+        method.implementation != null &&
+            (classDef.type.startsWith(BEDUIN_LAZY_PACKAGE) || classDef.sourceFile == BEDUIN_LAZY_ADAPTER_SOURCE_FILE)
+    },
 )
