@@ -32,6 +32,7 @@ jobs:
           private-key: ${{ secrets.PROMOTION_APP_PRIVATE_KEY }}
           owner: xob0t
           repositories: morphe-patches
+          permission-contents: write
 
       - name: Backmerge stable main into dev
         env:
