@@ -1,3 +1,9 @@
+## [1.13.14](https://github.com/xob0t/morphe-patches/compare/v1.13.13...v1.13.14) (2026-10-18)
+
+### 🐛 Bug Fixes
+
+* **wildberries:** support version 7.8.4001-rustore ([8ea5dce](https://github.com/xob0t/morphe-patches/commit/8ea5dce53e03228f78882ffb2ff80e32994906fc))
+
 ## [1.13.13](https://github.com/xob0t/morphe-patches/compare/v1.13.12...v1.13.13) (2026-10-14)
 
 ### 🐛 Bug Fixes
