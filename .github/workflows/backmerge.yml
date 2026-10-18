@@ -1,0 +1,68 @@
+name: Backmerge
+
+# Release backmerges main into dev after every stable release. This repeats it
+# hourly so a missed or failed backmerge cannot leave target promotions blocked.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
+
+concurrency:
+  group: backmerge-dev
+  cancel-in-progress: false
+
+jobs:
+  backmerge:
+    name: Backmerge main into dev
+    permissions:
+      contents: read
+      issues: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Create patches token
+        id: patches-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.PROMOTION_APP_ID }}
+          private-key: ${{ secrets.PROMOTION_APP_PRIVATE_KEY }}
+          owner: xob0t
+          repositories: morphe-patches
+          permission-contents: write
+
+      - name: Backmerge stable main into dev
+        env:
+          GH_TOKEN: ${{ steps.patches-token.outputs.token }}
+        run: |
+          gh auth setup-git
+          bash .github/scripts/backmerge_main_into_dev.sh
+
+      - name: Close resolved failure report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          NUM=$(gh issue list --state open --search 'in:title "Backmerge of main into dev failed"' --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$NUM" ]; then
+            gh issue close "$NUM" --comment "Resolved: dev contains main as of $RUN_URL"
+          fi
+
+      - name: Report backmerge failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          TITLE="Backmerge of main into dev failed"
+          BODY="Backmerging main into dev failed in $RUN_URL. Target promotions stay blocked until dev contains main."
+          NUM=$(gh issue list --state open --search "in:title \"$TITLE\"" --json number --jq '.[0].number' 2>/dev/null || true)
+          # Runs hourly: report once rather than commenting on every retry.
+          if [ -n "$NUM" ]; then
+            echo "Already reported in #$NUM."
+          else
+            gh issue create --title "$TITLE" --body "$BODY"
+          fi
