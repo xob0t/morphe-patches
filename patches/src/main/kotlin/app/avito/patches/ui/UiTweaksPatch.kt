@@ -39,6 +39,8 @@ private const val FAVORITES_ADAPTER_PACKAGE = "Lcom/avito/android/user_favorites
 private const val ONBOARDING_DIALOG_FRAGMENT = "Lcom/avito/android/onboarding/dialog/OnboardingDialogFragment;"
 private const val USER_PROFILE_RESULT = "Lcom/avito/android/remote/model/user_profile/UserProfileResult;"
 private const val SERP_ADVERT = "Lcom/avito/android/remote/model/SerpAdvert;"
+private const val FAVORITE_ITEMS_WIDGETS = "Lcom/avito/android/remote/model/FavoriteItemsWidgets;"
+private const val REWARDS_INCUT = "Lcom/avito/android/remote/model/RewardsIncut;"
 private const val SERP_CONSTRUCTOR_ADVERT_ITEM =
     "Lcom/avito/android/serp/adapter/constructor/SerpConstructorAdvertItem;"
 private const val BOXED_BOOLEAN = "Ljava/lang/Boolean;"
@@ -537,7 +539,7 @@ val uiTweaksPatch = bytecodePatch(
         MorpheSettingsRegistry.addSwitch(
             key = "avito_hide_profile_raffle",
             title = "Скрыть «Портал призов»",
-            summary = "Убрать блок с розыгрышем со страницы профиля",
+            summary = "Убрать розыгрыш призов из профиля и избранного",
             default = true,
             section = MorpheSettingsRegistry.Section.PROMO,
             order = 20,
@@ -569,6 +571,45 @@ val uiTweaksPatch = bytecodePatch(
             "UI tweaks: gated profile sections and promo in $profileWidgetStores widget list store(s) " +
                 "and $profileItemStores item list store(s).",
         )
+
+        // --- Hide the prize-portal incut on the Favorites screen ---------------
+        // The "Даём N монеток на призы" countdown banner above the favourites
+        // list is the RewardsIncut of FavoriteItemsWidgets. The presenter
+        // null-checks it and clears the incut on null, so return null while the
+        // raffle toggle is on.
+        val rewardsIncutGetter = mutableClassDefByOrNull(FAVORITE_ITEMS_WIDGETS)
+            ?.methods
+            ?.firstOrNull { method ->
+                method.name == "getRewardsIncut" &&
+                    method.parameterTypes.isEmpty() &&
+                    method.returnType == REWARDS_INCUT &&
+                    method.implementation != null
+            }
+            ?: throw PatchException("UI tweaks: FavoriteItemsWidgets.getRewardsIncut not found")
+        val rewardsIncutReturns = rewardsIncutGetter.instructionsOrNull
+            ?.toList().orEmpty()
+            .mapIndexedNotNull { index, instruction ->
+                if (instruction.opcode == Opcode.RETURN_OBJECT) {
+                    index to (instruction as OneRegisterInstruction).registerA
+                } else {
+                    null
+                }
+            }
+            .reversed()
+        if (rewardsIncutReturns.isEmpty()) {
+            throw PatchException("UI tweaks: FavoriteItemsWidgets.getRewardsIncut has no object return")
+        }
+        rewardsIncutReturns.forEach { (returnIndex, register) ->
+            rewardsIncutGetter.addInstructions(
+                returnIndex,
+                """
+                    invoke-static/range {v$register .. v$register}, $MORPHE_SETTINGS_CLASS->rewardsIncutOrNull(Ljava/lang/Object;)Ljava/lang/Object;
+                    move-result-object v$register
+                    check-cast v$register, $REWARDS_INCUT
+                """,
+            )
+        }
+        println("UI tweaks: gated FavoriteItemsWidgets.getRewardsIncut (${rewardsIncutReturns.size} returns).")
 
         // --- Hide the referral-program entry point on the profile page ----------
         // The server sends referrals as a dedicated ReferralEntryPoint model in
