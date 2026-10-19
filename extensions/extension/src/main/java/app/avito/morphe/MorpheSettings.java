@@ -202,6 +202,12 @@ public final class MorpheSettings {
         return isEnabled("avito_hide_installments", true) ? null : creditInfo;
     }
 
+    /** Gate for the Favorites screen's "Портал призов" countdown incut, under the
+     *  same toggle as the profile prize-portal surfaces. */
+    public static Object rewardsIncutOrNull(Object rewardsIncut) {
+        return isEnabled("avito_hide_profile_raffle", true) ? null : rewardsIncut;
+    }
+
     /**
      * Gate for the "hide ask-seller (Спросите у продавца / icebreakers)" tweak,
      * injected at the return of {@code AdvertDetails.getIcebreakers()} — the single
@@ -231,12 +237,48 @@ public final class MorpheSettings {
     }
 
     /**
-     * Removes configured promo rows from the profile's Pro widget groups. The
-     * converter returns a mutable ArrayList, so filtering it in place avoids
-     * leaving empty profile rows. Disabling a toggle restores the matching stock
-     * row on the next profile load.
+     * Removes promo sections from the Profile Pro widget list before it is
+     * converted into screen items, so each section's heading and rows go away
+     * together: the standalone "Портал призов" rewards banner and any group or
+     * widget group carrying the prize portal or the "Авито Pro" promo. Widgets
+     * are recognised by their data-class toString(), which keeps the source
+     * names through obfuscation. Returns the input or a filtered ArrayList.
      */
-    public static java.util.ArrayList<?> withoutProfilePromoWidgets(java.util.ArrayList<?> items) {
+    public static java.util.List<?> withoutProfilePromoSections(java.util.List<?> widgets) {
+        if (widgets == null || widgets.isEmpty()) {
+            return widgets;
+        }
+        try {
+            boolean hideRaffle = isEnabled("avito_hide_profile_raffle", true);
+            boolean hideAvitoPro = isEnabled("avito_hide_profile_avito_pro", true);
+            if (!hideRaffle && !hideAvitoPro) {
+                return widgets;
+            }
+            java.util.ArrayList<Object> kept = new java.util.ArrayList<>(widgets.size());
+            for (Object widget : widgets) {
+                String text = String.valueOf(widget);
+                boolean group = text.startsWith("Group(") || text.startsWith("WidgetsGroup(");
+                boolean hidden = (hideRaffle && text.startsWith("RewardsEntryPoint("))
+                        || (group && hideRaffle && text.contains("Портал призов"))
+                        || (group && hideAvitoPro && text.contains("Авито Pro"));
+                if (!hidden) {
+                    kept.add(widget);
+                }
+            }
+            return kept.size() == widgets.size() ? widgets : kept;
+        } catch (Throwable ignored) {
+            return widgets;
+        }
+    }
+
+    /**
+     * Removes configured promo rows from the converted Profile Pro screen items,
+     * for groups that are otherwise kept: the referral widget, prize-portal rows
+     * and the "Работайте как профи" promo. Only group and widget rows are
+     * checked. Disabling a toggle restores the matching stock row on the next
+     * profile load. Returns the input or a filtered ArrayList.
+     */
+    public static java.util.List<?> withoutProfilePromoRows(java.util.List<?> items) {
         if (items == null || items.isEmpty()) {
             return items;
         }
@@ -247,41 +289,33 @@ public final class MorpheSettings {
             if (!hideRaffle && !hideReferrals && !hideAvitoPro) {
                 return items;
             }
-            java.util.Iterator<?> iterator = items.iterator();
-            while (iterator.hasNext()) {
-                Object item = iterator.next();
+            java.util.ArrayList<Object> kept = new java.util.ArrayList<>(items.size());
+            for (Object item : items) {
+                String type = item != null ? item.getClass().getName() : "";
+                boolean widgetRow = PROFILE_PRO_WIDGET_ITEM.equals(type);
+                if (!widgetRow && !PROFILE_PRO_GROUP_ROW_ITEM.equals(type)) {
+                    kept.add(item);
+                    continue;
+                }
                 boolean hiddenRaffle = hideRaffle && containsStringValue(item, "Портал призов");
-                boolean hiddenReferral = hideReferrals
-                        && "com.avito.android.profile.pro.impl.screen.item.widget_group.widget.ProfileProWidgetItem"
-                        .equals(item != null ? item.getClass().getName() : "")
-                        && hasStringValue(item, "referral");
+                boolean hiddenReferral = hideReferrals && widgetRow && hasStringValue(item, "referral");
                 boolean hiddenAvitoPro = hideAvitoPro
                         && (containsStringValue(item, "Работайте как профи")
                         || containsStringValue(item, "Авито Pro"));
-                if (hiddenRaffle || hiddenReferral || hiddenAvitoPro) {
-                    iterator.remove();
+                if (!hiddenRaffle && !hiddenReferral && !hiddenAvitoPro) {
+                    kept.add(item);
                 }
             }
+            return kept.size() == items.size() ? items : kept;
         } catch (Throwable ignored) {
+            return items;
         }
-        return items;
     }
 
-    /** Returns true when an entire Profile Pro group is a configured promo
-     * section. Used before conversion so both its heading and rows are omitted. */
-    public static boolean hideProfilePromoGroup(Object group) {
-        if (group == null) {
-            return false;
-        }
-        try {
-            return (isEnabled("avito_hide_profile_avito_pro", true)
-                    && containsStringValue(group, "Авито Pro"))
-                    || (isEnabled("avito_hide_profile_raffle", true)
-                    && containsStringValue(group, "Портал призов"));
-        } catch (Throwable ignored) {
-            return false;
-        }
-    }
+    private static final String PROFILE_PRO_WIDGET_ITEM =
+            "com.avito.android.profile.pro.impl.screen.item.widget_group.widget.ProfileProWidgetItem";
+    private static final String PROFILE_PRO_GROUP_ROW_ITEM =
+            "com.avito.android.profile.pro.impl.screen.item.group.row.ProfileProGroupRowItem";
 
     /**
      * Removes configurable promotional items from the profile API result. Referral
@@ -363,15 +397,6 @@ public final class MorpheSettings {
         } catch (Throwable ignored) {
             return widgets;
         }
-    }
-
-    /**
-     * Gate for the profile header's standalone "Портал призов" rewards banner
-     * (Profile Pro rewards entry point), under the same toggle as the other
-     * prize-portal surfaces.
-     */
-    public static boolean hideProfileRewardEntryPoint() {
-        return isEnabled("avito_hide_profile_raffle", true);
     }
 
     /**

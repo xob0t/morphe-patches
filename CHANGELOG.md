@@ -1,21 +1,14 @@
-## [1.13.14](https://github.com/xob0t/morphe-patches/compare/v1.13.13...v1.13.14) (2026-10-18)
+## [1.14.0-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.15-dev.1...v1.14.0-dev.1) (2026-10-19)
+
+### ✨ New Features
+
+* **avito:** hide the prize-portal incut on the Favorites screen ([#142](https://github.com/xob0t/morphe-patches/issues/142)) ([0d7fd33](https://github.com/xob0t/morphe-patches/commit/0d7fd33e73e2507efa927405d236940424a0932d))
+
+## [1.13.15-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.14...v1.13.15-dev.1) (2026-10-19)
 
 ### 🐛 Bug Fixes
 
-* **wildberries:** support version 7.8.4001-rustore ([8ea5dce](https://github.com/xob0t/morphe-patches/commit/8ea5dce53e03228f78882ffb2ff80e32994906fc))
-
-## [1.13.13](https://github.com/xob0t/morphe-patches/compare/v1.13.12...v1.13.13) (2026-10-14)
-
-### 🐛 Bug Fixes
-
-* **avito:** support version 235.1 ([eba29f3](https://github.com/xob0t/morphe-patches/commit/eba29f3469d4c907e3dadcc72c9eb5cc46bf641f))
-
-## [1.13.12](https://github.com/xob0t/morphe-patches/compare/v1.13.11...v1.13.12) (2026-10-14)
-
-### 🐛 Bug Fixes
-
-* **avito:** support R8 repackaging in 235.1 ([#131](https://github.com/xob0t/morphe-patches/issues/131)) ([e23988c](https://github.com/xob0t/morphe-patches/commit/e23988cdf6061d78f4ca795fc96bfaa6ecc19115)), closes [#128](https://github.com/xob0t/morphe-patches/issues/128)
-* **ozon:** drop TileGrid2 banners before rows are built ([#129](https://github.com/xob0t/morphe-patches/issues/129)) ([b61a226](https://github.com/xob0t/morphe-patches/commit/b61a2263bedeaf77e67d5d3cd44f7decf4f3f2f5))
+* **avito:** support R8 inlining of Profile Pro converters in 235.5 ([#140](https://github.com/xob0t/morphe-patches/issues/140)) ([019b776](https://github.com/xob0t/morphe-patches/commit/019b776c8929f530e488865282af6e046088664d))
 
 ## [1.13.12-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.11...v1.13.12-dev.1) (2026-10-14)
 

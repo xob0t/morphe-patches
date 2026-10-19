@@ -11,6 +11,7 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLa
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.instructionsOrNull
 import app.morphe.patcher.fieldAccess
+import app.morphe.patcher.patch.BytecodePatchContext
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.smali.ExternalLabel
@@ -22,11 +23,9 @@ import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.Instruction
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
-import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.RegisterRangeInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.reference.FieldReference
-import com.android.tools.smali.dexlib2.iface.reference.TypeReference
 
 private const val NAVIGATION_TAB = "Lcom/avito/android/bottom_navigation/NavigationTab;"
 private const val BOTTOM_NAVIGATION_SPACE = "Lcom/avito/android/bottom_navigation/space/BottomNavigationSpace;"
@@ -40,26 +39,13 @@ private const val FAVORITES_ADAPTER_PACKAGE = "Lcom/avito/android/user_favorites
 private const val ONBOARDING_DIALOG_FRAGMENT = "Lcom/avito/android/onboarding/dialog/OnboardingDialogFragment;"
 private const val USER_PROFILE_RESULT = "Lcom/avito/android/remote/model/user_profile/UserProfileResult;"
 private const val SERP_ADVERT = "Lcom/avito/android/remote/model/SerpAdvert;"
+private const val FAVORITE_ITEMS_WIDGETS = "Lcom/avito/android/remote/model/FavoriteItemsWidgets;"
+private const val REWARDS_INCUT = "Lcom/avito/android/remote/model/RewardsIncut;"
 private const val SERP_CONSTRUCTOR_ADVERT_ITEM =
     "Lcom/avito/android/serp/adapter/constructor/SerpConstructorAdvertItem;"
 private const val BOXED_BOOLEAN = "Ljava/lang/Boolean;"
 
 private val AVI_TAB_NAMES = setOf("AI_ASSISTANT", "AI_ASSISTANT_SELLER")
-private const val PROFILE_PRO_REWARD_ENTRY_POINT_PACKAGE =
-    "Lcom/avito/android/profile/pro/impl/screen/item/reward_entry_point/"
-private const val PROFILE_PRO_CONVERTERS_PACKAGE = "Lcom/avito/android/profile/pro/impl/converters/"
-
-// Avito 235.1 repackaged the Profile Pro converters and the reward entry point item
-// into the default package; they keep these Kotlin source file names.
-private const val PROFILE_PRO_REWARD_ENTRY_POINT_ITEM_SOURCE_FILE = "ProfileProRewardEntryPointItem.kt"
-
-private fun ClassDef.isProfileProConverter() = type.startsWith(PROFILE_PRO_CONVERTERS_PACKAGE) ||
-    sourceFile.let { it != null && it.startsWith("ProfilePro") && it.endsWith("Converter.kt") }
-private val PROFILE_PRO_OUTPUT_ITEM_TYPES = setOf(
-    "Lcom/avito/android/profile/pro/impl/screen/item/group/row/ProfileProGroupRowItem;",
-    "Lcom/avito/android/profile/pro/impl/screen/item/widget_group/widget/ProfileProWidgetItem;",
-)
-
 private fun Method.usesBottomNavigationSpace() = parameterTypes.any { it.toString() == BOTTOM_NAVIGATION_SPACE }
 
 private fun Method.hasFieldReference(fields: Set<String>): Boolean = instructionsOrNull?.any { instruction ->
@@ -121,6 +107,55 @@ private fun Method.dataClassToStringField(label: String): FieldReference? {
     return fields[labels.indexOf(label)]
 }
 
+/**
+ * Passes a Kotlin data class's `items` list through [filters] (static
+ * `List -> List` methods on MorpheSettings, applied in order) wherever a
+ * constructor stores it. The class is found by its preserved source file and the
+ * `ClassName(` prefix of its `toString()`; the field is the one printed after
+ * `, items=`. Returns the number of hooked stores.
+ */
+private fun BytecodePatchContext.filterDataClassItems(
+    sourceFile: String,
+    className: String,
+    filters: List<String>,
+): Int {
+    var stores = 0
+    classDefForEach { classDef ->
+        if (classDef.sourceFile != sourceFile) return@classDefForEach
+        val toString = classDef.methods.singleOrNull { method ->
+            method.name == "toString" && method.parameterTypes.isEmpty() && method.implementation != null
+        } ?: return@classDefForEach
+        val namesClass = toString.instructionsOrNull?.any { instruction ->
+            instruction.stringReferenceOrNull()?.startsWith("$className(") == true
+        } == true
+        if (!namesClass) return@classDefForEach
+        val itemsField = toString.dataClassToStringField(", items=") ?: return@classDefForEach
+        val cast = if (itemsField.type == "Ljava/util/List;") null else itemsField.type
+        mutableClassDefBy(classDef).methods.filter { it.name == "<init>" }.forEach { constructor ->
+            val storeIndices = constructor.instructionsOrNull?.toList().orEmpty()
+                .mapIndexedNotNull { index, instruction ->
+                    if (instruction.opcode == Opcode.IPUT_OBJECT && instruction.fieldReferenceOrNull() == itemsField) {
+                        index to (instruction as TwoRegisterInstruction).registerA
+                    } else {
+                        null
+                    }
+                }
+                .reversed()
+            storeIndices.forEach { (index, register) ->
+                val calls = filters.joinToString("\n") { filter ->
+                    """
+                        invoke-static/range {v$register .. v$register}, $MORPHE_SETTINGS_CLASS->$filter(Ljava/util/List;)Ljava/util/List;
+                        move-result-object v$register
+                    """.trimIndent()
+                }
+                constructor.addInstructions(index, calls + (cast?.let { "\ncheck-cast v$register, $it" } ?: ""))
+                stores++
+            }
+        }
+    }
+    return stores
+}
+
 // The favorites tab adapter classes (FavoritesTab*.kt). Avito 235.1 repackaged
 // them out of `user_favorites/adapter/` into the default package.
 private fun ClassDef.isFavoritesAdapterClass() = type.startsWith(FAVORITES_ADAPTER_PACKAGE) ||
@@ -144,35 +179,6 @@ private fun Method.isFavoritesTabViewBind(modelType: String) = returnType == "V"
 private fun Method.isFavoritesTabTitleBind() = returnType == "V" &&
     parameterTypes.map { it.toString() } == listOf("Ljava/lang/String;", "Ljava/lang/String;") &&
     implementation != null
-
-private fun Method.profileProOutputItemTypes(): Set<String> {
-    if (returnType != "Ljava/util/ArrayList;" || implementation == null || parameterTypes.size != 1) {
-        return emptySet()
-    }
-
-    return implementation!!.instructions
-        .asSequence()
-        .filter { it.opcode == Opcode.NEW_INSTANCE }
-        .mapNotNull { instruction ->
-            ((instruction as? ReferenceInstruction)?.reference as? TypeReference)?.type
-        }
-        .filterTo(mutableSetOf()) { it in PROFILE_PRO_OUTPUT_ITEM_TYPES }
-}
-
-/**
- * The Profile Pro rewards entry point converter: turns the profile tab's rewards
- * widget into a single `ProfileProRewardEntryPointItem` (the "Портал призов"
- * banner) and returns it as a `List`.
- */
-private fun Method.isProfileRewardEntryPointConverter(rewardItemTypes: Set<String>) =
-    returnType == "Ljava/util/List;" &&
-        parameterTypes.size == 1 &&
-        implementation?.instructions?.any { instruction ->
-            instruction.opcode == Opcode.NEW_INSTANCE &&
-                ((instruction as? ReferenceInstruction)?.reference as? TypeReference)?.type?.let { type ->
-                    type.startsWith(PROFILE_PRO_REWARD_ENTRY_POINT_PACKAGE) || type in rewardItemTypes
-                } == true
-        } == true
 
 private fun ClassDef.hasPublicReservedGetter() = methods.any { method ->
     method.name == "getReserved" &&
@@ -504,130 +510,106 @@ val uiTweaksPatch = bytecodePatch(
             )
         }
 
-        // --- Hide Profile Pro promo widgets on the profile page ----------------
-        // Profile Pro builds the promo into two independently converted widget
-        // groups. Filter their returned lists through a live setting gate so the
-        // stock promo comes back as soon as its toggle is disabled. This path
-        // includes the current referral widget (stable stringId "referral");
-        // UserProfileResult below only covers the legacy profile screen.
-        var profilePromoConvertersPatched = 0
-        val profileOutputItemTypesPatched = mutableSetOf<String>()
-        classDefForEach { classDef ->
-            if (!classDef.isProfileProConverter()) return@classDefForEach
-            val converterMethod = classDef.methods.singleOrNull { method ->
-                method.profileProOutputItemTypes().isNotEmpty()
-            } ?: return@classDefForEach
-            val outputItemTypes = converterMethod.profileProOutputItemTypes()
-            val method = mutableClassDefBy(classDef).methods.single {
-                it.name == converterMethod.name && it.parameterTypes == converterMethod.parameterTypes
-            }
-            val returnTargets = method.instructionsOrNull
-                ?.toList().orEmpty()
-                .mapIndexedNotNull { index, instruction ->
-                    if (instruction.opcode == Opcode.RETURN_OBJECT) {
-                        index to (instruction as OneRegisterInstruction).registerA
-                    } else {
-                        null
-                    }
-                }
-                .reversed()
-            if (returnTargets.isEmpty()) {
-                throw PatchException("UI tweaks: profile promo converter ${classDef.type} has no object return")
-            }
-            returnTargets.forEach { (returnIndex, register) ->
-                method.addInstructions(
-                    returnIndex,
-                    """
-                        invoke-static/range {v$register .. v$register}, $MORPHE_SETTINGS_CLASS->withoutProfilePromoWidgets(Ljava/util/ArrayList;)Ljava/util/ArrayList;
-                        move-result-object v$register
-                    """,
-                )
-            }
-            method.addInstructionsWithLabels(
-                0,
-                """
-                    invoke-static/range {p1 .. p1}, $MORPHE_SETTINGS_CLASS->hideProfilePromoGroup(Ljava/lang/Object;)Z
-                    move-result v0
-                    if-eqz v0, :stock
-                    new-instance v0, Ljava/util/ArrayList;
-                    invoke-direct {v0}, Ljava/util/ArrayList;-><init>()V
-                    return-object v0
-                """,
-                ExternalLabel("stock", method.getInstruction(0)),
-            )
-            profilePromoConvertersPatched++
-            profileOutputItemTypesPatched += outputItemTypes
+        // --- Hide Profile Pro promo and whole sections on the profile page -----
+        // The profile flows through two data classes that keep their Kotlin source
+        // file and toString() names: ProfileTabContent holds the server's widget
+        // list, and ProfileProInternalAction.Content the screen items converted
+        // from it. Filter both `items` lists as they are stored, so the hooks do
+        // not depend on where the conversion code lives (235.5 inlined every
+        // Profile Pro converter into the interactor's load coroutine).
+        // - Widgets: configurable sections and promo groups (heading and rows
+        //   together) plus the standalone "Портал призов" rewards banner.
+        // - Items: single promo rows inside groups that are otherwise kept.
+        val profileWidgetStores = filterDataClassItems(
+            "ProfileTabContent.kt",
+            "ProfileTabContent",
+            listOf("withoutHiddenProfileSections", "withoutProfilePromoSections"),
+        )
+        if (profileWidgetStores == 0) {
+            throw PatchException("UI tweaks: ProfileTabContent items not found")
         }
+        val profileItemStores = filterDataClassItems(
+            "ProfileProInternalAction.kt",
+            "Content",
+            listOf("withoutProfilePromoRows"),
+        )
+        if (profileItemStores == 0) {
+            throw PatchException("UI tweaks: Profile Pro content items not found")
+        }
+        MorpheSettingsRegistry.addSwitch(
+            key = "avito_hide_profile_raffle",
+            title = "Скрыть «Портал призов»",
+            summary = "Убрать розыгрыш призов из профиля и избранного",
+            default = true,
+            section = MorpheSettingsRegistry.Section.PROMO,
+            order = 20,
+        )
+        MorpheSettingsRegistry.addSwitch(
+            key = "avito_hide_profile_avito_pro",
+            title = "Скрыть «Авито Pro»",
+            summary = "Убрать блок «Работайте как профи» со страницы профиля",
+            default = true,
+            section = MorpheSettingsRegistry.Section.PROMO,
+            order = 40,
+        )
+        listOf(
+            Triple("avito_hide_profile_recommendations", "Скрыть «Может быть интересно»", "Убрать подборку объявлений"),
+            Triple("avito_hide_profile_tools", "Скрыть «Инструменты»", "Убрать блок инструментов продавца"),
+            Triple("avito_hide_profile_services", "Скрыть «Сервисы»", "Убрать плитки сервисов Авито"),
+            Triple("avito_hide_profile_jobs", "Скрыть «Работа и подработка»", "Убрать блок поиска работы"),
+        ).forEachIndexed { index, (key, title, summary) ->
+            MorpheSettingsRegistry.addSwitch(
+                key = key,
+                title = title,
+                summary = summary,
+                default = false,
+                section = MorpheSettingsRegistry.Section.PROFILE,
+                order = (index + 1) * 10,
+            )
+        }
+        println(
+            "UI tweaks: gated profile sections and promo in $profileWidgetStores widget list store(s) " +
+                "and $profileItemStores item list store(s).",
+        )
 
-        // The profile header can also carry the prize portal as a standalone
-        // rewards entry point banner (its own widget and converter). Return no
-        // items for it while the raffle toggle is on.
-        var rewardEntryPointConvertersPatched = 0
-        val rewardItemTypes = mutableSetOf<String>()
-        classDefForEach { classDef ->
-            if (classDef.sourceFile == PROFILE_PRO_REWARD_ENTRY_POINT_ITEM_SOURCE_FILE) rewardItemTypes += classDef.type
-        }
-        classDefForEach { classDef ->
-            if (!classDef.isProfileProConverter()) return@classDefForEach
-            val converterMethod = classDef.methods.singleOrNull { method ->
-                method.isProfileRewardEntryPointConverter(rewardItemTypes)
-            } ?: return@classDefForEach
-            val method = mutableClassDefBy(classDef).methods.single {
-                it.name == converterMethod.name && it.parameterTypes == converterMethod.parameterTypes
+        // --- Hide the prize-portal incut on the Favorites screen ---------------
+        // The "Даём N монеток на призы" countdown banner above the favourites
+        // list is the RewardsIncut of FavoriteItemsWidgets. The presenter
+        // null-checks it and clears the incut on null, so return null while the
+        // raffle toggle is on.
+        val rewardsIncutGetter = mutableClassDefByOrNull(FAVORITE_ITEMS_WIDGETS)
+            ?.methods
+            ?.firstOrNull { method ->
+                method.name == "getRewardsIncut" &&
+                    method.parameterTypes.isEmpty() &&
+                    method.returnType == REWARDS_INCUT &&
+                    method.implementation != null
             }
-            method.addInstructionsWithLabels(
-                0,
+            ?: throw PatchException("UI tweaks: FavoriteItemsWidgets.getRewardsIncut not found")
+        val rewardsIncutReturns = rewardsIncutGetter.instructionsOrNull
+            ?.toList().orEmpty()
+            .mapIndexedNotNull { index, instruction ->
+                if (instruction.opcode == Opcode.RETURN_OBJECT) {
+                    index to (instruction as OneRegisterInstruction).registerA
+                } else {
+                    null
+                }
+            }
+            .reversed()
+        if (rewardsIncutReturns.isEmpty()) {
+            throw PatchException("UI tweaks: FavoriteItemsWidgets.getRewardsIncut has no object return")
+        }
+        rewardsIncutReturns.forEach { (returnIndex, register) ->
+            rewardsIncutGetter.addInstructions(
+                returnIndex,
                 """
-                    invoke-static {}, $MORPHE_SETTINGS_CLASS->hideProfileRewardEntryPoint()Z
-                    move-result v0
-                    if-eqz v0, :stock
-                    invoke-static {}, Ljava/util/Collections;->emptyList()Ljava/util/List;
-                    move-result-object v0
-                    return-object v0
+                    invoke-static/range {v$register .. v$register}, $MORPHE_SETTINGS_CLASS->rewardsIncutOrNull(Ljava/lang/Object;)Ljava/lang/Object;
+                    move-result-object v$register
+                    check-cast v$register, $REWARDS_INCUT
                 """,
-                ExternalLabel("stock", method.getInstruction(0)),
-            )
-            rewardEntryPointConvertersPatched++
-        }
-        if (rewardEntryPointConvertersPatched == 0) {
-            throw PatchException("UI tweaks: profile rewards entry point converter not found")
-        }
-        val missingProfileOutputItemTypes = PROFILE_PRO_OUTPUT_ITEM_TYPES - profileOutputItemTypesPatched
-        if (missingProfileOutputItemTypes.isNotEmpty()) {
-            throw PatchException(
-                "UI tweaks: profile promo output type(s) not found: " +
-                    missingProfileOutputItemTypes.joinToString(),
             )
         }
-        if (profilePromoConvertersPatched == 0) {
-            throw PatchException("UI tweaks: profile promo converters not found")
-        } else {
-            MorpheSettingsRegistry.addSwitch(
-                key = "avito_hide_profile_raffle",
-                title = "Скрыть «Портал призов»",
-                summary = "Убрать блок с розыгрышем со страницы профиля",
-                default = true,
-                section = MorpheSettingsRegistry.Section.PROMO,
-                order = 20,
-            )
-            MorpheSettingsRegistry.addSwitch(
-                key = "avito_hide_profile_avito_pro",
-                title = "Скрыть «Авито Pro»",
-                summary = "Убрать блок «Работайте как профи» со страницы профиля",
-                default = true,
-                section = MorpheSettingsRegistry.Section.PROMO,
-                order = 40,
-            )
-            println(
-                "UI tweaks: gated $profilePromoConvertersPatched profile promo converter(s) and " +
-                    "$rewardEntryPointConvertersPatched rewards entry point converter(s)" +
-                    if (missingProfileOutputItemTypes.isEmpty()) {
-                        "."
-                    } else {
-                        "; missing ${missingProfileOutputItemTypes.joinToString()}."
-                    },
-            )
-        }
+        println("UI tweaks: gated FavoriteItemsWidgets.getRewardsIncut (${rewardsIncutReturns.size} returns).")
 
         // --- Hide the referral-program entry point on the profile page ----------
         // The server sends referrals as a dedicated ReferralEntryPoint model in
@@ -679,47 +661,6 @@ val uiTweaksPatch = bytecodePatch(
             )
             println("UI tweaks: gated profile referrals behind the toggle (${returnTargets.size} returns).")
         }
-
-        // --- Hide whole sections on the profile page ----------------------------
-        // Filter the List<ProfileTabWidget> on entry to the converter that builds
-        // the profile screen, so a hidden section loses its heading and rows
-        // together. Each section has its own toggle, all off by default.
-        val profileWidgetsConverter = ProfileWidgetsConverterFingerprint.methodOrNull
-            ?: throw PatchException("UI tweaks: Profile Pro widgets converter not found")
-        // The widget list is an ArrayList up to 234.0 and a List from 234.5.
-        val profileWidgetsType = profileWidgetsConverter.parameterTypes.first().toString()
-        val profileWidgetsCast = if (profileWidgetsType == "Ljava/util/List;") {
-            ""
-        } else {
-            "check-cast p1, $profileWidgetsType"
-        }
-        profileWidgetsConverter.addInstructions(
-            0,
-            """
-                invoke-static/range {p1 .. p1}, $MORPHE_SETTINGS_CLASS->withoutHiddenProfileSections(Ljava/util/List;)Ljava/util/List;
-                move-result-object p1
-                $profileWidgetsCast
-            """,
-        )
-        listOf(
-            Triple("avito_hide_profile_recommendations", "Скрыть «Может быть интересно»", "Убрать подборку объявлений"),
-            Triple("avito_hide_profile_tools", "Скрыть «Инструменты»", "Убрать блок инструментов продавца"),
-            Triple("avito_hide_profile_services", "Скрыть «Сервисы»", "Убрать плитки сервисов Авито"),
-            Triple("avito_hide_profile_jobs", "Скрыть «Работа и подработка»", "Убрать блок поиска работы"),
-        ).forEachIndexed { index, (key, title, summary) ->
-            MorpheSettingsRegistry.addSwitch(
-                key = key,
-                title = title,
-                summary = summary,
-                default = false,
-                section = MorpheSettingsRegistry.Section.PROFILE,
-                order = (index + 1) * 10,
-            )
-        }
-        println(
-            "UI tweaks: gated profile sections in " +
-                "${ProfileWidgetsConverterFingerprint.originalClassDef.type}->${profileWidgetsConverter.name}",
-        )
 
         // --- Hide promotional/informational onboarding drawers on launch --------
         // OnboardingDialogFragment is dedicated to Avito's server-driven onboarding
