@@ -1,3 +1,9 @@
+## [1.14.0-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.15-dev.1...v1.14.0-dev.1) (2026-10-19)
+
+### ✨ New Features
+
+* **avito:** hide the prize-portal incut on the Favorites screen ([#142](https://github.com/xob0t/morphe-patches/issues/142)) ([0d7fd33](https://github.com/xob0t/morphe-patches/commit/0d7fd33e73e2507efa927405d236940424a0932d))
+
 ## [1.13.15-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.14...v1.13.15-dev.1) (2026-10-19)
 
 ### 🐛 Bug Fixes
