@@ -103,19 +103,28 @@ val morpheSettingsPatch = bytecodePatch(
         // entries in their own execute, which runs after this one.
         MorpheSettingsRegistry.reset()
 
-        // The single "Настройки Morphe" row into Avito's settings list.
+        // The single "Настройки Morphe" row into Avito's settings list. Hook every
+        // object return: 235.5 builds the list with two return paths.
         val settingsBuilder = SettingsListBuilderFingerprint.methodOrNull
         if (settingsBuilder != null) {
-            val instructions = settingsBuilder.instructionsOrNull?.toList().orEmpty()
-            val returnIndex = instructions.indexOfLast { it.opcode == Opcode.RETURN_OBJECT }
-            if (returnIndex >= 0) {
-                val listRegister = (instructions[returnIndex] as OneRegisterInstruction).registerA
-                settingsBuilder.addInstructions(
-                    returnIndex,
-                    "invoke-static/range {v$listRegister .. v$listRegister}, " +
-                        "$MORPHE_SETTINGS_CLASS->addSettingsEntry(Ljava/util/List;)V",
-                )
-                println("Morphe settings: added entry to Avito Settings")
+            val returns = settingsBuilder.instructionsOrNull?.toList().orEmpty()
+                .mapIndexedNotNull { index, instruction ->
+                    if (instruction.opcode == Opcode.RETURN_OBJECT) {
+                        index to (instruction as OneRegisterInstruction).registerA
+                    } else {
+                        null
+                    }
+                }
+                .reversed()
+            if (returns.isNotEmpty()) {
+                returns.forEach { (returnIndex, listRegister) ->
+                    settingsBuilder.addInstructions(
+                        returnIndex,
+                        "invoke-static/range {v$listRegister .. v$listRegister}, " +
+                            "$MORPHE_SETTINGS_CLASS->addSettingsEntry(Ljava/util/List;)V",
+                    )
+                }
+                println("Morphe settings: added entry to Avito Settings (${returns.size} returns)")
             } else {
                 throw PatchException("Morphe settings: settings list builder has no object return")
             }
