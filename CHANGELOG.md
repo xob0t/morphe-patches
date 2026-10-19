@@ -1,3 +1,9 @@
+## [1.13.15-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.14...v1.13.15-dev.1) (2026-10-19)
+
+### 🐛 Bug Fixes
+
+* **avito:** support R8 inlining of Profile Pro converters in 235.5 ([#140](https://github.com/xob0t/morphe-patches/issues/140)) ([019b776](https://github.com/xob0t/morphe-patches/commit/019b776c8929f530e488865282af6e046088664d))
+
 ## [1.13.12-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.11...v1.13.12-dev.1) (2026-10-14)
 
 ### 🐛 Bug Fixes

@@ -10,15 +10,15 @@ Personal Morphe patches for Android apps.
 ## Patches
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.13.12-dev.1](https://github.com/xob0t/morphe-patches/releases/tag/v1.13.12-dev.1)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;25 patches total
+> **[v1.13.15-dev.1](https://github.com/xob0t/morphe-patches/releases/tag/v1.13.15-dev.1)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;25 patches total
 <details open>
 <summary>📦 Avito&nbsp;&nbsp;•&nbsp;&nbsp;8 patches</summary>
 <br>
 
 **🎯 Supported versions:**
 
-| 234.5 | 234.0 | 233.5 | 233.1 | 232.0 | 231.5 | 231.0 | 230.5 | 230.0 | 229.1 |
-| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| 235.1 | 234.5 | 234.0 | 233.5 | 233.1 | 232.0 | 231.5 | 231.0 | 230.5 | 230.0 | 229.1 |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
@@ -70,8 +70,8 @@ Personal Morphe patches for Android apps.
 
 **🎯 Supported versions:**
 
-| 7.8.3002-rustore | 7.8.3002 | 7.8.2002-rustore | 7.8.2002 | 7.8.1002-rustore | 7.8.1002 | 7.8.0002-rustore | 7.8.0002 | 7.7.9003-rustore | 7.7.9003 | 7.7.8001-rustore | 7.7.8001 | 7.7.7001-rustore | 7.7.7001 | 7.7.6003-rustore | 7.7.6003 | 7.7.5003-rustore | 7.7.5003 | 7.7.4003-rustore | 7.7.4003 | 7.7.3001-rustore | 7.7.3001 | 7.7.2001-rustore | 7.7.2001 |
-| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| 7.8.4001-rustore | 7.8.4001 | 7.8.3002-rustore | 7.8.3002 | 7.8.2002-rustore | 7.8.2002 | 7.8.1002-rustore | 7.8.1002 | 7.8.0002-rustore | 7.8.0002 | 7.7.9003-rustore | 7.7.9003 | 7.7.8001-rustore | 7.7.8001 | 7.7.7001-rustore | 7.7.7001 | 7.7.6003-rustore | 7.7.6003 | 7.7.5003-rustore | 7.7.5003 | 7.7.4003-rustore | 7.7.4003 | 7.7.3001-rustore | 7.7.3001 | 7.7.2001-rustore | 7.7.2001 |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
