@@ -1,5 +1,5 @@
 {
-  "version": "1.14.0-dev.1",
+  "version": "1.13.15",
   "patches": [
     {
       "name": "AMOLED dark theme",
@@ -751,6 +751,13 @@
           "appIconColor": "#005BFF",
           "signatures": null,
           "targets": [
+            {
+              "version": "19.40.0",
+              "versionCode": 2726,
+              "isExperimental": false,
+              "minSdk": 26,
+              "description": null
+            },
             {
               "version": "19.39.0",
               "versionCode": 2725,

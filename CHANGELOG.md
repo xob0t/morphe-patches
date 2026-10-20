@@ -1,3 +1,9 @@
+## [1.13.15](https://github.com/xob0t/morphe-patches/compare/v1.13.14...v1.13.15) (2026-10-20)
+
+### 🐛 Bug Fixes
+
+* **ozon:** support version 19.40.0 ([53c5f94](https://github.com/xob0t/morphe-patches/commit/53c5f94a45b66599f60b08b462cd58b79023b384))
+
 ## [1.14.0-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.15-dev.1...v1.14.0-dev.1) (2026-10-19)
 
 ### ✨ New Features
