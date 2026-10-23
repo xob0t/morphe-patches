@@ -1,3 +1,16 @@
+## [1.14.0-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.14.0-dev.1...v1.14.0-dev.2) (2026-10-23)
+
+### 🐛 Bug Fixes
+
+* **avito:** support version 235.5 ([aca5d77](https://github.com/xob0t/morphe-patches/commit/aca5d7701c67e13caaa0255c77d21dfc38b2af2a))
+* **ozon:** support version 19.40.0 ([53c5f94](https://github.com/xob0t/morphe-patches/commit/53c5f94a45b66599f60b08b462cd58b79023b384))
+* **ozon:** support version 19.40.1 ([3a3ec88](https://github.com/xob0t/morphe-patches/commit/3a3ec88f6b0033421ca4efd88d295b440defb476))
+* **wildberries:** support version 7.8.5002-rustore ([33efe86](https://github.com/xob0t/morphe-patches/commit/33efe86b24f35744370ad413585525b2bf06f539))
+
+### ✨ New Features
+
+* **avito:** hide the prize-portal incut on offer pages ([#147](https://github.com/xob0t/morphe-patches/issues/147)) ([59608aa](https://github.com/xob0t/morphe-patches/commit/59608aa2a55eadfeb7161cd032ead19b0a832f57))
+
 ## [1.14.0-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.13.15-dev.1...v1.14.0-dev.1) (2026-10-19)
 
 ### ✨ New Features
