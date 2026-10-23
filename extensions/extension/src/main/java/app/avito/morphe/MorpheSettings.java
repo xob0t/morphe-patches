@@ -202,8 +202,8 @@ public final class MorpheSettings {
         return isEnabled("avito_hide_installments", true) ? null : creditInfo;
     }
 
-    /** Gate for the Favorites screen's "Портал призов" countdown incut, under the
-     *  same toggle as the profile prize-portal surfaces. */
+    /** Gate for the "Портал призов" countdown incuts on the Favorites screen and
+     *  offer pages, under the same toggle as the profile prize-portal surfaces. */
     public static Object rewardsIncutOrNull(Object rewardsIncut) {
         return isEnabled("avito_hide_profile_raffle", true) ? null : rewardsIncut;
     }
