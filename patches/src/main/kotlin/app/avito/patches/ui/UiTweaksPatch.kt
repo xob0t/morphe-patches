@@ -539,7 +539,7 @@ val uiTweaksPatch = bytecodePatch(
         MorpheSettingsRegistry.addSwitch(
             key = "avito_hide_profile_raffle",
             title = "Скрыть «Портал призов»",
-            summary = "Убрать розыгрыш призов из профиля и избранного",
+            summary = "Убрать розыгрыш призов из профиля, избранного и объявлений",
             default = true,
             section = MorpheSettingsRegistry.Section.PROMO,
             order = 20,
@@ -572,44 +572,56 @@ val uiTweaksPatch = bytecodePatch(
                 "and $profileItemStores item list store(s).",
         )
 
-        // --- Hide the prize-portal incut on the Favorites screen ---------------
-        // The "Даём N монеток на призы" countdown banner above the favourites
-        // list is the RewardsIncut of FavoriteItemsWidgets. The presenter
-        // null-checks it and clears the incut on null, so return null while the
-        // raffle toggle is on.
-        val rewardsIncutGetter = mutableClassDefByOrNull(FAVORITE_ITEMS_WIDGETS)
-            ?.methods
-            ?.firstOrNull { method ->
-                method.name == "getRewardsIncut" &&
-                    method.parameterTypes.isEmpty() &&
-                    method.returnType == REWARDS_INCUT &&
-                    method.implementation != null
-            }
-            ?: throw PatchException("UI tweaks: FavoriteItemsWidgets.getRewardsIncut not found")
-        val rewardsIncutReturns = rewardsIncutGetter.instructionsOrNull
-            ?.toList().orEmpty()
-            .mapIndexedNotNull { index, instruction ->
-                if (instruction.opcode == Opcode.RETURN_OBJECT) {
-                    index to (instruction as OneRegisterInstruction).registerA
-                } else {
-                    null
+        // --- Hide the prize-portal incuts on Favorites and offer pages ---------
+        // The "N монеток на призы" countdown banner is a server-sent rewards
+        // incut: above the favourites list it is FavoriteItemsWidgets'
+        // RewardsIncut, and above the offer page's buy buttons it is
+        // AdvertDetails' own incut model (obfuscated type, so the getter's return
+        // type is used as-is). Every consumer null-checks the getter and skips
+        // the incut on null, so return null while the raffle toggle is on.
+        // The offer-page incut is optional: 234.5 and older have no such field.
+        fun gateRewardsIncutGetter(classType: String, label: String, returnType: String?, required: Boolean) {
+            val getter = mutableClassDefByOrNull(classType)
+                ?.methods
+                ?.firstOrNull { method ->
+                    method.name == "getRewardsIncut" &&
+                        method.parameterTypes.isEmpty() &&
+                        method.returnType.startsWith("L") &&
+                        (returnType == null || method.returnType == returnType) &&
+                        method.implementation != null
                 }
+            if (getter == null) {
+                if (required) throw PatchException("UI tweaks: $label.getRewardsIncut not found")
+                println("UI tweaks: $label.getRewardsIncut not present, skipping.")
+                return
             }
-            .reversed()
-        if (rewardsIncutReturns.isEmpty()) {
-            throw PatchException("UI tweaks: FavoriteItemsWidgets.getRewardsIncut has no object return")
+            val returns = getter.instructionsOrNull
+                ?.toList().orEmpty()
+                .mapIndexedNotNull { index, instruction ->
+                    if (instruction.opcode == Opcode.RETURN_OBJECT) {
+                        index to (instruction as OneRegisterInstruction).registerA
+                    } else {
+                        null
+                    }
+                }
+                .reversed()
+            if (returns.isEmpty()) {
+                throw PatchException("UI tweaks: $label.getRewardsIncut has no object return")
+            }
+            returns.forEach { (returnIndex, register) ->
+                getter.addInstructions(
+                    returnIndex,
+                    """
+                        invoke-static/range {v$register .. v$register}, $MORPHE_SETTINGS_CLASS->rewardsIncutOrNull(Ljava/lang/Object;)Ljava/lang/Object;
+                        move-result-object v$register
+                        check-cast v$register, ${getter.returnType}
+                    """,
+                )
+            }
+            println("UI tweaks: gated $label.getRewardsIncut (${returns.size} returns).")
         }
-        rewardsIncutReturns.forEach { (returnIndex, register) ->
-            rewardsIncutGetter.addInstructions(
-                returnIndex,
-                """
-                    invoke-static/range {v$register .. v$register}, $MORPHE_SETTINGS_CLASS->rewardsIncutOrNull(Ljava/lang/Object;)Ljava/lang/Object;
-                    move-result-object v$register
-                    check-cast v$register, $REWARDS_INCUT
-                """,
-            )
-        }
-        println("UI tweaks: gated FavoriteItemsWidgets.getRewardsIncut (${rewardsIncutReturns.size} returns).")
+        gateRewardsIncutGetter(FAVORITE_ITEMS_WIDGETS, "FavoriteItemsWidgets", REWARDS_INCUT, required = true)
+        gateRewardsIncutGetter(ADVERT_DETAILS, "AdvertDetails", null, required = false)
 
         // --- Hide the referral-program entry point on the profile page ----------
         // The server sends referrals as a dedicated ReferralEntryPoint model in
