@@ -1,3 +1,14 @@
+## [1.14.0](https://github.com/xob0t/morphe-patches/compare/v1.13.18...v1.14.0) (2026-10-23)
+
+### 🐛 Bug Fixes
+
+* **avito:** support R8 inlining of Profile Pro converters in 235.5 ([#140](https://github.com/xob0t/morphe-patches/issues/140)) ([019b776](https://github.com/xob0t/morphe-patches/commit/019b776c8929f530e488865282af6e046088664d))
+
+### ✨ New Features
+
+* **avito:** hide the prize-portal incut on offer pages ([#147](https://github.com/xob0t/morphe-patches/issues/147)) ([59608aa](https://github.com/xob0t/morphe-patches/commit/59608aa2a55eadfeb7161cd032ead19b0a832f57))
+* **avito:** hide the prize-portal incut on the Favorites screen ([#142](https://github.com/xob0t/morphe-patches/issues/142)) ([0d7fd33](https://github.com/xob0t/morphe-patches/commit/0d7fd33e73e2507efa927405d236940424a0932d))
+
 ## [1.14.0-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.14.0-dev.1...v1.14.0-dev.2) (2026-10-23)
 
 ### 🐛 Bug Fixes
