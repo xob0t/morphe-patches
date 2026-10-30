@@ -8,7 +8,9 @@ import app.morphe.patcher.patch.booleanOption
 import app.morphe.patcher.patch.bytecodePatch
 import app.shared.fieldReferenceOrNull
 import app.wildberries.patches.shared.Constants.COMPATIBILITY_WILDBERRIES
+import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
+import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
 
 private val nullableBannerWrapperGetters = setOf(
     "getMainBanners",
@@ -201,6 +203,18 @@ private fun String.isCartScreenStateClass() = startsWith("Lru/wildberries/cart/"
 private fun String.isCartRecommendationsViewModelClass() = startsWith("Lru/wildberries/cart/") &&
     endsWith("RecommendationsViewModel;")
 
+// 7.8.x A/B-tests a "merged seller widget" (`EnableMergeSellerWidgetFeatureToggle`).
+// In the MERGED_* variants the seller name/rating card is rendered inside the
+// seller recommendations block, and `SupplierAndBrandInCombinedBlockController`
+// drops its own supplier block (`hasSupplierBlock` requires
+// `!(isMergedBlockEnabled() && items is Visible)`) to avoid a duplicate. Hiding the
+// recommendations controller would then hide the seller name too, so the merged
+// variant is reported as disabled: the app falls back to its DEFAULT layout with the
+// seller in the regular block. Absent before 7.8.x, so it is not a required target.
+private fun String.isSellerRecommendationsDesignVariantClass() =
+    startsWith("Lru/wildberries/productcard/") &&
+        endsWith("/recommendations/SellerRecommendationsUiModel\$DesignVariant;")
+
 private fun String.isProductRecommendationsGridClass() = startsWith("Lru/wildberries/productcard/") &&
     endsWith("/recommendations/grid/RecommendationsGridKt;")
 
@@ -241,6 +255,7 @@ val removeWildberriesAdsPatch = bytecodePatch(
         var patchedBigSaleHeaderMethods = 0
         var patchedCartRecommendationMethods = 0
         var patchedProductSellerRecommendationMethods = 0
+        var patchedSellerMergedBlockMethods = 0
         var patchedProductInfiniteRecommendationMethods = 0
         var patchedBigLotteryMethods = 0
         var patchedRaffleMethods = 0
@@ -490,6 +505,21 @@ val removeWildberriesAdsPatch = bytecodePatch(
                     }
                 }
 
+                classType.isSellerRecommendationsDesignVariantClass() -> if (shouldHideRecommendationGrids) {
+                    mutableClassDefBy(classDef).methods.forEach { method ->
+                        if (method.isBooleanMethod("isMergedBlockEnabled")) {
+                            method.addInstructions(
+                                0,
+                                """
+                                    const/4 v0, 0x0
+                                    return v0
+                                """,
+                            )
+                            patchedSellerMergedBlockMethods++
+                        }
+                    }
+                }
+
                 classType.isProductRecommendationsGridClass() -> if (shouldHideRecommendationGrids) {
                     mutableClassDefBy(classDef).methods.forEach { method ->
                         if (
@@ -499,13 +529,26 @@ val removeWildberriesAdsPatch = bytecodePatch(
                             "Landroidx/compose/foundation/lazy/grid/LazyGridScope;" &&
                             method.hasImplementation()
                         ) {
-                            method.addInstructions(
-                                0,
-                                """
-                                    return-void
-                                """,
-                            )
-                            patchedProductInfiniteRecommendationMethods++
+                            // The grid also emits the list's trailing `bottomSpacer`, which
+                            // keeps the last block (the seller card) clear of the sticky
+                            // Buy Now / Add to Cart bar. A plain `return-void` dropped the
+                            // spacer and left the seller name hidden under that bar. Nulling
+                            // the grid state right after it is read takes the app's own
+                            // "no recommendations" branch, which still emits the spacer.
+                            val instructions = method.instructionsOrNull?.toList().orEmpty()
+                            val gridStateReadIndex = instructions.indexOfFirst { instruction ->
+                                instruction.opcode == Opcode.IGET_OBJECT &&
+                                    instruction.fieldReferenceOrNull()?.name == "recommendationsGridUiState"
+                            }
+                            if (gridStateReadIndex >= 0) {
+                                val gridStateRegister =
+                                    (instructions[gridStateReadIndex] as TwoRegisterInstruction).registerA
+                                method.addInstructions(
+                                    gridStateReadIndex + 1,
+                                    "const/16 v$gridStateRegister, 0x0",
+                                )
+                                patchedProductInfiniteRecommendationMethods++
+                            }
                         }
                     }
                 }
@@ -740,6 +783,7 @@ val removeWildberriesAdsPatch = bytecodePatch(
                 "$patchedBigSaleHeaderMethods promo header methods, and " +
                 "$patchedCartRecommendationMethods cart recommendation methods, " +
                 "$patchedProductSellerRecommendationMethods product seller recommendation methods, " +
+                "$patchedSellerMergedBlockMethods merged seller block methods, " +
                 "$patchedProductInfiniteRecommendationMethods product infinite recommendation methods, and " +
                 "$patchedBigLotteryMethods lottery methods, and " +
                 "$patchedRaffleMethods raffle methods.",
