@@ -1,3 +1,9 @@
+## [1.14.4-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.14.3...v1.14.4-dev.1) (2026-10-30)
+
+### 🐛 Bug Fixes
+
+* **wildberries:** keep the seller name visible when hiding recommendations ([13a31db](https://github.com/xob0t/morphe-patches/commit/13a31db250000d7f3f8bce62c7e83a5a688862ec))
+
 ## [1.14.0-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.14.0-dev.1...v1.14.0-dev.2) (2026-10-23)
 
 ### 🐛 Bug Fixes
