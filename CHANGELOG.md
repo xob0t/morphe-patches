@@ -1,31 +1,8 @@
-## [1.14.3](https://github.com/xob0t/morphe-patches/compare/v1.14.2...v1.14.3) (2026-10-30)
+## [1.14.4-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.14.3...v1.14.4-dev.1) (2026-10-30)
 
 ### 🐛 Bug Fixes
 
-* **ozon:** support version 19.41.0 ([c63aac4](https://github.com/xob0t/morphe-patches/commit/c63aac4dd8fe6b63c18a6fc7146904aea1199070))
-
-## [1.14.2](https://github.com/xob0t/morphe-patches/compare/v1.14.1...v1.14.2) (2026-10-27)
-
-### 🐛 Bug Fixes
-
-* **wildberries:** support version 7.8.6001-rustore ([fccf553](https://github.com/xob0t/morphe-patches/commit/fccf5533cfbf0a12c92fbd140325ecb7647d07f8))
-
-## [1.14.1](https://github.com/xob0t/morphe-patches/compare/v1.14.0...v1.14.1) (2026-10-27)
-
-### 🐛 Bug Fixes
-
-* **avito:** support version 236.1 ([87ea3ef](https://github.com/xob0t/morphe-patches/commit/87ea3efdb20ddf6c30e9e72cb6285a974feed2cf))
-
-## [1.14.0](https://github.com/xob0t/morphe-patches/compare/v1.13.18...v1.14.0) (2026-10-23)
-
-### 🐛 Bug Fixes
-
-* **avito:** support R8 inlining of Profile Pro converters in 235.5 ([#140](https://github.com/xob0t/morphe-patches/issues/140)) ([019b776](https://github.com/xob0t/morphe-patches/commit/019b776c8929f530e488865282af6e046088664d))
-
-### ✨ New Features
-
-* **avito:** hide the prize-portal incut on offer pages ([#147](https://github.com/xob0t/morphe-patches/issues/147)) ([59608aa](https://github.com/xob0t/morphe-patches/commit/59608aa2a55eadfeb7161cd032ead19b0a832f57))
-* **avito:** hide the prize-portal incut on the Favorites screen ([#142](https://github.com/xob0t/morphe-patches/issues/142)) ([0d7fd33](https://github.com/xob0t/morphe-patches/commit/0d7fd33e73e2507efa927405d236940424a0932d))
+* **wildberries:** keep the seller name visible when hiding recommendations ([13a31db](https://github.com/xob0t/morphe-patches/commit/13a31db250000d7f3f8bce62c7e83a5a688862ec))
 
 ## [1.14.0-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.14.0-dev.1...v1.14.0-dev.2) (2026-10-23)
 
