@@ -1,3 +1,9 @@
+## [1.14.5](https://github.com/xob0t/morphe-patches/compare/v1.14.4...v1.14.5) (2026-11-02)
+
+### 🐛 Bug Fixes
+
+* **avito:** support version 236.6 ([b90ba5a](https://github.com/xob0t/morphe-patches/commit/b90ba5a8a827b5343df7a6b96a5cf30567c351fb))
+
 ## [1.14.4](https://github.com/xob0t/morphe-patches/compare/v1.14.3...v1.14.4) (2026-10-30)
 
 ### 🐛 Bug Fixes
