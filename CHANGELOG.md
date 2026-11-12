@@ -1,3 +1,10 @@
+## [1.14.8-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.14.8-dev.1...v1.14.8-dev.2) (2026-11-12)
+
+### 🐛 Bug Fixes
+
+* **wildberries:** match ad targets after R8 method renaming ([a608883](https://github.com/xob0t/morphe-patches/commit/a60888318527e0d45813d8deffa9d89f865b6750))
+* **wildberries:** resolve renamed kotlin stdlib members in stub bodies ([386babf](https://github.com/xob0t/morphe-patches/commit/386babf5017e3807b598576eaffea1bcc2ec386f))
+
 ## [1.14.8-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.14.7...v1.14.8-dev.1) (2026-11-12)
 
 ### 🐛 Bug Fixes
