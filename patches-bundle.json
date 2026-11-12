@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-12T14:10:28",
-  "description": "## [1.14.8](https://github.com/xob0t/morphe-patches/compare/v1.14.7...v1.14.8) (2026-11-12)\n\n### 🐛 Bug Fixes\n\n* **avito:** support version 237.0 Favorites tabs ([22ed24a](https://github.com/xob0t/morphe-patches/commit/22ed24a159b0efb6d74fc84f6b56886c287c20d0))\n* **wildberries:** match ad targets after R8 method renaming ([a608883](https://github.com/xob0t/morphe-patches/commit/a60888318527e0d45813d8deffa9d89f865b6750))\n* **wildberries:** resolve renamed kotlin stdlib members in stub bodies ([386babf](https://github.com/xob0t/morphe-patches/commit/386babf5017e3807b598576eaffea1bcc2ec386f))",
-  "download_url": "https://github.com/xob0t/morphe-patches/releases/download/v1.14.8/patches-1.14.8.mpp",
+  "created_at": "2026-11-12T14:18:45",
+  "description": "## [1.14.9](https://github.com/xob0t/morphe-patches/compare/v1.14.8...v1.14.9) (2026-11-12)\n\n### 🐛 Bug Fixes\n\n* **avito:** support version 237.5 ([fdf9fa4](https://github.com/xob0t/morphe-patches/commit/fdf9fa41289921f0bd6a0752c5c35ad1ddaf8faa))",
+  "download_url": "https://github.com/xob0t/morphe-patches/releases/download/v1.14.9/patches-1.14.9.mpp",
   "signature_download_url": "",
-  "version": "1.14.8"
+  "version": "1.14.9"
 }
