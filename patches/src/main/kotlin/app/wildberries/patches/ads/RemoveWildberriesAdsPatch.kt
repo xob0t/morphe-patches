@@ -90,6 +90,11 @@ private fun Method.hasContinuationTail() = parameterTypes.lastOrNull()?.toString
 
 private const val COMPOSER = "Landroidx/compose/runtime/Composer;"
 
+private const val KOTLIN_UNIT = "Lkotlin/Unit;"
+private const val FLOW_KT = "Lkotlinx/coroutines/flow/FlowKt;"
+private const val FLOW = "Lkotlinx/coroutines/flow/Flow;"
+private const val EMPTY_FLOW = "Lkotlinx/coroutines/flow/EmptyFlow;"
+
 private fun Method.params() = parameterTypes.map { it.toString() }
 
 private fun Method.isStatic() = AccessFlags.STATIC.isSet(accessFlags)
@@ -285,6 +290,30 @@ val removeWildberriesAdsPatch = bytecodePatch(
 
     execute {
         val shouldHideRecommendationGrids = hideRecommendationGrids != false
+
+        // 7.8.7000+ lets R8 rename kotlin/kotlinx members too (`Unit.INSTANCE` -> `Unit.a`,
+        // `FlowKt.emptyFlow()` -> `FlowKt.B()`), so resolve the stubs' references from the
+        // app instead of hard-coding them. A stale name still assembles but throws
+        // NoSuchFieldError/NoSuchMethodError at runtime. `EmptyFlow` itself is package-private,
+        // so empty flows go through FlowKt's public accessor.
+        val unitInstance by lazy {
+            val field = classDefByOrNull(KOTLIN_UNIT)?.staticFields?.singleOrNull { it.type == KOTLIN_UNIT }
+                ?: throw PatchException("Could not find the kotlin.Unit singleton field")
+            "$KOTLIN_UNIT->${field.name}:$KOTLIN_UNIT"
+        }
+        val emptyFlowCall by lazy {
+            val method = classDefByOrNull(FLOW_KT)?.methods?.singleOrNull { method ->
+                method.isStatic() &&
+                    AccessFlags.PUBLIC.isSet(method.accessFlags) &&
+                    method.parameterTypes.isEmpty() &&
+                    method.returnType == FLOW &&
+                    method.instructionsOrNull?.any { instruction ->
+                        instruction.opcode == Opcode.SGET_OBJECT &&
+                            instruction.fieldReferenceOrNull()?.definingClass == EMPTY_FLOW
+                    } == true
+            } ?: throw PatchException("Could not find kotlinx.coroutines.flow.FlowKt.emptyFlow()")
+            "$FLOW_KT->${method.name}()$FLOW"
+        }
 
         var patchedBannerWrapperNullableGetters = 0
         var patchedBannerWrapperListGetters = 0
@@ -676,7 +705,7 @@ val removeWildberriesAdsPatch = bytecodePatch(
                             method.addInstructions(
                                 0,
                                 """
-                                    sget-object v0, Lkotlin/Unit;->INSTANCE:Lkotlin/Unit;
+                                    sget-object v0, $unitInstance
                                     return-object v0
                                 """,
                             )
@@ -754,7 +783,7 @@ val removeWildberriesAdsPatch = bytecodePatch(
                                 method.addInstructions(
                                     0,
                                     """
-                                        invoke-static {}, Lkotlinx/coroutines/flow/FlowKt;->emptyFlow()Lkotlinx/coroutines/flow/Flow;
+                                        invoke-static {}, $emptyFlowCall
                                         move-result-object v0
                                         return-object v0
                                     """,
@@ -767,7 +796,7 @@ val removeWildberriesAdsPatch = bytecodePatch(
                                 method.addInstructions(
                                     0,
                                     """
-                                        sget-object v0, Lkotlin/Unit;->INSTANCE:Lkotlin/Unit;
+                                        sget-object v0, $unitInstance
                                         return-object v0
                                     """,
                                 )
