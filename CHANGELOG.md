@@ -1,3 +1,9 @@
+## [1.14.8-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.14.7...v1.14.8-dev.1) (2026-11-12)
+
+### 🐛 Bug Fixes
+
+* **avito:** support version 237.0 Favorites tabs ([22ed24a](https://github.com/xob0t/morphe-patches/commit/22ed24a159b0efb6d74fc84f6b56886c287c20d0))
+
 ## [1.14.4-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.14.3...v1.14.4-dev.1) (2026-10-30)
 
 ### 🐛 Bug Fixes

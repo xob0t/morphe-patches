@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-10-30T23:25:50",
-  "description": "## [1.14.4-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.14.3...v1.14.4-dev.1) (2026-10-30)\n\n### 🐛 Bug Fixes\n\n* **wildberries:** keep the seller name visible when hiding recommendations ([13a31db](https://github.com/xob0t/morphe-patches/commit/13a31db250000d7f3f8bce62c7e83a5a688862ec))",
-  "download_url": "https://github.com/xob0t/morphe-patches/releases/download/v1.14.4-dev.1/patches-1.14.4-dev.1.mpp",
+  "created_at": "2026-11-12T13:55:55",
+  "description": "## [1.14.8-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.14.7...v1.14.8-dev.1) (2026-11-12)\n\n### 🐛 Bug Fixes\n\n* **avito:** support version 237.0 Favorites tabs ([22ed24a](https://github.com/xob0t/morphe-patches/commit/22ed24a159b0efb6d74fc84f6b56886c287c20d0))",
+  "download_url": "https://github.com/xob0t/morphe-patches/releases/download/v1.14.8-dev.1/patches-1.14.8-dev.1.mpp",
   "signature_download_url": "",
-  "version": "1.14.4-dev.1"
+  "version": "1.14.8-dev.1"
 }
