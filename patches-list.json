@@ -1,5 +1,5 @@
 {
-  "version": "1.14.9",
+  "version": "1.14.10",
   "patches": [
     {
       "name": "AMOLED dark theme",
@@ -1172,6 +1172,20 @@
           "appIconColor": "#A73AFD",
           "signatures": null,
           "targets": [
+            {
+              "version": "7.8.8001-rustore",
+              "versionCode": 61095,
+              "isExperimental": false,
+              "minSdk": 26,
+              "description": null
+            },
+            {
+              "version": "7.8.8001",
+              "versionCode": 10061095,
+              "isExperimental": false,
+              "minSdk": 26,
+              "description": null
+            },
             {
               "version": "7.8.6001-rustore",
               "versionCode": 61092,
