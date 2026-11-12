@@ -8,9 +8,12 @@ import app.morphe.patcher.patch.booleanOption
 import app.morphe.patcher.patch.bytecodePatch
 import app.shared.fieldReferenceOrNull
 import app.wildberries.patches.shared.Constants.COMPATIBILITY_WILDBERRIES
+import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.Method
+import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.reference.TypeReference
 
 private val nullableBannerWrapperGetters = setOf(
     "getMainBanners",
@@ -80,15 +83,55 @@ private fun Method.hasContinuationTail() = parameterTypes.lastOrNull()?.toString
         it == "Lkotlin/coroutines/jvm/internal/ContinuationImpl;"
 }
 
-private fun Method.isSuspendUnitMethod(name: String) = this.name == name &&
-    returnType == "Ljava/lang/Object;" &&
-    hasContinuationTail() &&
+// Wildberries 7.8.7000 started letting R8 rename methods (and fields) while keeping
+// class names, so `toDomainBanners` became `e`, `PersonalPageBanners` became `b`, and
+// so on. Every target below is therefore matched by its original name (older builds)
+// OR by a signature that is unique within its already-identified class.
+
+private const val COMPOSER = "Landroidx/compose/runtime/Composer;"
+
+private const val KOTLIN_UNIT = "Lkotlin/Unit;"
+private const val FLOW_KT = "Lkotlinx/coroutines/flow/FlowKt;"
+private const val FLOW = "Lkotlinx/coroutines/flow/Flow;"
+private const val EMPTY_FLOW = "Lkotlinx/coroutines/flow/EmptyFlow;"
+
+private fun Method.params() = parameterTypes.map { it.toString() }
+
+private fun Method.isStatic() = AccessFlags.STATIC.isSet(accessFlags)
+
+private fun Method.isComposableVoid() = returnType == "V" &&
+    COMPOSER in params() &&
     hasImplementation()
 
-private fun Method.isSuspendObjectMethod(name: String) = this.name == name &&
-    returnType == "Ljava/lang/Object;" &&
+/**
+ * Original Kotlin name of a `suspend` method. R8 renames the method itself, but its
+ * state-machine continuation keeps the source name (`Outer$isBigLotteryAvailable$1`)
+ * and the method body type-checks / instantiates exactly that class.
+ */
+private fun Method.suspendSourceName(): String? {
+    val prefix = definingClass.removeSuffix(";") + "$"
+    instructionsOrNull?.forEach { instruction ->
+        if (instruction.opcode != Opcode.INSTANCE_OF && instruction.opcode != Opcode.NEW_INSTANCE) {
+            return@forEach
+        }
+        val type = ((instruction as? ReferenceInstruction)?.reference as? TypeReference)?.type
+            ?: return@forEach
+        if (type.startsWith(prefix) && type.endsWith("\$1;")) {
+            val name = type.substring(prefix.length, type.length - "\$1;".length)
+            if (name.isNotEmpty() && '$' !in name) return name
+        }
+    }
+    return null
+}
+
+private fun Method.isSuspendMethod(name: String) = returnType == "Ljava/lang/Object;" &&
     hasContinuationTail() &&
-    hasImplementation()
+    hasImplementation() &&
+    (this.name == name || suspendSourceName() == name)
+
+private fun Method.isSuspendUnitMethod(name: String) = isSuspendMethod(name)
+
+private fun Method.isSuspendObjectMethod(name: String) = isSuspendMethod(name)
 
 /**
  * Matches every `ru.wildberries.*` method named `isBigSaleSearchBarEnabled`
@@ -203,6 +246,9 @@ private fun String.isCartScreenStateClass() = startsWith("Lru/wildberries/cart/"
 private fun String.isCartRecommendationsViewModelClass() = startsWith("Lru/wildberries/cart/") &&
     endsWith("RecommendationsViewModel;")
 
+private fun String.isCartFirstStepRecommendationsViewModelClass() =
+    this == "Lru/wildberries/cart/firststep/screen/uistate/RecommendationsViewModel;"
+
 // 7.8.x A/B-tests a "merged seller widget" (`EnableMergeSellerWidgetFeatureToggle`).
 // In the MERGED_* variants the seller name/rating card is rendered inside the
 // seller recommendations block, and `SupplierAndBrandInCombinedBlockController`
@@ -245,6 +291,30 @@ val removeWildberriesAdsPatch = bytecodePatch(
     execute {
         val shouldHideRecommendationGrids = hideRecommendationGrids != false
 
+        // 7.8.7000+ lets R8 rename kotlin/kotlinx members too (`Unit.INSTANCE` -> `Unit.a`,
+        // `FlowKt.emptyFlow()` -> `FlowKt.B()`), so resolve the stubs' references from the
+        // app instead of hard-coding them. A stale name still assembles but throws
+        // NoSuchFieldError/NoSuchMethodError at runtime. `EmptyFlow` itself is package-private,
+        // so empty flows go through FlowKt's public accessor.
+        val unitInstance by lazy {
+            val field = classDefByOrNull(KOTLIN_UNIT)?.staticFields?.singleOrNull { it.type == KOTLIN_UNIT }
+                ?: throw PatchException("Could not find the kotlin.Unit singleton field")
+            "$KOTLIN_UNIT->${field.name}:$KOTLIN_UNIT"
+        }
+        val emptyFlowCall by lazy {
+            val method = classDefByOrNull(FLOW_KT)?.methods?.singleOrNull { method ->
+                method.isStatic() &&
+                    AccessFlags.PUBLIC.isSet(method.accessFlags) &&
+                    method.parameterTypes.isEmpty() &&
+                    method.returnType == FLOW &&
+                    method.instructionsOrNull?.any { instruction ->
+                        instruction.opcode == Opcode.SGET_OBJECT &&
+                            instruction.fieldReferenceOrNull()?.definingClass == EMPTY_FLOW
+                    } == true
+            } ?: throw PatchException("Could not find kotlinx.coroutines.flow.FlowKt.emptyFlow()")
+            "$FLOW_KT->${method.name}()$FLOW"
+        }
+
         var patchedBannerWrapperNullableGetters = 0
         var patchedBannerWrapperListGetters = 0
         var patchedMainBannerListGetters = 0
@@ -266,7 +336,9 @@ val removeWildberriesAdsPatch = bytecodePatch(
             when {
                 classType.isBigSaleSearchBarUseCaseClass() -> {
                     mutableClassDefBy(classDef).methods.forEach { method ->
-                        if (method.name == "invoke" &&
+                        // `invoke()Z` up to 7.8.6001, renamed `a()Z` on 7.8.7000: the class's
+                        // only instance no-arg boolean, which also feeds its state flow.
+                        if ((method.name == "invoke" || !method.isStatic()) &&
                             method.returnType == "Z" &&
                             method.parameterTypes.isEmpty() &&
                             method.hasImplementation()
@@ -376,7 +448,11 @@ val removeWildberriesAdsPatch = bytecodePatch(
 
                 classType.isMainPageBannerRenderClass() -> {
                     mutableClassDefBy(classDef).methods.forEach { method ->
-                        if (method.name in bannerRenderMethods && method.isVoidMethod(method.name)) {
+                        // Every composable in these files is a banner carousel/grid entry
+                        // point; match by shape because 7.8.7000 renamed them to `a`/`b`.
+                        if (method.name in bannerRenderMethods && method.isVoidMethod(method.name) ||
+                            method.isStatic() && method.isComposableVoid()
+                        ) {
                             method.addInstructions(
                                 0,
                                 """
@@ -390,7 +466,10 @@ val removeWildberriesAdsPatch = bytecodePatch(
 
                 classType.isPersonalPageBannerRenderClass() -> {
                     mutableClassDefBy(classDef).methods.forEach { method ->
-                        if (method.isVoidMethod("PersonalPageBanners")) {
+                        // `PersonalPageBanners(int, Composer)`, renamed `b` on 7.8.7000.
+                        if (method.isVoidMethod("PersonalPageBanners") ||
+                            method.isComposableVoid() && method.params() == listOf("I", COMPOSER)
+                        ) {
                             method.addInstructions(
                                 0,
                                 """
@@ -407,7 +486,16 @@ val removeWildberriesAdsPatch = bytecodePatch(
                         // `toDomainBanners` returned `List` up to 7.6.x but was tightened
                         // to `ArrayList` on 7.7.2001 — match either so the mapper isn't
                         // silently skipped after the return type narrows.
-                        if (method.isListReturnMethod("toDomainBanners")) {
+                        // 7.8.7000 renamed `toDomainBanners(List, long, BannerAppType)` to `e`.
+                        val isToDomainBanners = method.name == "toDomainBanners" ||
+                            method.params().let { params ->
+                                params.size == 3 &&
+                                    params[0] == "Ljava/util/List;" &&
+                                    params[1] == "J" &&
+                                    params[2].endsWith("/BannerAppType;")
+                            }
+                        if (!isToDomainBanners) return@forEach
+                        if (method.isListReturnMethod(method.name)) {
                             method.addInstructions(
                                 0,
                                 """
@@ -417,7 +505,7 @@ val removeWildberriesAdsPatch = bytecodePatch(
                                 """,
                             )
                             patchedBannerDataMethods++
-                        } else if (method.isArrayListReturnMethod("toDomainBanners")) {
+                        } else if (method.isArrayListReturnMethod(method.name)) {
                             method.addInstructions(
                                 0,
                                 """
@@ -433,7 +521,17 @@ val removeWildberriesAdsPatch = bytecodePatch(
 
                 classType.isBannerDataSourceClass() -> {
                     mutableClassDefBy(classDef).methods.forEach { method ->
-                        if (method.isArrayListReturnMethod("getBannersByLocation")) {
+                        // `getBannersByLocation(List, BannerLocationType, BannerAppType)`,
+                        // renamed `b` on 7.8.7000.
+                        if (method.isArrayListReturnMethod("getBannersByLocation") ||
+                            method.isArrayListReturnMethod(method.name) &&
+                            method.params().let { params ->
+                                params.size == 3 &&
+                                    params[0] == "Ljava/util/List;" &&
+                                    params[1].endsWith("/BannerLocationType;") &&
+                                    params[2].endsWith("/BannerAppType;")
+                            }
+                        ) {
                             method.addInstructions(
                                 0,
                                 """
@@ -469,7 +567,13 @@ val removeWildberriesAdsPatch = bytecodePatch(
                             // 7.7.2001 dropped the `access$` wrapper, exposing the direct
                             // `shouldRecommendationsBeVisible()Z`. Match either.
                             method.isBooleanMethod("access\$shouldRecommendationsBeVisible") ||
-                                method.isBooleanMethod("shouldRecommendationsBeVisible") -> {
+                                method.isBooleanMethod("shouldRecommendationsBeVisible") ||
+                                // Renamed `Ab()Z` on 7.8.7000: the first-step cart view model's
+                                // only instance no-arg boolean method.
+                                classType.isCartFirstStepRecommendationsViewModelClass() &&
+                                !method.isStatic() &&
+                                method.parameterTypes.isEmpty() &&
+                                method.isBooleanMethod(method.name) -> {
                                 method.addInstructions(
                                     0,
                                     """
@@ -492,7 +596,12 @@ val removeWildberriesAdsPatch = bytecodePatch(
                                 patchedCartRecommendationMethods++
                             }
 
-                            method.isVoidMethod("loadRecommendations") -> {
+                            // `loadRecommendations(boolean)`, the only instance `(Z)V`;
+                            // renamed `zb`/`yb` on 7.8.7000.
+                            method.isVoidMethod("loadRecommendations") ||
+                                !method.isStatic() &&
+                                method.params() == listOf("Z") &&
+                                method.isVoidMethod(method.name) -> {
                                 method.addInstructions(
                                     0,
                                     """
@@ -507,7 +616,12 @@ val removeWildberriesAdsPatch = bytecodePatch(
 
                 classType.isSellerRecommendationsDesignVariantClass() -> if (shouldHideRecommendationGrids) {
                     mutableClassDefBy(classDef).methods.forEach { method ->
-                        if (method.isBooleanMethod("isMergedBlockEnabled")) {
+                        // Renamed `a()Z` on 7.8.7000: the enum's only instance no-arg boolean.
+                        if (method.isBooleanMethod("isMergedBlockEnabled") ||
+                            !method.isStatic() &&
+                            method.parameterTypes.isEmpty() &&
+                            method.isBooleanMethod(method.name)
+                        ) {
                             method.addInstructions(
                                 0,
                                 """
@@ -523,7 +637,7 @@ val removeWildberriesAdsPatch = bytecodePatch(
                 classType.isProductRecommendationsGridClass() -> if (shouldHideRecommendationGrids) {
                     mutableClassDefBy(classDef).methods.forEach { method ->
                         if (
-                            method.name.startsWith("recommendationsGrid") &&
+                            // `recommendationsGrid-…` up to 7.8.6001, `a` from 7.8.7000.
                             method.returnType == "V" &&
                             method.parameterTypes.firstOrNull()?.toString() ==
                             "Landroidx/compose/foundation/lazy/grid/LazyGridScope;" &&
@@ -538,7 +652,12 @@ val removeWildberriesAdsPatch = bytecodePatch(
                             val instructions = method.instructionsOrNull?.toList().orEmpty()
                             val gridStateReadIndex = instructions.indexOfFirst { instruction ->
                                 instruction.opcode == Opcode.IGET_OBJECT &&
-                                    instruction.fieldReferenceOrNull()?.name == "recommendationsGridUiState"
+                                    instruction.fieldReferenceOrNull()?.let { field ->
+                                        // Renamed `c` on 7.8.7000; its declaring class and type are stable.
+                                        field.name == "recommendationsGridUiState" ||
+                                            field.definingClass.endsWith("/ProductCardRecommendationsUiState;") &&
+                                            field.type.endsWith("/ProductsGridUiState;")
+                                    } == true
                             }
                             if (gridStateReadIndex >= 0) {
                                 val gridStateRegister =
@@ -559,7 +678,10 @@ val removeWildberriesAdsPatch = bytecodePatch(
                     // (kept for 7.6.x). The lottery popup stays suppressed via the delegate
                     // suspend methods + isBigLotteryAvailable gate below — do not chase it.
                     mutableClassDefBy(classDef).methods.forEach { method ->
-                        if (method.isListReturnMethod("map")) {
+                        if (method.isListReturnMethod("map") ||
+                            method.isListReturnMethod(method.name) &&
+                            method.params().singleOrNull()?.endsWith("/BigLotteryState;") == true
+                        ) {
                             method.addInstructions(
                                 0,
                                 """
@@ -583,7 +705,7 @@ val removeWildberriesAdsPatch = bytecodePatch(
                             method.addInstructions(
                                 0,
                                 """
-                                    sget-object v0, Lkotlin/Unit;->INSTANCE:Lkotlin/Unit;
+                                    sget-object v0, $unitInstance
                                     return-object v0
                                 """,
                             )
@@ -595,9 +717,7 @@ val removeWildberriesAdsPatch = bytecodePatch(
                 classType.isBigLotteryUseCaseClass() -> {
                     mutableClassDefBy(classDef).methods.forEach { method ->
                         when {
-                            method.name == "isBigLotteryAvailable" &&
-                                method.returnType == "Ljava/lang/Object;" &&
-                                method.hasImplementation() -> {
+                            method.isSuspendMethod("isBigLotteryAvailable") -> {
                                 method.addInstructions(
                                     0,
                                     """
@@ -613,7 +733,10 @@ val removeWildberriesAdsPatch = bytecodePatch(
                             // instance method `isBigLotteryEnabled(User)Z`. Match either.
                             (
                                 method.name == "access\$isBigLotteryEnabled" ||
-                                    method.name == "isBigLotteryEnabled"
+                                    method.name == "isBigLotteryEnabled" ||
+                                    // Renamed `d(User)Z` on 7.8.7000.
+                                    !method.isStatic() &&
+                                    method.params() == listOf("Lru/wildberries/domain/user/User;")
                                 ) &&
                                 method.returnType == "Z" &&
                                 method.hasImplementation() -> {
@@ -660,7 +783,7 @@ val removeWildberriesAdsPatch = bytecodePatch(
                                 method.addInstructions(
                                     0,
                                     """
-                                        invoke-static {}, Lkotlinx/coroutines/flow/FlowKt;->emptyFlow()Lkotlinx/coroutines/flow/Flow;
+                                        invoke-static {}, $emptyFlowCall
                                         move-result-object v0
                                         return-object v0
                                     """,
@@ -673,7 +796,7 @@ val removeWildberriesAdsPatch = bytecodePatch(
                                 method.addInstructions(
                                     0,
                                     """
-                                        sget-object v0, Lkotlin/Unit;->INSTANCE:Lkotlin/Unit;
+                                        sget-object v0, $unitInstance
                                         return-object v0
                                     """,
                                 )
@@ -685,7 +808,10 @@ val removeWildberriesAdsPatch = bytecodePatch(
 
                 classType.isRaffleSharedComposableClass() -> {
                     mutableClassDefBy(classDef).methods.forEach { method ->
-                        if (method.isVoidMethod("Content")) {
+                        if (method.isVoidMethod("Content") ||
+                            method.isComposableVoid() &&
+                            method.params().firstOrNull()?.endsWith("/RaffleSharedComposable\$Args;") == true
+                        ) {
                             method.addInstructions(0, "return-void")
                             patchedRaffleMethods++
                         }
@@ -696,7 +822,11 @@ val removeWildberriesAdsPatch = bytecodePatch(
                     mutableClassDefBy(classDef).methods.forEach { method ->
                         if (
                             method.isVoidMethod("RaffleItem") ||
-                            method.isVoidMethod("DefaultRaffleItem")
+                            method.isVoidMethod("DefaultRaffleItem") ||
+                            // Both renamed `a`/`b` on 7.8.7000; both take the banner model first.
+                            method.isStatic() &&
+                            method.isComposableVoid() &&
+                            method.params().firstOrNull()?.endsWith("/RaffleBannerUiModel;") == true
                         ) {
                             method.addInstructions(0, "return-void")
                             patchedRaffleMethods++

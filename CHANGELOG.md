@@ -1,26 +1,15 @@
-## [1.14.7](https://github.com/xob0t/morphe-patches/compare/v1.14.6...v1.14.7) (2026-11-11)
+## [1.14.8-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.14.8-dev.1...v1.14.8-dev.2) (2026-11-12)
 
 ### 🐛 Bug Fixes
 
-* **tbank:** support version 8.6.0 ([dbd0830](https://github.com/xob0t/morphe-patches/commit/dbd08307c84eb575c4f8d1e4a0b25ca28d66c793))
+* **wildberries:** match ad targets after R8 method renaming ([a608883](https://github.com/xob0t/morphe-patches/commit/a60888318527e0d45813d8deffa9d89f865b6750))
+* **wildberries:** resolve renamed kotlin stdlib members in stub bodies ([386babf](https://github.com/xob0t/morphe-patches/commit/386babf5017e3807b598576eaffea1bcc2ec386f))
 
-## [1.14.6](https://github.com/xob0t/morphe-patches/compare/v1.14.5...v1.14.6) (2026-11-03)
-
-### 🐛 Bug Fixes
-
-* **ozon:** support version 19.42.0 ([8632d8d](https://github.com/xob0t/morphe-patches/commit/8632d8dc1fc172dfa736f16f7b772d8898e00e9f))
-
-## [1.14.5](https://github.com/xob0t/morphe-patches/compare/v1.14.4...v1.14.5) (2026-11-02)
+## [1.14.8-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.14.7...v1.14.8-dev.1) (2026-11-12)
 
 ### 🐛 Bug Fixes
 
-* **avito:** support version 236.6 ([b90ba5a](https://github.com/xob0t/morphe-patches/commit/b90ba5a8a827b5343df7a6b96a5cf30567c351fb))
-
-## [1.14.4](https://github.com/xob0t/morphe-patches/compare/v1.14.3...v1.14.4) (2026-10-30)
-
-### 🐛 Bug Fixes
-
-* **wildberries:** keep the seller name visible when hiding recommendations ([13a31db](https://github.com/xob0t/morphe-patches/commit/13a31db250000d7f3f8bce62c7e83a5a688862ec))
+* **avito:** support version 237.0 Favorites tabs ([22ed24a](https://github.com/xob0t/morphe-patches/commit/22ed24a159b0efb6d74fc84f6b56886c287c20d0))
 
 ## [1.14.4-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.14.3...v1.14.4-dev.1) (2026-10-30)
 

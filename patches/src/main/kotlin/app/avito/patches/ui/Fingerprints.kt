@@ -39,11 +39,16 @@ object FavoritesTabsConsumerFingerprint : Fingerprint(
     ),
 )
 
+/**
+ * The static `tabs_control` mapper that builds the Favorites tab-strip state. Its
+ * parameters are deliberately not pinned: Avito 237.0 widened it from
+ * `a(int, List)` to `a(int, String, List)`, while the returned state class (the
+ * part the hook rewrites) kept its shape.
+ */
 object FavoritesTabsControlMapperFingerprint : Fingerprint(
     filters = listOf(
         methodCall(
             definingClass = "Lcom/avito/android/user_favorites/tabs_control/",
-            parameters = listOf("I", "Ljava/util/List;"),
             returnType = "Lcom/avito/android/user_favorites/tabs_control/",
             opcodes = listOf(Opcode.INVOKE_STATIC, Opcode.INVOKE_STATIC_RANGE),
         ),
