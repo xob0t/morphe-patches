@@ -1,3 +1,9 @@
+## [1.14.13](https://github.com/xob0t/morphe-patches/compare/v1.14.12...v1.14.13) (2026-11-18)
+
+### 🐛 Bug Fixes
+
+* **tbank:** support version 8.7.0 ([1b81a40](https://github.com/xob0t/morphe-patches/commit/1b81a40359d5ac0a316fd3fac25cfc8f6fb47f71))
+
 ## [1.14.12](https://github.com/xob0t/morphe-patches/compare/v1.14.11...v1.14.12) (2026-11-17)
 
 ### 🐛 Bug Fixes
