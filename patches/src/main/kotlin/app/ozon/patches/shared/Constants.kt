@@ -14,6 +14,11 @@ internal object Constants {
         appIconColor = 0x005BFF,
         targets = listOf(
             AppTarget(
+                version = "19.45.0",
+                versionCode = 2733,
+                minSdk = 26,
+            ),
+            AppTarget(
                 version = "19.44.0",
                 versionCode = 2732,
                 minSdk = 26,
