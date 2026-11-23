@@ -1,14 +1,8 @@
-## [1.14.17](https://github.com/xob0t/morphe-patches/compare/v1.14.16...v1.14.17) (2026-11-23)
+## [1.14.18-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.14.17...v1.14.18-dev.1) (2026-11-23)
 
 ### 🐛 Bug Fixes
 
-* **avito:** support version 238.0 ([51567ea](https://github.com/xob0t/morphe-patches/commit/51567ea4eeda8379a4194431a67d95c5fcc3ecad))
-
-## [1.14.16](https://github.com/xob0t/morphe-patches/compare/v1.14.15...v1.14.16) (2026-11-23)
-
-### 🐛 Bug Fixes
-
-* **avito:** match 238.0 settings list builder ([#176](https://github.com/xob0t/morphe-patches/issues/176)) ([976cd32](https://github.com/xob0t/morphe-patches/commit/976cd32fe1cce2350cf8b6cf4cc8483abfdc3669))
+* **avito:** support version 238.0 ([#178](https://github.com/xob0t/morphe-patches/issues/178)) ([ef86aab](https://github.com/xob0t/morphe-patches/commit/ef86aabb7391e34a3a08e9d8182b1ba168b2eb24))
 
 ## [1.14.16-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.14.15...v1.14.16-dev.1) (2026-11-23)
 
