@@ -1,52 +1,8 @@
-## [1.14.15](https://github.com/xob0t/morphe-patches/compare/v1.14.14...v1.14.15) (2026-11-23)
+## [1.14.16-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.14.15...v1.14.16-dev.1) (2026-11-23)
 
 ### 🐛 Bug Fixes
 
-* **tbank:** support version 8.7.1 ([34e032d](https://github.com/xob0t/morphe-patches/commit/34e032dc3be132fc3a4cf73ed8b0f9332544aba5))
-
-## [1.14.14](https://github.com/xob0t/morphe-patches/compare/v1.14.13...v1.14.14) (2026-11-21)
-
-### 🐛 Bug Fixes
-
-* **ozon:** support version 19.45.0 ([aea7f84](https://github.com/xob0t/morphe-patches/commit/aea7f840ffcc079f13f157927c47343c1eb5b007))
-
-## [1.14.13](https://github.com/xob0t/morphe-patches/compare/v1.14.12...v1.14.13) (2026-11-18)
-
-### 🐛 Bug Fixes
-
-* **tbank:** support version 8.7.0 ([1b81a40](https://github.com/xob0t/morphe-patches/commit/1b81a40359d5ac0a316fd3fac25cfc8f6fb47f71))
-
-## [1.14.12](https://github.com/xob0t/morphe-patches/compare/v1.14.11...v1.14.12) (2026-11-17)
-
-### 🐛 Bug Fixes
-
-* **wildberries:** support version 7.8.9001-rustore ([d2634fe](https://github.com/xob0t/morphe-patches/commit/d2634fef6c47dea4bc325ecbf64c3006659ed22a))
-
-## [1.14.11](https://github.com/xob0t/morphe-patches/compare/v1.14.10...v1.14.11) (2026-11-17)
-
-### 🐛 Bug Fixes
-
-* **ozon:** support version 19.44.0 ([bc3ec9a](https://github.com/xob0t/morphe-patches/commit/bc3ec9aece61a700a877f8772508c0a74589e18b))
-
-## [1.14.10](https://github.com/xob0t/morphe-patches/compare/v1.14.9...v1.14.10) (2026-11-12)
-
-### 🐛 Bug Fixes
-
-* **wildberries:** support version 7.8.8001-rustore ([42da9f4](https://github.com/xob0t/morphe-patches/commit/42da9f41e3fd437bcea5abadc27f289378e680d2))
-
-## [1.14.9](https://github.com/xob0t/morphe-patches/compare/v1.14.8...v1.14.9) (2026-11-12)
-
-### 🐛 Bug Fixes
-
-* **avito:** support version 237.5 ([fdf9fa4](https://github.com/xob0t/morphe-patches/commit/fdf9fa41289921f0bd6a0752c5c35ad1ddaf8faa))
-
-## [1.14.8](https://github.com/xob0t/morphe-patches/compare/v1.14.7...v1.14.8) (2026-11-12)
-
-### 🐛 Bug Fixes
-
-* **avito:** support version 237.0 Favorites tabs ([22ed24a](https://github.com/xob0t/morphe-patches/commit/22ed24a159b0efb6d74fc84f6b56886c287c20d0))
-* **wildberries:** match ad targets after R8 method renaming ([a608883](https://github.com/xob0t/morphe-patches/commit/a60888318527e0d45813d8deffa9d89f865b6750))
-* **wildberries:** resolve renamed kotlin stdlib members in stub bodies ([386babf](https://github.com/xob0t/morphe-patches/commit/386babf5017e3807b598576eaffea1bcc2ec386f))
+* **avito:** match 238.0 settings list builder ([#176](https://github.com/xob0t/morphe-patches/issues/176)) ([976cd32](https://github.com/xob0t/morphe-patches/commit/976cd32fe1cce2350cf8b6cf4cc8483abfdc3669))
 
 ## [1.14.8-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.14.8-dev.1...v1.14.8-dev.2) (2026-11-12)
 
