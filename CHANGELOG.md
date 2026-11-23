@@ -1,3 +1,9 @@
+## [1.14.16-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.14.15...v1.14.16-dev.1) (2026-11-23)
+
+### 🐛 Bug Fixes
+
+* **avito:** match 238.0 settings list builder ([#176](https://github.com/xob0t/morphe-patches/issues/176)) ([976cd32](https://github.com/xob0t/morphe-patches/commit/976cd32fe1cce2350cf8b6cf4cc8483abfdc3669))
+
 ## [1.14.8-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.14.8-dev.1...v1.14.8-dev.2) (2026-11-12)
 
 ### 🐛 Bug Fixes

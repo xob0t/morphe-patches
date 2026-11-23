@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-12T14:06:33",
-  "description": "## [1.14.8-dev.2](https://github.com/xob0t/morphe-patches/compare/v1.14.8-dev.1...v1.14.8-dev.2) (2026-11-12)\n\n### 🐛 Bug Fixes\n\n* **wildberries:** match ad targets after R8 method renaming ([a608883](https://github.com/xob0t/morphe-patches/commit/a60888318527e0d45813d8deffa9d89f865b6750))\n* **wildberries:** resolve renamed kotlin stdlib members in stub bodies ([386babf](https://github.com/xob0t/morphe-patches/commit/386babf5017e3807b598576eaffea1bcc2ec386f))",
-  "download_url": "https://github.com/xob0t/morphe-patches/releases/download/v1.14.8-dev.2/patches-1.14.8-dev.2.mpp",
+  "created_at": "2026-11-23T18:20:30",
+  "description": "## [1.14.16-dev.1](https://github.com/xob0t/morphe-patches/compare/v1.14.15...v1.14.16-dev.1) (2026-11-23)\n\n### 🐛 Bug Fixes\n\n* **avito:** match 238.0 settings list builder ([#176](https://github.com/xob0t/morphe-patches/issues/176)) ([976cd32](https://github.com/xob0t/morphe-patches/commit/976cd32fe1cce2350cf8b6cf4cc8483abfdc3669))",
+  "download_url": "https://github.com/xob0t/morphe-patches/releases/download/v1.14.16-dev.1/patches-1.14.16-dev.1.mpp",
   "signature_download_url": "",
-  "version": "1.14.8-dev.2"
+  "version": "1.14.16-dev.1"
 }
