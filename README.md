@@ -10,15 +10,15 @@ Personal Morphe patches for Android apps.
 ## Patches
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.14.16-dev.1](https://github.com/xob0t/morphe-patches/releases/tag/v1.14.16-dev.1)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;25 patches total
+> **[v1.14.18-dev.1](https://github.com/xob0t/morphe-patches/releases/tag/v1.14.18-dev.1)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;25 patches total
 <details open>
 <summary>📦 Avito&nbsp;&nbsp;•&nbsp;&nbsp;8 patches</summary>
 <br>
 
 **🎯 Supported versions:**
 
-| 237.5 | 236.6 | 236.1 | 235.5 | 235.1 | 234.5 | 234.0 | 233.5 | 233.1 | 232.0 | 231.5 | 231.0 | 230.5 | 230.0 | 229.1 |
-| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| 238.0 | 237.5 | 236.6 | 236.1 | 235.5 | 235.1 | 234.5 | 234.0 | 233.5 | 233.1 | 232.0 | 231.5 | 231.0 | 230.5 | 230.0 | 229.1 |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
